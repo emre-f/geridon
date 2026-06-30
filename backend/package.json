@@ -1,0 +1,20 @@
+{
+  "name": "geridon-backend",
+  "version": "0.1.0",
+  "description": "Node/TypeScript API and data ingestion service for stock backtesting candles.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/server.ts",
+    "start": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/server.ts",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.ts",
+    "sync": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts sync"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

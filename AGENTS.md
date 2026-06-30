@@ -1,0 +1,1 @@
+- Do not run any "ongoing" processes like `npm run start` yourself, instruct me to run them and I will in my own terminal
