@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import type { Candle } from "@/lib/api";
+import type { Candle, IndicatorSeries } from "@/lib/api";
 import { formatCompact, formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { strokeDashArray } from "@/lib/indicator-style";
 import { useElementSize } from "@/hooks/use-element-size";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -10,6 +11,7 @@ export type ChartTone = "up" | "down";
 
 interface StockChartProps {
   candles: Candle[];
+  indicators?: IndicatorSeries[];
   timeframe: string;
   visibleStartMs?: number;
   visibleEndMs?: number;
@@ -17,6 +19,7 @@ interface StockChartProps {
   tone?: ChartTone;
   loading?: boolean;
   onVisibleCandlesChange?: (candles: Candle[]) => void;
+  onHoverCandleChange?: (candle: Candle | null) => void;
 }
 
 interface ChartPoint {
@@ -38,6 +41,44 @@ interface VolumeBar {
   rising: boolean;
 }
 
+interface SparsePoint {
+  x: number;
+  y: number;
+}
+
+interface IndicatorLine {
+  key: string;
+  label: string;
+  color: string;
+  width: number;
+  opacity: number;
+  dashArray?: string;
+  paths: string[];
+}
+
+interface IndicatorHistogramBar {
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  opacity: number;
+}
+
+interface IndicatorPaneChart {
+  id: string;
+  label: string;
+  kind: IndicatorSeries["kind"];
+  top: number;
+  height: number;
+  ticks: number[];
+  lines: IndicatorLine[];
+  histogramBars: IndicatorHistogramBar[];
+  guides: number[];
+  valueToY: (value: number) => number;
+}
+
 interface Viewport {
   start: number;
   size: number;
@@ -50,9 +91,9 @@ interface PanDrag {
 }
 
 const tooltipGap = 10;
-const hoverTooltipHeightEstimate = 132;
+const hoverTooltipHeightEstimate = 118;
 const measurementTooltipHeightEstimate = 54;
-const hoverTooltipWidth = 188;
+const hoverTooltipWidth = 240;
 const measurementTooltipWidth = 220;
 const minVolumeSlotWidth = 3;
 const minVisibleCandles = 18;
@@ -61,8 +102,16 @@ const selectionGuideStroke = "var(--muted-foreground)";
 const selectionGuideOpacity = 0.5;
 const markerRadius = 4.5;
 const markerStrokeWidth = 2;
-const chartFrameClass = "h-[clamp(400px,calc(100vh-18rem),560px)] w-full";
+const chartFrameClass = "h-[clamp(500px,calc(100vh-16rem),720px)] w-full";
 const chartMorphDurationMs = 320;
+const indicatorPalette = [
+  "var(--indicator-1)",
+  "var(--indicator-2)",
+  "var(--indicator-3)",
+  "var(--indicator-4)",
+  "var(--indicator-5)",
+  "var(--indicator-6)",
+];
 const margin = {
   top: 72,
   right: 76,
@@ -162,6 +211,80 @@ function areaPath(points: ChartPoint[], baseline: number) {
   }
 
   return `${linePath(points)} L ${points.at(-1)!.x} ${baseline} L ${points[0].x} ${baseline} Z`;
+}
+
+function sparseLinePaths(points: Array<SparsePoint | null>) {
+  const paths: string[] = [];
+  let commands: string[] = [];
+
+  function flush() {
+    if (commands.length > 1) {
+      paths.push(commands.join(" "));
+    }
+    commands = [];
+  }
+
+  for (const point of points) {
+    if (!point) {
+      flush();
+      continue;
+    }
+
+    commands.push(`${commands.length === 0 ? "M" : "L"} ${point.x} ${point.y}`);
+  }
+
+  flush();
+  return paths;
+}
+
+function finiteValue(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function customIndicatorColor(indicator: IndicatorSeries, valueIndex: number) {
+  const color = indicator.styles?.[valueIndex]?.color;
+  return color && color.trim() ? color : undefined;
+}
+
+function indicatorColor(indicator: IndicatorSeries, indicatorIndex: number, valueIndex: number) {
+  const color = customIndicatorColor(indicator, valueIndex);
+  if (color) {
+    return color;
+  }
+
+  return indicatorPalette[(indicatorIndex + valueIndex) % indicatorPalette.length];
+}
+
+function indicatorLineVisual(
+  indicator: IndicatorSeries,
+  indicatorIndex: number,
+  valueIndex: number,
+  fallbackWidth: number,
+  fallbackOpacity: number,
+) {
+  const style = indicator.styles?.[valueIndex];
+
+  return {
+    color: indicatorColor(indicator, indicatorIndex, valueIndex),
+    width: style?.width ?? fallbackWidth,
+    opacity: style?.opacity ?? fallbackOpacity,
+    dashArray: style ? strokeDashArray(style.stroke, style.width) : undefined,
+  };
+}
+
+function formatIndicatorNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: Math.abs(value) < 10 ? 4 : 2,
+  }).format(value);
+}
+
+function indicatorValueMaps(indicators: IndicatorSeries[]) {
+  return new Map(
+    indicators.map((indicator) => [
+      indicator.id,
+      new Map(indicator.points.map((point) => [point.timestamp_ms, point.values])),
+    ]),
+  );
 }
 
 function lerp(start: number, end: number, amount: number) {
@@ -316,6 +439,7 @@ function volumeBins(candles: Candle[], plotWidth: number) {
 
 export function StockChart({
   candles,
+  indicators = [],
   timeframe,
   visibleStartMs,
   visibleEndMs,
@@ -323,9 +447,12 @@ export function StockChart({
   tone = "up",
   loading = false,
   onVisibleCandlesChange,
+  onHoverCandleChange,
 }: StockChartProps) {
   const [containerRef, size] = useElementSize<HTMLDivElement>();
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const wheelHandlerRef = useRef<(event: WheelEvent) => void>(() => {});
   const panDragRef = useRef<PanDrag | null>(null);
   const [viewport, setViewport] = useState<Viewport>({ start: 0, size: 0 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -347,20 +474,50 @@ export function StockChart({
     () => candles.slice(viewportStart, viewportStart + viewportSize),
     [candles, viewportSize, viewportStart],
   );
+  const indicatorMaps = useMemo(() => indicatorValueMaps(indicators), [indicators]);
   const canPan = viewportSize > 0 && viewportSize < candles.length;
   const canZoomIn = candles.length > minimumViewportSize && viewportSize > minimumViewportSize;
   const canZoomOut = viewportSize < candles.length;
 
   const chart = useMemo(() => {
     const plotWidth = Math.max(width - margin.left - margin.right, 240);
-    const volumeHeight = clamp(height * 0.18, 76, 112);
+    const volumeHeight = clamp(height * 0.15, 64, 102);
     const volumeGap = 22;
-    const plotHeight = height - margin.top - margin.bottom - volumeHeight - volumeGap;
-    const volumeTop = margin.top + plotHeight + volumeGap;
+    const paneGap = 14;
+    const paneIndicators = indicators.filter((indicator) => indicator.placement === "pane");
+    const overlayIndicators = indicators.filter((indicator) => indicator.placement === "overlay");
+    const paneCount = paneIndicators.length;
+    const availableHeight = height - margin.top - margin.bottom - volumeHeight - volumeGap;
+    const paneGapTotal = paneCount * paneGap;
+    const paneHeight =
+      paneCount === 0
+        ? 0
+        : Math.min(78, Math.max(18, (availableHeight - 130 - paneGapTotal) / paneCount));
+    const paneTotalHeight = paneCount === 0 ? 0 : paneCount * paneHeight + paneGapTotal;
+    const plotHeight = Math.max(120, availableHeight - paneTotalHeight);
+    const volumeTop = margin.top + plotHeight + paneTotalHeight + volumeGap;
+    const overlayNumbers: number[] = [];
+
+    for (const candle of visibleCandles) {
+      for (const indicator of overlayIndicators) {
+        const values = indicatorMaps.get(indicator.id)?.get(candle.timestamp_ms);
+        if (!values) {
+          continue;
+        }
+
+        for (const valueDefinition of indicator.values) {
+          const value = values[valueDefinition.key];
+          if (finiteValue(value)) {
+            overlayNumbers.push(value);
+          }
+        }
+      }
+    }
+
     const lows = visibleCandles.map((candle) => (mode === "line" ? candle.close : candle.low));
     const highs = visibleCandles.map((candle) => (mode === "line" ? candle.close : candle.high));
-    const minLow = lows.length ? Math.min(...lows) : 0;
-    const maxHigh = highs.length ? Math.max(...highs) : 1;
+    const minLow = lows.length || overlayNumbers.length ? Math.min(...lows, ...overlayNumbers) : 0;
+    const maxHigh = highs.length || overlayNumbers.length ? Math.max(...highs, ...overlayNumbers) : 1;
     const pricePadding = Math.max((maxHigh - minLow) * 0.06, maxHigh * 0.002, 1);
     const priceMin = minLow - pricePadding;
     const priceMax = maxHigh + pricePadding;
@@ -379,6 +536,127 @@ export function StockChart({
         lowY: priceToY(candle.low),
         closeY: priceToY(candle.close),
         rising: candle.close >= candle.open,
+      };
+    });
+    const indicatorOrder = new Map(indicators.map((indicator, index) => [indicator.id, index]));
+    const overlayLines = overlayIndicators.flatMap((indicator, overlayIndex) => {
+      const valueMap = indicatorMaps.get(indicator.id);
+      const colorIndex = indicatorOrder.get(indicator.id) ?? overlayIndex;
+
+      return indicator.values
+        .map((valueDefinition, valueIndex) => ({ valueDefinition, valueIndex }))
+        .filter(({ valueDefinition }) => valueDefinition.style === "line")
+        .map(({ valueDefinition, valueIndex }) => {
+          const sparsePoints = visibleCandles.map((candle, candleIndex) => {
+            const value = valueMap?.get(candle.timestamp_ms)?.[valueDefinition.key];
+            return finiteValue(value)
+              ? {
+                  x: margin.left + candleIndex * step,
+                  y: priceToY(value),
+                }
+              : null;
+          });
+
+          return {
+            key: `${indicator.id}-${valueDefinition.key}`,
+            label: `${indicator.label} ${valueDefinition.label}`,
+            ...indicatorLineVisual(indicator, colorIndex, valueIndex, 1.7, 0.95),
+            paths: sparseLinePaths(sparsePoints),
+          };
+        });
+    });
+    const panes: IndicatorPaneChart[] = paneIndicators.map((indicator, paneIndex) => {
+      const top = margin.top + plotHeight + paneGap + paneIndex * (paneHeight + paneGap);
+      const valueMap = indicatorMaps.get(indicator.id);
+      const numericValues = visibleCandles.flatMap((candle) => {
+        const values = valueMap?.get(candle.timestamp_ms);
+        if (!values) {
+          return [];
+        }
+
+        return indicator.values.flatMap((valueDefinition) => {
+          const value = values[valueDefinition.key];
+          return finiteValue(value) ? [value] : [];
+        });
+      });
+      const baseValues = indicator.kind === "macd" || indicator.kind === "atr" ? [0] : [];
+      const scaleValues = numericValues.length > 0 ? [...numericValues, ...baseValues] : [0, 1];
+      const rawMin = indicator.kind === "rsi" ? 0 : Math.min(...scaleValues);
+      const rawMax = indicator.kind === "rsi" ? 100 : Math.max(...scaleValues);
+      const padding =
+        indicator.kind === "rsi"
+          ? 0
+          : Math.max((rawMax - rawMin) * 0.16, Math.max(Math.abs(rawMax), 1) * 0.04);
+      const paneMin = rawMin === rawMax ? rawMin - 1 : rawMin - padding;
+      const paneMax = rawMin === rawMax ? rawMax + 1 : rawMax + padding;
+      const paneRange = paneMax - paneMin || 1;
+      const valueToY = (value: number) =>
+        top + ((paneMax - value) / paneRange) * paneHeight;
+      const colorIndex = indicatorOrder.get(indicator.id) ?? paneIndex;
+      const histogramWidth = clamp(step * 0.52, 1.25, 8);
+      const zeroY = valueToY(0);
+      const histogramBars = indicator.values
+        .map((valueDefinition, valueIndex) => ({ valueDefinition, valueIndex }))
+        .filter(({ valueDefinition }) => valueDefinition.style === "histogram")
+        .flatMap(({ valueDefinition, valueIndex }) =>
+          visibleCandles.flatMap((candle, candleIndex) => {
+            const value = valueMap?.get(candle.timestamp_ms)?.[valueDefinition.key];
+            if (!finiteValue(value)) {
+              return [];
+            }
+
+            const valueY = valueToY(value);
+            const customColor = customIndicatorColor(indicator, valueIndex);
+            return [
+              {
+                key: `${indicator.id}-${valueDefinition.key}-${candle.timestamp_ms}`,
+                x: margin.left + candleIndex * step,
+                y: Math.min(valueY, zeroY),
+                width: histogramWidth,
+                height: Math.max(Math.abs(zeroY - valueY), 1),
+                color: customColor ?? (value >= 0 ? "var(--chart-up-muted)" : "var(--chart-down-muted)"),
+                opacity: indicator.styles?.[valueIndex]?.opacity ?? 1,
+              },
+            ];
+          }),
+        );
+      const lines = indicator.values
+        .map((valueDefinition, valueIndex) => ({ valueDefinition, valueIndex }))
+        .filter(({ valueDefinition }) => valueDefinition.style === "line")
+        .map(({ valueDefinition, valueIndex }) => {
+          const sparsePoints = visibleCandles.map((candle, candleIndex) => {
+            const value = valueMap?.get(candle.timestamp_ms)?.[valueDefinition.key];
+            return finiteValue(value)
+              ? {
+                  x: margin.left + candleIndex * step,
+                  y: valueToY(value),
+                }
+              : null;
+          });
+
+          return {
+            key: `${indicator.id}-${valueDefinition.key}`,
+            label: `${indicator.label} ${valueDefinition.label}`,
+            ...indicatorLineVisual(indicator, colorIndex, valueIndex, 1.5, 1),
+            paths: sparseLinePaths(sparsePoints),
+          };
+        });
+      const ticks =
+        indicator.kind === "rsi"
+          ? [70, 50, 30]
+          : [paneMax, paneMin + (paneMax - paneMin) / 2, paneMin];
+
+      return {
+        id: indicator.id,
+        label: indicator.label,
+        kind: indicator.kind,
+        top,
+        height: paneHeight,
+        ticks,
+        lines,
+        histogramBars,
+        guides: indicator.kind === "rsi" ? [70, 30] : indicator.kind === "macd" ? [0] : [],
+        valueToY,
       };
     });
     const bins = volumeBins(visibleCandles, plotWidth);
@@ -404,6 +682,8 @@ export function StockChart({
 
     return {
       points,
+      overlayLines,
+      panes,
       volumeBars,
       plotWidth,
       plotHeight,
@@ -414,7 +694,7 @@ export function StockChart({
       priceMax,
       step,
     };
-  }, [height, mode, visibleCandles, width]);
+  }, [height, indicatorMaps, indicators, mode, visibleCandles, width]);
 
   const animatedPoints = useAnimatedChartPoints(chart.points);
   const isDragging = dragStartIndex != null && dragEndIndex != null;
@@ -466,7 +746,12 @@ export function StockChart({
   const tooltipHeight =
     measuredTooltipHeight ||
     (measurement ? measurementTooltipHeightEstimate : hoverTooltipHeightEstimate);
-  const tooltipY = margin.top - tooltipHeight - tooltipGap;
+  const tooltipY = Math.max(8, margin.top - tooltipHeight - tooltipGap);
+  const activeCandle = activePoint?.candle ?? null;
+
+  useEffect(() => {
+    onHoverCandleChange?.(activeCandle);
+  }, [activeCandle, onHoverCandleChange]);
 
   useEffect(() => {
     panDragRef.current = null;
@@ -489,14 +774,35 @@ export function StockChart({
     );
   }, [activePoint, measurement, tooltipWidth]);
 
-  function handleWheel(event: React.WheelEvent<SVGSVGElement>) {
+  wheelHandlerRef.current = handleWheel;
+
+  const hasCandles = candles.length > 0;
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) {
+      return;
+    }
+
+    // React registers wheel listeners as passive, which makes preventDefault a
+    // no-op and lets the page scroll while zooming. Attach a native
+    // non-passive listener instead.
+    const listener = (event: WheelEvent) => wheelHandlerRef.current(event);
+    svg.addEventListener("wheel", listener, { passive: false });
+    return () => svg.removeEventListener("wheel", listener);
+  }, [hasCandles]);
+
+  function handleWheel(event: WheelEvent) {
     if (candles.length === 0) {
       return;
     }
 
+    // Keep the page from scrolling/zooming while the cursor is over the chart,
+    // even when the viewport is already at a pan or zoom limit.
+    event.preventDefault();
+
     const horizontalPan = Math.abs(event.deltaX) > Math.abs(event.deltaY);
     if (horizontalPan && canPan) {
-      event.preventDefault();
       const candleDelta = Math.round(event.deltaX / Math.max(chart.step, 1));
       const nextStart = clamp(
         viewportStart + candleDelta,
@@ -512,12 +818,17 @@ export function StockChart({
       return;
     }
 
-    if ((event.deltaY < 0 && !canZoomIn) || (event.deltaY > 0 && !canZoomOut) || event.deltaY === 0) {
+    const svg = svgRef.current;
+    if (
+      !svg ||
+      (event.deltaY < 0 && !canZoomIn) ||
+      (event.deltaY > 0 && !canZoomOut) ||
+      event.deltaY === 0
+    ) {
       return;
     }
 
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = svg.getBoundingClientRect();
     const pointerX = clamp(event.clientX - rect.left, margin.left, margin.left + chart.plotWidth);
     const pointerRatio = clamp((pointerX - margin.left) / chart.plotWidth, 0, 1);
 
@@ -663,6 +974,7 @@ export function StockChart({
     >
       {measuredWidth === 0 ? <Skeleton className="h-full w-full" /> : null}
       <svg
+        ref={svgRef}
         className="h-full w-full touch-none overflow-visible"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
@@ -671,7 +983,6 @@ export function StockChart({
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        onWheel={handleWheel}
         onPointerLeave={() => {
           if (!isPanning) {
             setHoverIndex(null);
@@ -789,6 +1100,112 @@ export function StockChart({
           </g>
         )}
 
+        {chart.overlayLines.map((line) =>
+          line.paths.map((path, pathIndex) => (
+            <path
+              key={`${line.key}-${pathIndex}`}
+              d={path}
+              fill="none"
+              stroke={line.color}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={line.width}
+              strokeDasharray={line.dashArray}
+              opacity={line.opacity}
+            />
+          )),
+        )}
+
+        {chart.panes.map((pane) => (
+          <g key={pane.id}>
+            <line
+              x1={margin.left}
+              x2={margin.left + chart.plotWidth}
+              y1={pane.top}
+              y2={pane.top}
+              stroke="var(--border)"
+            />
+            <line
+              x1={margin.left}
+              x2={margin.left + chart.plotWidth}
+              y1={pane.top + pane.height}
+              y2={pane.top + pane.height}
+              stroke="var(--border)"
+            />
+            <text
+              x={margin.left + 4}
+              y={pane.top + 13}
+              className="fill-muted-foreground text-[11px] font-medium"
+            >
+              {pane.label}
+            </text>
+            {pane.ticks.map((tick) => {
+              const y = pane.valueToY(tick);
+
+              return (
+                <g key={`${pane.id}-${tick}`}>
+                  <line
+                    x1={margin.left}
+                    x2={margin.left + chart.plotWidth}
+                    y1={y}
+                    y2={y}
+                    stroke="var(--border)"
+                    strokeDasharray="3 5"
+                    opacity="0.65"
+                  />
+                  <text
+                    x={width - 8}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="fill-muted-foreground text-[10px]"
+                  >
+                    {formatIndicatorNumber(tick)}
+                  </text>
+                </g>
+              );
+            })}
+            {pane.guides.map((guide) => (
+              <line
+                key={`${pane.id}-guide-${guide}`}
+                x1={margin.left}
+                x2={margin.left + chart.plotWidth}
+                y1={pane.valueToY(guide)}
+                y2={pane.valueToY(guide)}
+                stroke="var(--muted-foreground)"
+                strokeDasharray="4 4"
+                opacity="0.45"
+              />
+            ))}
+            {pane.histogramBars.map((bar) => (
+              <rect
+                key={bar.key}
+                x={bar.x - bar.width / 2}
+                y={bar.y}
+                width={bar.width}
+                height={bar.height}
+                rx="1"
+                fill={bar.color}
+                fillOpacity={bar.opacity}
+              />
+            ))}
+            {pane.lines.map((line) =>
+              line.paths.map((path, pathIndex) => (
+                <path
+                  key={`${line.key}-${pathIndex}`}
+                  d={path}
+                  fill="none"
+                  stroke={line.color}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={line.width}
+                  strokeDasharray={line.dashArray}
+                  opacity={line.opacity}
+                />
+              )),
+            )}
+          </g>
+        ))}
+
         {xTicks(chart.points).map((point, tickIndex, ticks) => {
           const isFirstTick = tickIndex === 0;
           const isLastTick = tickIndex === ticks.length - 1;
@@ -874,7 +1291,7 @@ export function StockChart({
       {activePoint ? (
         <div
           ref={tooltipRef}
-          className="bg-popover text-popover-foreground pointer-events-none absolute rounded-md border px-3 py-2 text-[11px] shadow-md transition-[left,top,width] duration-200 ease-out"
+          className="bg-popover text-popover-foreground pointer-events-none absolute z-20 rounded-md border px-3 py-2 text-[11px] shadow-md transition-[left,top,width] duration-200 ease-out"
           style={{
             top: tooltipY,
             width: tooltipWidth,

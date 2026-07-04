@@ -21,11 +21,19 @@ import {
 
 import {
   deleteSymbol,
+  listIndicatorCatalog,
   listCandles,
+  listIndicators,
   listSymbols,
   syncCandles,
   validateSymbol,
   type Candle,
+  type IndicatorDefinition,
+  type IndicatorKind,
+  type IndicatorLineStyle,
+  type IndicatorParameterDefinition,
+  type IndicatorSpec,
+  type IndicatorSeries,
   type SymbolSummary,
 } from "@/lib/api";
 import {
@@ -35,7 +43,21 @@ import {
   formatCurrency,
   formatDate,
 } from "@/lib/format";
+import {
+  loadChartState,
+  loadLastTicker,
+  removeChartState,
+  saveChartState,
+  saveLastTicker,
+} from "@/lib/chart-state";
+import {
+  defaultLineStyle,
+  definitionValueSlots,
+  normalizeLineStyles,
+} from "@/lib/indicator-style";
 import { cn } from "@/lib/utils";
+import { IndicatorLegend } from "@/components/indicator-legend";
+import { IndicatorPicker } from "@/components/indicator-picker";
 import { StockChart, type ChartMode, type ChartTone } from "@/components/stock-chart";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,9 +94,9 @@ const defaultRangeByTimeframe: Record<string, string> = {
 const longRangeValues = new Set(["5Y", "MAX"]);
 const coverageTolerance = 0.95;
 const themeStorageKey = "geridon-theme";
-const chartModeStorageKey = "geridon-chart-mode";
 const defaultTicker = "SPY";
 const visibleSymbolLimit = 80;
+const maxActiveIndicators = 6;
 
 type Theme = "light" | "dark";
 
@@ -89,14 +111,6 @@ function storedTheme(): Theme {
     return localStorage.getItem(themeStorageKey) === "light" ? "light" : "dark";
   } catch {
     return "dark";
-  }
-}
-
-function storedChartMode(): ChartMode {
-  try {
-    return localStorage.getItem(chartModeStorageKey) === "candle" ? "candle" : "line";
-  } catch {
-    return "line";
   }
 }
 
@@ -211,9 +225,24 @@ function formatSignedCompactCurrency(value: number) {
   return `${value > 0 ? "+" : ""}${formatCompactCurrency(value)}`;
 }
 
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function defaultIndicatorParameters(definition: IndicatorDefinition) {
+  return Object.fromEntries(
+    definition.parameters.map((parameter) => [parameter.key, parameter.default_value]),
+  );
+}
+
+function createIndicatorId(kind: IndicatorKind) {
+  return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+
 export default function App() {
   const [theme, setTheme] = useState<Theme>(storedTheme);
-  const [chartMode, setChartMode] = useState<ChartMode>(storedChartMode);
+  const [chartMode, setChartMode] = useState<ChartMode>("line");
   const [symbols, setSymbols] = useState<SymbolSummary[]>([]);
   const [selectedTicker, setSelectedTicker] = useState("");
   const [symbolFilter, setSymbolFilter] = useState("");
@@ -222,8 +251,14 @@ export default function App() {
   const [range, setRange] = useState(defaultRangeForTimeframe("1d"));
   const [candles, setCandles] = useState<Candle[]>([]);
   const [visibleCandles, setVisibleCandles] = useState<Candle[]>([]);
+  const [indicatorCatalog, setIndicatorCatalog] = useState<IndicatorDefinition[]>([]);
+  const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
+  const [activeIndicators, setActiveIndicators] = useState<IndicatorSpec[]>([]);
+  const [indicatorSeries, setIndicatorSeries] = useState<IndicatorSeries[]>([]);
+  const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
   const [symbolsLoading, setSymbolsLoading] = useState(true);
   const [candlesLoading, setCandlesLoading] = useState(false);
+  const [indicatorsLoading, setIndicatorsLoading] = useState(false);
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [addingSymbol, setAddingSymbol] = useState(false);
   const [deletingTicker, setDeletingTicker] = useState<string | null>(null);
@@ -247,6 +282,10 @@ export default function App() {
   }, [symbolFilter, symbols]);
   const visibleSymbols = filteredSymbols.slice(0, visibleSymbolLimit);
   const timeframes = useMemo(() => availableTimeframes(selectedSymbol), [selectedSymbol]);
+  const indicatorDefinitionsByKind = useMemo(
+    () => new Map(indicatorCatalog.map((definition) => [definition.kind, definition])),
+    [indicatorCatalog],
+  );
   const candleWindow = useMemo(
     () => queryWindow(selectedSymbol, timeframe, range),
     [range, selectedSymbol, timeframe],
@@ -255,6 +294,34 @@ export default function App() {
     () => coverageWindow(selectedSymbol, timeframe),
     [selectedSymbol, timeframe],
   );
+  const indicatorRequestKey = useMemo(
+    () =>
+      JSON.stringify(
+        activeIndicators.map(({ id, kind, parameters }) => ({
+          id,
+          kind,
+          parameters,
+        })),
+      ),
+    [activeIndicators],
+  );
+  const indicatorRequestSpecs = useMemo(
+    () => JSON.parse(indicatorRequestKey) as IndicatorSpec[],
+    [indicatorRequestKey],
+  );
+  const indicatorsForChart = useMemo(() => {
+    const specIndexById = new Map(activeIndicators.map((indicator, index) => [indicator.id, index]));
+    const stylesById = new Map(activeIndicators.map((indicator) => [indicator.id, indicator.styles]));
+
+    return indicatorSeries.map((series) => ({
+      ...series,
+      styles: normalizeLineStyles(
+        stylesById.get(series.id),
+        series.values.length,
+        specIndexById.get(series.id) ?? 0,
+      ),
+    }));
+  }, [activeIndicators, indicatorSeries]);
 
   const summaryCandles = visibleCandles.length > 0 ? visibleCandles : candles;
   const latest = summaryCandles.at(-1);
@@ -292,12 +359,63 @@ export default function App() {
   }, [isDark, theme]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(chartModeStorageKey, chartMode);
-    } catch {
-      // Ignore storage failures so the toggle still works for the current session.
+    if (!selectedTicker) {
+      return;
     }
-  }, [chartMode]);
+
+    saveChartState(selectedTicker, {
+      chartMode,
+      timeframe,
+      range,
+      indicators: activeIndicators,
+    });
+    saveLastTicker(selectedTicker);
+  }, [activeIndicators, chartMode, range, selectedTicker, timeframe]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadIndicatorCatalog() {
+      try {
+        const catalog = await listIndicatorCatalog();
+        if (cancelled) {
+          return;
+        }
+
+        setIndicatorCatalog(catalog);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load indicators.");
+        }
+      }
+    }
+
+    loadIndicatorCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Applies the stored per-ticker chart state (mode, timeframe, range,
+   * indicators). Without stored state the indicators reset so each chart owns
+   * its own configuration; a stored timeframe the symbol no longer covers
+   * falls back to whatever is currently selected.
+   */
+  function restoreChartState(symbol: SymbolSummary) {
+    const stored = loadChartState(symbol.ticker);
+    setActiveIndicators(stored?.indicators ?? []);
+
+    if (!stored) {
+      return;
+    }
+
+    setChartMode(stored.chartMode);
+    if (availableTimeframes(symbol).includes(stored.timeframe)) {
+      setTimeframe(stored.timeframe);
+      setRange(stored.range);
+    }
+  }
 
   async function loadSymbolList(preferredTicker?: string) {
     const nextSymbols = await listSymbols();
@@ -316,6 +434,7 @@ export default function App() {
       const nextTimeframe = nextTimeframes.includes("1d") ? "1d" : nextTimeframes[0] ?? "1d";
       setTimeframe(nextTimeframe);
       setRange(defaultRangeForTimeframe(nextTimeframe));
+      restoreChartState(nextSymbol);
     } else {
       setSelectedTicker("");
       setCandles([]);
@@ -338,13 +457,18 @@ export default function App() {
         }
 
         setSymbols(nextSymbols);
-        const nextDefaultSymbol = defaultSymbol(nextSymbols);
+        const lastTicker = loadLastTicker();
+        const nextDefaultSymbol =
+          (lastTicker
+            ? nextSymbols.find((symbol) => symbol.ticker === lastTicker)
+            : undefined) ?? defaultSymbol(nextSymbols);
         if (nextDefaultSymbol) {
           setSelectedTicker(nextDefaultSymbol.ticker);
           const nextTimeframes = availableTimeframes(nextDefaultSymbol);
           const nextTimeframe = nextTimeframes.includes("1d") ? "1d" : nextTimeframes[0];
           setTimeframe(nextTimeframe);
           setRange(defaultRangeForTimeframe(nextTimeframe));
+          restoreChartState(nextDefaultSymbol);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -379,6 +503,7 @@ export default function App() {
     if (!selectedTicker || !candleRequestWindow) {
       setCandles([]);
       setVisibleCandles([]);
+      setIndicatorSeries([]);
       return;
     }
 
@@ -421,12 +546,64 @@ export default function App() {
   }, [selectedTicker, timeframe, candleRequestWindow]);
 
   useEffect(() => {
+    if (!selectedTicker || !candleRequestWindow || indicatorRequestSpecs.length === 0) {
+      setIndicatorSeries([]);
+      setIndicatorsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const requestWindow = candleRequestWindow;
+
+    async function loadIndicators() {
+      setIndicatorsLoading(true);
+      setError(null);
+
+      try {
+        const nextSeries = await listIndicators({
+          ticker: selectedTicker,
+          timeframe,
+          startMs: requestWindow.startMs,
+          endMs: requestWindow.endMs,
+          indicators: indicatorRequestSpecs,
+        });
+
+        if (!cancelled) {
+          setIndicatorSeries(nextSeries);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setIndicatorSeries([]);
+          setError(loadError instanceof Error ? loadError.message : "Could not load indicators.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIndicatorsLoading(false);
+        }
+      }
+    }
+
+    loadIndicators();
+    return () => {
+      cancelled = true;
+    };
+  }, [candleRequestWindow, indicatorRequestKey, indicatorRequestSpecs, selectedTicker, timeframe]);
+
+  useEffect(() => {
     setVisibleCandles([]);
   }, [range, selectedTicker, timeframe]);
 
   const handleVisibleCandlesChange = useCallback((nextVisibleCandles: Candle[]) => {
     setVisibleCandles(nextVisibleCandles);
   }, []);
+
+  const handleHoverCandleChange = useCallback((nextHoverCandle: Candle | null) => {
+    setHoverCandle(nextHoverCandle);
+  }, []);
+
+  // Legend values track the hovered candle; without a hover they show the
+  // newest candle in view.
+  const legendTimestampMs = (hoverCandle ?? summaryCandles.at(-1))?.timestamp_ms ?? null;
 
   useEffect(() => {
     if (!addPanelOpen) {
@@ -487,6 +664,9 @@ export default function App() {
   }, [symbolContextMenu]);
 
   function selectSymbol(symbol: SymbolSummary) {
+    if (symbol.ticker !== selectedTicker) {
+      restoreChartState(symbol);
+    }
     setSelectedTicker(symbol.ticker);
     setError(null);
     setSymbolContextMenu(null);
@@ -523,6 +703,98 @@ export default function App() {
     setRange(value);
   }
 
+  function addIndicator(definition: IndicatorDefinition) {
+    setActiveIndicators((currentIndicators) => {
+      if (currentIndicators.length >= maxActiveIndicators) {
+        return currentIndicators;
+      }
+
+      return [
+        ...currentIndicators,
+        {
+          id: createIndicatorId(definition.kind),
+          kind: definition.kind,
+          parameters: defaultIndicatorParameters(definition),
+          styles: definitionValueSlots(definition).map((_, slotIndex) =>
+            defaultLineStyle(currentIndicators.length + slotIndex),
+          ),
+        },
+      ];
+    });
+  }
+
+  function removeIndicator(id: string) {
+    setActiveIndicators((currentIndicators) =>
+      currentIndicators.filter((indicator) => indicator.id !== id),
+    );
+  }
+
+  function updateIndicatorParameter(
+    id: string,
+    parameter: IndicatorParameterDefinition,
+    nextValue: number,
+  ) {
+    setActiveIndicators((currentIndicators) =>
+      currentIndicators.map((indicator) => {
+        if (indicator.id !== id) {
+          return indicator;
+        }
+
+        const nextParameters = {
+          ...indicator.parameters,
+          [parameter.key]: nextValue,
+        };
+
+        if (indicator.kind === "macd") {
+          if (parameter.key === "fast" && nextParameters.fast >= nextParameters.slow) {
+            if (nextParameters.fast >= 500) {
+              nextParameters.fast = 499;
+              nextParameters.slow = 500;
+            } else {
+              nextParameters.slow = clampNumber(nextParameters.fast + 1, 2, 500);
+            }
+          }
+          if (parameter.key === "slow" && nextParameters.slow <= nextParameters.fast) {
+            nextParameters.fast = clampNumber(nextParameters.slow - 1, 1, 499);
+          }
+        }
+
+        return {
+          ...indicator,
+          parameters: nextParameters,
+        };
+      }),
+    );
+  }
+
+  function updateIndicatorLineStyle(
+    id: string,
+    slotIndex: number,
+    patch: Partial<IndicatorLineStyle>,
+  ) {
+    setActiveIndicators((currentIndicators) =>
+      currentIndicators.map((indicator, indicatorIndex) => {
+        if (indicator.id !== id) {
+          return indicator;
+        }
+
+        const definition = indicatorDefinitionsByKind.get(indicator.kind);
+        const slotCount = definition ? definitionValueSlots(definition).length : slotIndex + 1;
+        const styles = normalizeLineStyles(
+          indicator.styles,
+          Math.max(slotCount, slotIndex + 1),
+          indicatorIndex,
+        );
+        styles[slotIndex] = { ...styles[slotIndex], ...patch };
+
+        return {
+          ...indicator,
+          styles,
+        };
+      }),
+    );
+  }
+
   async function handleDeleteSymbol(ticker: string) {
     const confirmed = window.confirm(`Delete ${ticker} and all related candle data?`);
     if (!confirmed) {
@@ -536,6 +808,7 @@ export default function App() {
 
     try {
       await deleteSymbol(ticker);
+      removeChartState(ticker);
       await loadSymbolList();
       if (ticker === selectedTicker) {
         setCandles([]);
@@ -700,6 +973,16 @@ export default function App() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIndicatorPickerOpen(true)}
+                  disabled={indicatorCatalog.length === 0}
+                >
+                  <PlusIcon />
+                  Indicators
+                </Button>
+
                 <ToggleGroup
                   type="single"
                   value={chartMode}
@@ -748,16 +1031,30 @@ export default function App() {
             </CardHeader>
 
             <CardContent className="px-4 sm:px-5">
-              <StockChart
-                candles={candles}
-                timeframe={timeframe}
-                visibleStartMs={candleWindow?.startMs}
-                visibleEndMs={candleWindow?.endMs}
-                mode={chartMode}
-                tone={chartTone}
-                loading={candlesLoading || symbolsLoading}
-                onVisibleCandlesChange={handleVisibleCandlesChange}
-              />
+              <div className="relative">
+                <StockChart
+                  candles={candles}
+                  indicators={indicatorsForChart}
+                  timeframe={timeframe}
+                  visibleStartMs={candleWindow?.startMs}
+                  visibleEndMs={candleWindow?.endMs}
+                  mode={chartMode}
+                  tone={chartTone}
+                  loading={candlesLoading || symbolsLoading || indicatorsLoading}
+                  onVisibleCandlesChange={handleVisibleCandlesChange}
+                  onHoverCandleChange={handleHoverCandleChange}
+                />
+                <IndicatorLegend
+                  className="absolute left-2 top-2 z-10 max-w-[75%]"
+                  indicators={activeIndicators}
+                  definitionsByKind={indicatorDefinitionsByKind}
+                  series={indicatorSeries}
+                  valueTimestampMs={legendTimestampMs}
+                  onUpdateParameter={updateIndicatorParameter}
+                  onUpdateLineStyle={updateIndicatorLineStyle}
+                  onRemove={removeIndicator}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -871,6 +1168,14 @@ export default function App() {
           </aside>
         </div>
       </div>
+      <IndicatorPicker
+        open={indicatorPickerOpen}
+        catalog={indicatorCatalog}
+        activeCount={activeIndicators.length}
+        maxCount={maxActiveIndicators}
+        onAdd={addIndicator}
+        onClose={() => setIndicatorPickerOpen(false)}
+      />
       {symbolContextMenu ? (
         <div
           className="bg-popover text-popover-foreground border-border fixed z-50 min-w-44 rounded-md border p-1 shadow-lg"

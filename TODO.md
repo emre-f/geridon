@@ -4,16 +4,16 @@
 [X] Simple charting
 
 ## 4. Indicators
-- [ ] Build indicator API
-- [ ] Implement SMA
-- [ ] Implement EMA
-- [ ] Implement RSI
-- [ ] Implement MACD
-- [ ] Implement Bollinger Bands
-- [ ] Implement ATR
-- [ ] Overlay indicators on chart
-- [ ] Allow multiple indicators
-- [ ] Allow indicator parameter editing
+- [X] Build indicator API
+- [X] Implement SMA
+- [X] Implement EMA
+- [X] Implement RSI
+- [X] Implement MACD
+- [X] Implement Bollinger Bands
+- [X] Implement ATR
+- [X] Overlay indicators on chart
+- [X] Allow multiple indicators
+- [X] Allow indicator parameter editing
 
 ## 5. Strategy Builder
 - [ ] Design strategy JSON schema

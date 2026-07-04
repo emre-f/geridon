@@ -93,6 +93,59 @@ export interface SyncCandlesResponse {
   candles_skipped: number;
 }
 
+export type IndicatorKind = "sma" | "ema" | "rsi" | "macd" | "bollinger" | "atr";
+
+export type IndicatorPlacement = "overlay" | "pane";
+
+export type IndicatorValueStyle = "line" | "histogram";
+
+export interface IndicatorParameterDefinition {
+  key: string;
+  label: string;
+  default_value: number;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface IndicatorDefinition {
+  kind: IndicatorKind;
+  label: string;
+  full_name: string;
+  description: string;
+  placement: IndicatorPlacement;
+  parameters: IndicatorParameterDefinition[];
+  values: IndicatorValueDefinition[];
+}
+
+export interface IndicatorSpec {
+  id?: string;
+  kind: IndicatorKind;
+  parameters?: Record<string, number>;
+}
+
+export interface IndicatorValueDefinition {
+  key: string;
+  label: string;
+  style: IndicatorValueStyle;
+}
+
+export interface IndicatorPointResponse {
+  timestamp_ms: number;
+  timestamp: string;
+  values: Record<string, number | null>;
+}
+
+export interface IndicatorSeriesResponse {
+  id: string;
+  kind: IndicatorKind;
+  label: string;
+  placement: IndicatorPlacement;
+  parameters: Record<string, number>;
+  values: IndicatorValueDefinition[];
+  points: IndicatorPointResponse[];
+}
+
 export interface PolygonAggregate {
   timestamp_ms: number;
   open: number;

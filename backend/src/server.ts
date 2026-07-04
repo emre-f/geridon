@@ -7,6 +7,11 @@ import { sendJson, sendNoContent, readJson } from "./http.ts";
 import { PolygonClient } from "./polygonClient.ts";
 import { aggregateHourlyCandles } from "./services/aggregation.ts";
 import { syncPolygonCandles, syncYahooCandles } from "./services/candles.ts";
+import {
+  computeIndicators,
+  indicatorCatalog,
+  normalizeIndicatorSpecs,
+} from "./services/indicators.ts";
 import type {
   Candle,
   CandleResponse,
@@ -16,6 +21,7 @@ import type {
   SymbolValidationResponse,
 } from "./types.ts";
 import { parseTimeframe, sourceTimeframe } from "./timeframes.ts";
+import type { Timeframe } from "./types.ts";
 import { YahooFinanceClient } from "./yahooClient.ts";
 
 const settings = getSettings();
@@ -225,6 +231,63 @@ function queryCandles(options: {
     .map(rowToCandle);
 }
 
+function parseCandleQuery(searchParams: URLSearchParams): {
+  timeframe: Timeframe;
+  startMs: number;
+  endMs: number;
+  limit: number;
+} {
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
+  if (!start || !end) {
+    throw new Error("start and end query parameters are required.");
+  }
+
+  const timeframe = parseTimeframe(searchParams.get("timeframe") ?? "1h");
+  const startMs = parseDatetimeMs(start);
+  const endMs = parseDatetimeMs(end);
+  const limit = Number(searchParams.get("limit") ?? 5000);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50_000) {
+    throw new Error("limit must be an integer between 1 and 50000.");
+  }
+
+  return { timeframe, startMs, endMs, limit };
+}
+
+function candlesForTimeframe(options: {
+  ticker: string;
+  timeframe: Timeframe;
+  startMs: number;
+  endMs: number;
+  limit: number;
+}): CandleResponse[] {
+  if (options.timeframe.key === "1h" || options.timeframe.key === "1d") {
+    const rows = queryCandles({
+      ticker: options.ticker,
+      multiplier: options.timeframe.multiplier,
+      timespan: options.timeframe.timespan,
+      startMs: options.startMs,
+      endMs: options.endMs,
+      limit: options.limit,
+    });
+
+    if (options.timeframe.key === "1h" || rows.length > 0) {
+      return rows.map((row) => candleResponse(row, options.timeframe.key));
+    }
+  }
+
+  const rows = queryCandles({
+    ticker: options.ticker,
+    multiplier: sourceTimeframe.multiplier,
+    timespan: sourceTimeframe.timespan,
+    startMs: options.startMs,
+    endMs: options.endMs,
+    limit: options.limit,
+  });
+
+  return aggregateHourlyCandles(rows, options.timeframe.key);
+}
+
 async function handleSync(body: SyncCandlesRequest) {
   if (!body || typeof body !== "object") {
     return badRequest("Request body must be an object.");
@@ -285,46 +348,46 @@ async function handleSync(body: SyncCandlesRequest) {
 }
 
 function handleListCandles(tickerPath: string, searchParams: URLSearchParams) {
-  const start = searchParams.get("start");
-  const end = searchParams.get("end");
-  if (!start || !end) {
-    return badRequest("start and end query parameters are required.");
-  }
-
-  const timeframe = parseTimeframe(searchParams.get("timeframe") ?? "1h");
-  const startMs = parseDatetimeMs(start);
-  const endMs = parseDatetimeMs(end);
-  const limit = Number(searchParams.get("limit") ?? 5000);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 50_000) {
-    return badRequest("limit must be an integer between 1 and 50000.");
-  }
-
   const ticker = normalizeTicker(tickerPath);
-  if (timeframe.key === "1h" || timeframe.key === "1d") {
-    const rows = queryCandles({
-      ticker,
-      multiplier: timeframe.multiplier,
-      timespan: timeframe.timespan,
-      startMs,
-      endMs,
-      limit,
-    });
+  const query = parseCandleQuery(searchParams);
+  const body = candlesForTimeframe({ ticker, ...query });
 
-    if (timeframe.key === "1h" || rows.length > 0) {
-      return { statusCode: 200, body: rows.map((row) => candleResponse(row, timeframe.key)) };
-    }
+  return { statusCode: 200, body };
+}
+
+function handleListIndicatorCatalog() {
+  return { statusCode: 200, body: indicatorCatalog };
+}
+
+function handleListIndicators(tickerPath: string, searchParams: URLSearchParams) {
+  const ticker = normalizeTicker(tickerPath);
+  const tickerError = validateTicker(ticker);
+  if (tickerError) {
+    return badRequest(tickerError);
   }
 
-  const rows = queryCandles({
-    ticker,
-    multiplier: sourceTimeframe.multiplier,
-    timespan: sourceTimeframe.timespan,
-    startMs,
-    endMs,
-    limit,
-  });
-  const body = aggregateHourlyCandles(rows, timeframe.key);
+  const rawIndicators = searchParams.get("indicators");
+  if (!rawIndicators) {
+    return badRequest("indicators query parameter is required.");
+  }
 
+  let rawSpecs: unknown;
+  try {
+    rawSpecs = JSON.parse(rawIndicators);
+  } catch {
+    return badRequest("indicators must be a JSON array.");
+  }
+
+  let specs;
+  try {
+    specs = normalizeIndicatorSpecs(rawSpecs);
+  } catch (error) {
+    return badRequest(error instanceof Error ? error.message : "Invalid indicators.");
+  }
+
+  const query = parseCandleQuery(searchParams);
+  const candles = candlesForTimeframe({ ticker, ...query });
+  const body = computeIndicators(candles, specs);
   return { statusCode: 200, body };
 }
 
@@ -344,6 +407,12 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/v1/symbols") {
       const result = handleListSymbols();
+      sendJson(response, result.statusCode, result.body);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/indicators") {
+      const result = handleListIndicatorCatalog();
       sendJson(response, result.statusCode, result.body);
       return;
     }
@@ -376,12 +445,21 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const indicatorMatch = url.pathname.match(/^\/api\/v1\/indicators\/([^/]+)$/);
+    if (request.method === "GET" && indicatorMatch) {
+      const result = handleListIndicators(indicatorMatch[1], url.searchParams);
+      sendJson(response, result.statusCode, result.body);
+      return;
+    }
+
     sendJson(response, 404, { detail: "Not found." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected server error.";
     const statusCode =
       message.startsWith("Unsupported timeframe") ||
       message.startsWith("Invalid datetime") ||
+      message.startsWith("start and end query") ||
+      message.startsWith("limit must") ||
       message.startsWith("start must") ||
       message.startsWith("Sync currently") ||
       message.startsWith("Yahoo sync supports")

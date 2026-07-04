@@ -49,6 +49,70 @@ export interface SyncCandlesResponse {
   candles_skipped: number;
 }
 
+export type IndicatorKind = "sma" | "ema" | "rsi" | "macd" | "bollinger" | "atr";
+
+export type IndicatorPlacement = "overlay" | "pane";
+
+export type IndicatorValueStyle = "line" | "histogram";
+
+export interface IndicatorParameterDefinition {
+  key: string;
+  label: string;
+  default_value: number;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface IndicatorValueDefinition {
+  key: string;
+  label: string;
+  style: IndicatorValueStyle;
+}
+
+export interface IndicatorDefinition {
+  kind: IndicatorKind;
+  label: string;
+  full_name: string;
+  description: string;
+  placement: IndicatorPlacement;
+  parameters: IndicatorParameterDefinition[];
+  values: IndicatorValueDefinition[];
+}
+
+export type IndicatorLineStroke = "solid" | "dashed" | "dotted";
+
+export interface IndicatorLineStyle {
+  color: string;
+  stroke: IndicatorLineStroke;
+  width: number;
+  opacity: number;
+}
+
+export interface IndicatorSpec {
+  id: string;
+  kind: IndicatorKind;
+  parameters: Record<string, number>;
+  styles?: IndicatorLineStyle[];
+}
+
+export interface IndicatorPoint {
+  timestamp_ms: number;
+  timestamp: string;
+  values: Record<string, number | null>;
+}
+
+export interface IndicatorSeries {
+  id: string;
+  kind: IndicatorKind;
+  label: string;
+  placement: IndicatorPlacement;
+  parameters: Record<string, number>;
+  styles?: IndicatorLineStyle[];
+  values: IndicatorValueDefinition[];
+  points: IndicatorPoint[];
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -66,6 +130,10 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function listSymbols() {
   return fetchJson<SymbolSummary[]>("/api/v1/symbols");
+}
+
+export function listIndicatorCatalog() {
+  return fetchJson<IndicatorDefinition[]>("/api/v1/indicators");
 }
 
 export function validateSymbol(ticker: string) {
@@ -118,4 +186,24 @@ export function listCandles(options: {
   });
 
   return fetchJson<Candle[]>(`/api/v1/candles/${encodeURIComponent(options.ticker)}?${params}`);
+}
+
+export function listIndicators(options: {
+  ticker: string;
+  timeframe: string;
+  startMs: number;
+  endMs: number;
+  indicators: IndicatorSpec[];
+}) {
+  const params = new URLSearchParams({
+    timeframe: options.timeframe,
+    start: new Date(options.startMs).toISOString(),
+    end: new Date(options.endMs).toISOString(),
+    limit: "50000",
+    indicators: JSON.stringify(options.indicators),
+  });
+
+  return fetchJson<IndicatorSeries[]>(
+    `/api/v1/indicators/${encodeURIComponent(options.ticker)}?${params}`,
+  );
 }

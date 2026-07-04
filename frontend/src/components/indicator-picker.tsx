@@ -1,0 +1,136 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SearchIcon } from "lucide-react";
+
+import type { IndicatorDefinition } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+
+/**
+ * Modal for adding an indicator: a searchable catalog list showing each
+ * indicator's short name, full name, and a one-line description.
+ */
+export function IndicatorPicker({
+  open,
+  catalog,
+  activeCount,
+  maxCount,
+  onAdd,
+  onClose,
+}: {
+  open: boolean;
+  catalog: IndicatorDefinition[];
+  activeCount: number;
+  maxCount: number;
+  onAdd: (definition: IndicatorDefinition) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const atLimit = activeCount >= maxCount;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setQuery("");
+    inputRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, open]);
+
+  const filteredCatalog = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return catalog;
+    }
+
+    return catalog.filter((definition) =>
+      [definition.kind, definition.label, definition.full_name, definition.description].some(
+        (text) => text?.toLowerCase().includes(normalized),
+      ),
+    );
+  }, [catalog, query]);
+
+  if (!open) {
+    return null;
+  }
+
+  function addDefinition(definition: IndicatorDefinition) {
+    onAdd(definition);
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[12vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add indicator"
+      onPointerDown={onClose}
+    >
+      <div
+        className="border-border bg-popover text-popover-foreground flex w-full max-w-md flex-col rounded-lg border shadow-xl"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <div className="p-3 pb-2">
+          <div className="relative">
+            <SearchIcon className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              ref={inputRef}
+              value={query}
+              placeholder="Search indicators"
+              aria-label="Search indicators"
+              className="pl-9"
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && filteredCatalog.length > 0 && !atLimit) {
+                  addDefinition(filteredCatalog[0]);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex max-h-[50vh] flex-col gap-0.5 overflow-y-auto p-2 pt-1">
+          {filteredCatalog.length === 0 ? (
+            <p className="text-muted-foreground px-3 py-6 text-center text-sm">
+              No indicators match &ldquo;{query}&rdquo;.
+            </p>
+          ) : (
+            filteredCatalog.map((definition) => (
+              <button
+                key={definition.kind}
+                type="button"
+                disabled={atLimit}
+                className="hover:bg-muted flex w-full flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                onClick={() => addDefinition(definition)}
+              >
+                <span className="text-sm font-medium">
+                  {definition.label}
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    &middot; {definition.full_name}
+                  </span>
+                </span>
+                <span className="text-muted-foreground text-xs">{definition.description}</span>
+              </button>
+            ))
+          )}
+        </div>
+
+        {atLimit ? (
+          <p className="border-border text-muted-foreground border-t px-4 py-2.5 text-xs">
+            Limit of {maxCount} indicators reached. Remove one from the chart to add another.
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
