@@ -129,6 +129,7 @@ export interface IndicatorSpec {
 export interface IndicatorValueDefinition {
   key: string;
   label: string;
+  description?: string;
   style: IndicatorValueStyle;
 }
 

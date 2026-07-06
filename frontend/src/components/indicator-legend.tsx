@@ -52,16 +52,19 @@ export function IndicatorLegend({
   definitionsByKind: Map<IndicatorKind, IndicatorDefinition>;
   series: IndicatorSeries[];
   valueTimestampMs: number | null;
-  onUpdateParameter: (
+  onUpdateParameter?: (
     id: string,
     parameter: IndicatorParameterDefinition,
     nextValue: number,
   ) => void;
-  onUpdateLineStyle: (id: string, slotIndex: number, patch: Partial<IndicatorLineStyle>) => void;
-  onRemove: (id: string) => void;
+  onUpdateLineStyle?: (id: string, slotIndex: number, patch: Partial<IndicatorLineStyle>) => void;
+  onRemove?: (id: string) => void;
   className?: string;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  // Chips are interactive whenever line styles are editable; parameter and
+  // remove controls appear only when their callbacks are provided.
+  const interactive = Boolean(onUpdateLineStyle);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const valueMapsById = useMemo(
@@ -151,12 +154,17 @@ export function IndicatorLegend({
             type="button"
             className={cn(
               "bg-card/80 hover:bg-muted pointer-events-auto flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] leading-4 backdrop-blur-[2px] transition-colors",
+              !interactive && "cursor-default hover:bg-card/80",
               open && "bg-muted",
             )}
             aria-expanded={open}
-            aria-label={`${definition.full_name} settings`}
-            title={`${definition.full_name} — click to edit`}
-            onClick={() => setOpenId(open ? null : indicator.id)}
+            aria-label={interactive ? `${definition.full_name} settings` : definition.full_name}
+            title={interactive ? `${definition.full_name} — click to edit` : definition.full_name}
+            onClick={() => {
+              if (interactive) {
+                setOpenId(open ? null : indicator.id);
+              }
+            }}
           >
             <span
               className="size-2 shrink-0 rounded-full"
@@ -183,7 +191,7 @@ export function IndicatorLegend({
         );
       })}
 
-      {openIndicator && openDefinition ? (
+      {openIndicator && openDefinition && onUpdateLineStyle ? (
         // Anchored beside the whole chip stack so it never covers other chips.
         <IndicatorSettings
           className="pointer-events-auto absolute left-[calc(100%+0.5rem)] top-0 z-40"
@@ -192,10 +200,14 @@ export function IndicatorLegend({
           indicatorIndex={openIndicatorIndex}
           onUpdateParameter={onUpdateParameter}
           onUpdateLineStyle={onUpdateLineStyle}
-          onRemove={(id) => {
-            onRemove(id);
-            setOpenId(null);
-          }}
+          onRemove={
+            onRemove
+              ? (id) => {
+                  onRemove(id);
+                  setOpenId(null);
+                }
+              : undefined
+          }
         />
       ) : null}
     </div>
@@ -214,13 +226,13 @@ function IndicatorSettings({
   indicator: IndicatorSpec;
   definition: IndicatorDefinition;
   indicatorIndex: number;
-  onUpdateParameter: (
+  onUpdateParameter?: (
     id: string,
     parameter: IndicatorParameterDefinition,
     nextValue: number,
   ) => void;
   onUpdateLineStyle: (id: string, slotIndex: number, patch: Partial<IndicatorLineStyle>) => void;
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
   className?: string;
 }) {
   const valueSlots = definitionValueSlots(definition);
@@ -239,17 +251,19 @@ function IndicatorSettings({
           <div className="text-sm font-medium leading-tight">{label}</div>
           <div className="text-muted-foreground text-xs">{definition.full_name}</div>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="text-destructive hover:text-destructive size-7 shrink-0"
-          aria-label={`Remove ${label}`}
-          title={`Remove ${label}`}
-          onClick={() => onRemove(indicator.id)}
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
+        {onRemove ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive size-7 shrink-0"
+            aria-label={`Remove ${label}`}
+            title={`Remove ${label}`}
+            onClick={() => onRemove(indicator.id)}
+          >
+            <Trash2Icon className="size-4" />
+          </Button>
+        ) : null}
       </div>
 
       {definition.parameters.length > 0 ? (
@@ -260,15 +274,23 @@ function IndicatorSettings({
               className="text-muted-foreground flex items-center justify-between gap-2 text-xs"
             >
               <span>{parameter.label}</span>
-              <NumberInput
-                value={indicator.parameters[parameter.key] ?? parameter.default_value}
-                min={parameter.min}
-                max={parameter.max}
-                step={parameter.step}
-                className="h-8 w-24 px-2 text-xs"
-                aria-label={`${label} ${parameter.label}`}
-                onValueChange={(nextValue) => onUpdateParameter(indicator.id, parameter, nextValue)}
-              />
+              {onUpdateParameter ? (
+                <NumberInput
+                  value={indicator.parameters[parameter.key] ?? parameter.default_value}
+                  min={parameter.min}
+                  max={parameter.max}
+                  step={parameter.step}
+                  className="h-8 w-24 px-2 text-xs"
+                  aria-label={`${label} ${parameter.label}`}
+                  onValueChange={(nextValue) =>
+                    onUpdateParameter(indicator.id, parameter, nextValue)
+                  }
+                />
+              ) : (
+                <span className="text-foreground tabular-nums">
+                  {indicator.parameters[parameter.key] ?? parameter.default_value}
+                </span>
+              )}
             </label>
           ))}
         </div>

@@ -69,6 +69,7 @@ export interface IndicatorParameterDefinition {
 export interface IndicatorValueDefinition {
   key: string;
   label: string;
+  description?: string;
   style: IndicatorValueStyle;
 }
 
@@ -184,6 +185,11 @@ export interface StrategyValidationIssue {
 export interface StrategyValidationResult {
   valid: boolean;
   errors: StrategyValidationIssue[];
+}
+
+export interface StrategySignal {
+  timestamp_ms: number;
+  side: "buy" | "sell";
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -316,6 +322,26 @@ export function validateStrategy(draft: StrategyDraft) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(draft),
+  });
+}
+
+export function generateSignals(options: {
+  ticker: string;
+  timeframe: string;
+  startMs: number;
+  endMs: number;
+  strategy: StrategyDraft;
+}) {
+  return fetchJson<{ signals: StrategySignal[] }>("/api/v1/signals", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      ticker: options.ticker,
+      timeframe: options.timeframe,
+      start_ms: options.startMs,
+      end_ms: options.endMs,
+      strategy: options.strategy,
+    }),
   });
 }
 

@@ -74,9 +74,24 @@ const indicatorImplementations: IndicatorImplementation[] = [
       { key: "signal", label: "Signal", default_value: 9, min: 1, max: 500, step: 1 },
     ],
     values: [
-      { key: "macd", label: "MACD", style: "line" },
-      { key: "signal", label: "Signal", style: "line" },
-      { key: "histogram", label: "Hist", style: "histogram" },
+      {
+        key: "macd",
+        label: "MACD",
+        description: "Fast EMA minus slow EMA, in price units. Positive when short-term momentum is up.",
+        style: "line",
+      },
+      {
+        key: "signal",
+        label: "Signal",
+        description: "EMA of the MACD line. Crosses with MACD are classic entry/exit signals.",
+        style: "line",
+      },
+      {
+        key: "histogram",
+        label: "Hist",
+        description: "MACD minus Signal. Oscillates around zero; grows as momentum builds.",
+        style: "histogram",
+      },
     ],
     compute: (candles, parameters) => computeMacd(candles, parameters),
     validateParameters: (parameters) =>
@@ -94,9 +109,24 @@ const indicatorImplementations: IndicatorImplementation[] = [
       { key: "stdDev", label: "Std dev", default_value: 2, min: 0.1, max: 10, step: 0.1 },
     ],
     values: [
-      { key: "upper", label: "Upper", style: "line" },
-      { key: "middle", label: "Middle", style: "line" },
-      { key: "lower", label: "Lower", style: "line" },
+      {
+        key: "upper",
+        label: "Upper",
+        description: "Middle band plus N standard deviations, in price units.",
+        style: "line",
+      },
+      {
+        key: "middle",
+        label: "Middle",
+        description: "Simple moving average of close, in price units.",
+        style: "line",
+      },
+      {
+        key: "lower",
+        label: "Lower",
+        description: "Middle band minus N standard deviations, in price units.",
+        style: "line",
+      },
     ],
     compute: (candles, parameters) =>
       computeBollinger(candles, parameters.period, parameters.stdDev),
@@ -110,8 +140,18 @@ const indicatorImplementations: IndicatorImplementation[] = [
     placement: "volume",
     parameters: [{ key: "period", label: "Period", default_value: 20, min: 1, max: 500, step: 1 }],
     values: [
-      { key: "rvol", label: "RVOL", style: "none" },
-      { key: "average", label: "Avg Vol", style: "line" },
+      {
+        key: "rvol",
+        label: "RVOL",
+        description: "Volume divided by average volume. A ratio near 1; 2 means twice the usual activity.",
+        style: "none",
+      },
+      {
+        key: "average",
+        label: "Avg Vol",
+        description: "Average volume of the prior N bars, in shares. Drawn as the line over the volume bars.",
+        style: "line",
+      },
     ],
     compute: (candles, parameters) => computeRvol(candles, parameters.period),
   },

@@ -6,6 +6,7 @@ import { defaultLineStyle, sanitizeLineStyle } from "@/lib/indicator-style";
 
 const chartStateStorageKey = "geridon-chart-state";
 const lastTickerStorageKey = "geridon-last-ticker";
+const lastStrategyStorageKey = "geridon-last-strategy";
 const serverSaveDelayMs = 600;
 
 const chartModes: ChartMode[] = ["line", "candle"];
@@ -189,5 +190,21 @@ export function saveLastTicker(ticker: string) {
     localStorage.setItem(lastTickerStorageKey, ticker);
   } catch {
     // Ignore storage failures so symbol selection still works for this session.
+  }
+}
+
+export function loadLastStrategySelection(): string {
+  try {
+    return localStorage.getItem(lastStrategyStorageKey) ?? "new";
+  } catch {
+    return "new";
+  }
+}
+
+export function saveLastStrategySelection(value: string) {
+  try {
+    localStorage.setItem(lastStrategyStorageKey, value);
+  } catch {
+    // Ignore storage failures so strategy selection still works for this session.
   }
 }

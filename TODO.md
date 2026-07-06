@@ -28,11 +28,11 @@
 - [X] Sync per-ticker chart state to SQLite (survives cleared browser storage)
 
 ## 6. Signal Generation
-- [ ] Generate buy signals
-- [ ] Generate sell signals
-- [ ] Overlay buy markers
-- [ ] Overlay sell markers
-- [ ] Verify signals visually
+- [X] Generate buy signals
+- [X] Generate sell signals
+- [X] Overlay buy markers
+- [X] Overlay sell markers
+- [X] Verify signals visually
 
 ## 7. Backtesting Engine
 - [ ] Parse strategy

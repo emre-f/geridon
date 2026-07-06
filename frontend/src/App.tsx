@@ -20,13 +20,19 @@ import {
 } from "lucide-react";
 
 import {
+  createStrategy,
   deleteSymbol,
+  deleteStrategy,
+  generateSignals,
   listIndicatorCatalog,
   listCandles,
   listIndicators,
+  listStrategies,
   listSymbols,
   syncCandles,
+  updateStrategy,
   validateSymbol,
+  validateStrategy,
   type Candle,
   type IndicatorDefinition,
   type IndicatorKind,
@@ -34,6 +40,12 @@ import {
   type IndicatorParameterDefinition,
   type IndicatorSpec,
   type IndicatorSeries,
+  type StrategyCondition,
+  type StrategyDraft,
+  type StrategyOperand,
+  type StrategyRecord,
+  type StrategySignal,
+  type StrategyValidationResult,
   type SymbolSummary,
 } from "@/lib/api";
 import {
@@ -45,10 +57,12 @@ import {
 } from "@/lib/format";
 import {
   loadChartState,
+  loadLastStrategySelection,
   loadLastTicker,
   pullChartStates,
   removeChartState,
   saveChartState,
+  saveLastStrategySelection,
   saveLastTicker,
 } from "@/lib/chart-state";
 import {
@@ -56,6 +70,7 @@ import {
   definitionValueSlots,
   normalizeLineStyles,
 } from "@/lib/indicator-style";
+import { asRootGroup, createStrategyDraft } from "@/lib/strategy";
 import { cn } from "@/lib/utils";
 import { IndicatorLegend } from "@/components/indicator-legend";
 import { IndicatorPicker } from "@/components/indicator-picker";
@@ -101,6 +116,7 @@ const visibleSymbolLimit = 80;
 const maxActiveIndicators = 6;
 
 type Theme = "light" | "dark";
+type AppTab = "charts" | "strategies";
 
 interface SymbolContextMenu {
   ticker: string;
@@ -241,9 +257,113 @@ function createIndicatorId(kind: IndicatorKind) {
   return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function draftFromRecord(record: StrategyRecord): StrategyDraft {
+  return {
+    name: record.name,
+    entry: asRootGroup(record.entry),
+    exit: asRootGroup(record.exit),
+  };
+}
+
+function stripConditionIds(condition: StrategyCondition): unknown {
+  if (condition.type === "group") {
+    return {
+      type: condition.type,
+      operator: condition.operator,
+      conditions: condition.conditions.map(stripConditionIds),
+    };
+  }
+
+  return {
+    type: condition.type,
+    left: condition.left,
+    operator: condition.operator,
+    right: condition.right,
+  };
+}
+
+function serializableDraft(draft: StrategyDraft) {
+  return {
+    name: draft.name,
+    entry: stripConditionIds(draft.entry),
+    exit: stripConditionIds(draft.exit),
+  };
+}
+
+function sameDraft(left: StrategyDraft | null, right: StrategyDraft | null) {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return JSON.stringify(serializableDraft(left)) === JSON.stringify(serializableDraft(right));
+}
+
+function parametersKey(parameters: Record<string, number>) {
+  return JSON.stringify(
+    Object.fromEntries(Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right))),
+  );
+}
+
+function strategyIndicatorKey(operand: Extract<StrategyOperand, { type: "indicator" }>) {
+  return `${operand.kind}:${parametersKey(operand.parameters)}`;
+}
+
+function collectIndicatorOperands(condition: StrategyCondition, operands: StrategyOperand[] = []) {
+  if (condition.type === "group") {
+    for (const child of condition.conditions) {
+      collectIndicatorOperands(child, operands);
+    }
+    return operands;
+  }
+
+  if (condition.left.type === "indicator") {
+    operands.push(condition.left);
+  }
+  if (condition.right.type === "indicator") {
+    operands.push(condition.right);
+  }
+  return operands;
+}
+
+function strategyIndicatorSpecs(
+  draft: StrategyDraft | null,
+  definitionsByKind: Map<IndicatorKind, IndicatorDefinition>,
+): IndicatorSpec[] {
+  if (!draft) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const operands = [
+    ...collectIndicatorOperands(draft.entry),
+    ...collectIndicatorOperands(draft.exit),
+  ].filter((operand): operand is Extract<StrategyOperand, { type: "indicator" }> => operand.type === "indicator");
+
+  return operands.flatMap((operand, index) => {
+    const key = strategyIndicatorKey(operand);
+    const definition = definitionsByKind.get(operand.kind);
+    if (seen.has(key) || !definition) {
+      return [];
+    }
+    seen.add(key);
+
+    return [
+      {
+        id: `strategy-${operand.kind}-${index}-${key}`,
+        kind: operand.kind,
+        parameters: operand.parameters,
+        styles: definitionValueSlots(definition).map((_, slotIndex) =>
+          defaultLineStyle(seen.size - 1 + slotIndex),
+        ),
+      },
+    ];
+  });
+}
+
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(storedTheme);
+  const [activeTab, setActiveTab] = useState<AppTab>("charts");
   const [chartMode, setChartMode] = useState<ChartMode>("line");
   const [symbols, setSymbols] = useState<SymbolSummary[]>([]);
   const [selectedTicker, setSelectedTicker] = useState("");
@@ -257,15 +377,29 @@ export default function App() {
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [activeIndicators, setActiveIndicators] = useState<IndicatorSpec[]>([]);
   const [indicatorSeries, setIndicatorSeries] = useState<IndicatorSeries[]>([]);
+  const [strategies, setStrategies] = useState<StrategyRecord[]>([]);
+  const [selectedStrategyId, setSelectedStrategyId] = useState<number | null>(null);
+  const [strategyDraft, setStrategyDraft] = useState<StrategyDraft | null>(null);
+  const [strategyValidation, setStrategyValidation] = useState<StrategyValidationResult | null>(null);
+  const [lastValidStrategyDraft, setLastValidStrategyDraft] = useState<StrategyDraft | null>(null);
+  const [strategyPreviewSpecs, setStrategyPreviewSpecs] = useState<IndicatorSpec[]>([]);
+  const [strategyIndicatorSeries, setStrategyIndicatorSeries] = useState<IndicatorSeries[]>([]);
+  const [strategySignals, setStrategySignals] = useState<StrategySignal[]>([]);
   const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
   const [symbolsLoading, setSymbolsLoading] = useState(true);
   const [candlesLoading, setCandlesLoading] = useState(false);
   const [indicatorsLoading, setIndicatorsLoading] = useState(false);
+  const [strategiesLoading, setStrategiesLoading] = useState(true);
+  const [strategyInitialized, setStrategyInitialized] = useState(false);
+  const [strategyIndicatorsLoading, setStrategyIndicatorsLoading] = useState(false);
+  const [strategySaving, setStrategySaving] = useState(false);
+  const [strategyValidating, setStrategyValidating] = useState(false);
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [addingSymbol, setAddingSymbol] = useState(false);
   const [deletingTicker, setDeletingTicker] = useState<string | null>(null);
   const [symbolContextMenu, setSymbolContextMenu] = useState<SymbolContextMenu | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [strategyError, setStrategyError] = useState<string | null>(null);
   const addPanelRef = useRef<HTMLDivElement | null>(null);
   const addTickerInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -324,6 +458,51 @@ export default function App() {
       ),
     }));
   }, [activeIndicators, indicatorSeries]);
+  const selectedStrategyRecord = useMemo(
+    () => strategies.find((strategy) => strategy.id === selectedStrategyId),
+    [selectedStrategyId, strategies],
+  );
+  const strategyDirty = useMemo(() => {
+    if (!strategyDraft) {
+      return false;
+    }
+    if (!selectedStrategyRecord) {
+      // A pristine (New) draft is not worth warning about; only edits are.
+      return !sameDraft(strategyDraft, createStrategyDraft(indicatorCatalog));
+    }
+
+    return !sameDraft(strategyDraft, draftFromRecord(selectedStrategyRecord));
+  }, [indicatorCatalog, selectedStrategyRecord, strategyDraft]);
+  const strategyPreviewKey = useMemo(
+    () =>
+      JSON.stringify(
+        strategyPreviewSpecs.map(({ id, kind, parameters }) => ({
+          id,
+          kind,
+          parameters,
+        })),
+      ),
+    [strategyPreviewSpecs],
+  );
+  const strategyPreviewRequestSpecs = useMemo(
+    () => JSON.parse(strategyPreviewKey) as IndicatorSpec[],
+    [strategyPreviewKey],
+  );
+  const strategyIndicatorsForChart = useMemo(() => {
+    const specIndexById = new Map(strategyPreviewSpecs.map((indicator, index) => [indicator.id, index]));
+    const stylesById = new Map(strategyPreviewSpecs.map((indicator) => [indicator.id, indicator.styles]));
+
+    return strategyIndicatorSeries.map((series) => ({
+      ...series,
+      styles: normalizeLineStyles(
+        stylesById.get(series.id),
+        series.values.length,
+        specIndexById.get(series.id) ?? 0,
+      ),
+    }));
+  }, [strategyIndicatorSeries, strategyPreviewSpecs]);
+  const chartIndicators = activeTab === "strategies" ? strategyIndicatorsForChart : indicatorsForChart;
+  const chartSignals = activeTab === "strategies" ? strategySignals : [];
 
   const summaryCandles = visibleCandles.length > 0 ? visibleCandles : candles;
   const latest = summaryCandles.at(-1);
@@ -365,14 +544,21 @@ export default function App() {
       return;
     }
 
+    saveLastTicker(selectedTicker);
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    if (!selectedTicker || activeTab !== "charts") {
+      return;
+    }
+
     saveChartState(selectedTicker, {
       chartMode,
       timeframe,
       range,
       indicators: activeIndicators,
     });
-    saveLastTicker(selectedTicker);
-  }, [activeIndicators, chartMode, range, selectedTicker, timeframe]);
+  }, [activeIndicators, activeTab, chartMode, range, selectedTicker, timeframe]);
 
   useEffect(() => {
     let cancelled = false;
@@ -397,6 +583,59 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedStrategies() {
+      try {
+        const records = await listStrategies();
+        if (!cancelled) {
+          setStrategies(records);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setStrategyError(loadError instanceof Error ? loadError.message : "Could not load strategies.");
+        }
+      } finally {
+        if (!cancelled) {
+          setStrategiesLoading(false);
+        }
+      }
+    }
+
+    loadSavedStrategies();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (strategyInitialized || strategiesLoading || indicatorCatalog.length === 0) {
+      return;
+    }
+
+    const remembered = loadLastStrategySelection();
+    const rememberedRecord =
+      remembered === "new"
+        ? undefined
+        : strategies.find((strategy) => strategy.id === Number(remembered));
+
+    if (rememberedRecord) {
+      const nextDraft = draftFromRecord(rememberedRecord);
+      setSelectedStrategyId(rememberedRecord.id);
+      setStrategyDraft(nextDraft);
+      setLastValidStrategyDraft(nextDraft);
+      applyStrategyPreviewSpecs(strategyIndicatorSpecs(nextDraft, indicatorDefinitionsByKind));
+    } else {
+      const nextDraft = createStrategyDraft(indicatorCatalog);
+      setSelectedStrategyId(null);
+      setStrategyDraft(nextDraft);
+      setLastValidStrategyDraft(nextDraft);
+      applyStrategyPreviewSpecs(strategyIndicatorSpecs(nextDraft, indicatorDefinitionsByKind));
+    }
+    setStrategyInitialized(true);
+  }, [indicatorCatalog, indicatorDefinitionsByKind, strategies, strategiesLoading, strategyInitialized]);
 
   /**
    * Applies the stored per-ticker chart state (mode, timeframe, range,
@@ -594,6 +833,159 @@ export default function App() {
   }, [candleRequestWindow, indicatorRequestKey, indicatorRequestSpecs, selectedTicker, timeframe]);
 
   useEffect(() => {
+    if (activeTab !== "strategies" || !strategyDraft || indicatorCatalog.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      setStrategyValidating(true);
+      setStrategyError(null);
+
+      try {
+        const result = await validateStrategy(strategyDraft);
+        if (cancelled) {
+          return;
+        }
+
+        setStrategyValidation(result);
+        if (result.valid) {
+          setLastValidStrategyDraft(strategyDraft);
+          applyStrategyPreviewSpecs(strategyIndicatorSpecs(strategyDraft, indicatorDefinitionsByKind));
+        }
+      } catch (validateError) {
+        if (!cancelled) {
+          setStrategyError(
+            validateError instanceof Error ? validateError.message : "Could not validate the strategy.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setStrategyValidating(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [activeTab, indicatorCatalog.length, indicatorDefinitionsByKind, strategyDraft]);
+
+  useEffect(() => {
+    if (
+      activeTab !== "strategies" ||
+      !selectedTicker ||
+      !candleRequestWindow ||
+      strategyPreviewRequestSpecs.length === 0
+    ) {
+      setStrategyIndicatorSeries([]);
+      setStrategyIndicatorsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const requestWindow = candleRequestWindow;
+
+    async function loadStrategyIndicators() {
+      setStrategyIndicatorsLoading(true);
+      setStrategyError(null);
+
+      try {
+        const nextSeries = await listIndicators({
+          ticker: selectedTicker,
+          timeframe,
+          startMs: requestWindow.startMs,
+          endMs: requestWindow.endMs,
+          indicators: strategyPreviewRequestSpecs,
+        });
+
+        if (!cancelled) {
+          setStrategyIndicatorSeries(nextSeries);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setStrategyIndicatorSeries([]);
+          setStrategyError(loadError instanceof Error ? loadError.message : "Could not load strategy indicators.");
+        }
+      } finally {
+        if (!cancelled) {
+          setStrategyIndicatorsLoading(false);
+        }
+      }
+    }
+
+    loadStrategyIndicators();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    candleRequestWindow,
+    selectedTicker,
+    strategyPreviewKey,
+    strategyPreviewRequestSpecs,
+    timeframe,
+  ]);
+
+  useEffect(() => {
+    setStrategySignals([]);
+
+    if (activeTab !== "strategies" || !selectedTicker || !candleRequestWindow || !lastValidStrategyDraft) {
+      return;
+    }
+
+    let cancelled = false;
+    const requestWindow = candleRequestWindow;
+    const requestStrategy = lastValidStrategyDraft;
+
+    async function loadSignals() {
+      try {
+        const response = await generateSignals({
+          ticker: selectedTicker,
+          timeframe,
+          startMs: requestWindow.startMs,
+          endMs: requestWindow.endMs,
+          strategy: requestStrategy,
+        });
+
+        if (!cancelled) {
+          setStrategySignals(response.signals);
+        }
+      } catch (signalError) {
+        if (!cancelled) {
+          setStrategyError(signalError instanceof Error ? signalError.message : "Could not generate signals.");
+        }
+      }
+    }
+
+    loadSignals();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, candleRequestWindow, lastValidStrategyDraft, selectedTicker, timeframe]);
+
+  useEffect(() => {
+    if (!strategyDirty) {
+      return;
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [strategyDirty]);
+
+  useEffect(() => {
+    if (activeTab !== "charts") {
+      setIndicatorPickerOpen(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     setVisibleCandles([]);
   }, [range, selectedTicker, timeframe]);
 
@@ -666,6 +1058,162 @@ export default function App() {
       window.removeEventListener("keydown", closeContextMenuOnEscape);
     };
   }, [symbolContextMenu]);
+
+  function confirmDiscardStrategyChanges() {
+    return !strategyDirty || window.confirm("You have unsaved changes — discard them?");
+  }
+
+  function resetCurrentStrategyDraft() {
+    if (selectedStrategyRecord) {
+      setStrategyDraft(draftFromRecord(selectedStrategyRecord));
+      return;
+    }
+
+    if (indicatorCatalog.length > 0) {
+      setStrategyDraft(createStrategyDraft(indicatorCatalog));
+    }
+  }
+
+  function handleTabChange(value: string) {
+    if (!value || value === activeTab) {
+      return;
+    }
+
+    if (value === "charts" && !confirmDiscardStrategyChanges()) {
+      return;
+    }
+    if (value === "charts") {
+      resetCurrentStrategyDraft();
+      setStrategyValidation(null);
+      setStrategyError(null);
+    }
+
+    setActiveTab(value as AppTab);
+  }
+
+  function openStrategyRecord(record: StrategyRecord) {
+    const nextDraft = draftFromRecord(record);
+    setSelectedStrategyId(record.id);
+    setStrategyDraft(nextDraft);
+    setStrategyValidation(null);
+    setStrategyError(null);
+    setLastValidStrategyDraft(nextDraft);
+    applyStrategyPreviewSpecs(strategyIndicatorSpecs(nextDraft, indicatorDefinitionsByKind));
+    setStrategySignals([]);
+    saveLastStrategySelection(String(record.id));
+  }
+
+  function openNewStrategy() {
+    const nextDraft = createStrategyDraft(indicatorCatalog);
+    setSelectedStrategyId(null);
+    setStrategyDraft(nextDraft);
+    setStrategyValidation(null);
+    setStrategyError(null);
+    setLastValidStrategyDraft(nextDraft);
+    applyStrategyPreviewSpecs(strategyIndicatorSpecs(nextDraft, indicatorDefinitionsByKind));
+    setStrategySignals([]);
+    saveLastStrategySelection("new");
+  }
+
+  function handleStrategySelect(value: string) {
+    if (!confirmDiscardStrategyChanges()) {
+      return;
+    }
+
+    if (value === "new") {
+      openNewStrategy();
+      return;
+    }
+
+    const record = strategies.find((strategy) => strategy.id === Number(value));
+    if (record) {
+      openStrategyRecord(record);
+    }
+  }
+
+  function handleStrategyDraftChange(nextDraft: StrategyDraft) {
+    setStrategyDraft(nextDraft);
+    setStrategyValidation(null);
+    setStrategyError(null);
+  }
+
+  async function handleStrategyValidate() {
+    if (!strategyDraft) {
+      return null;
+    }
+
+    setStrategyValidating(true);
+    setStrategyError(null);
+    try {
+      const result = await validateStrategy(strategyDraft);
+      setStrategyValidation(result);
+      if (result.valid) {
+        setLastValidStrategyDraft(strategyDraft);
+        applyStrategyPreviewSpecs(strategyIndicatorSpecs(strategyDraft, indicatorDefinitionsByKind));
+      }
+      return result;
+    } catch (validateError) {
+      setStrategyError(
+        validateError instanceof Error ? validateError.message : "Could not validate the strategy.",
+      );
+      return null;
+    } finally {
+      setStrategyValidating(false);
+    }
+  }
+
+  async function handleStrategySave() {
+    if (!strategyDraft) {
+      return;
+    }
+
+    const result = await handleStrategyValidate();
+    if (!result?.valid) {
+      return;
+    }
+
+    setStrategySaving(true);
+    setStrategyError(null);
+    try {
+      const record =
+        selectedStrategyId == null
+          ? await createStrategy(strategyDraft)
+          : await updateStrategy(selectedStrategyId, strategyDraft);
+      setStrategies((current) => {
+        const others = current.filter((strategy) => strategy.id !== record.id);
+        return [...others, record].sort(
+          (left, right) => left.name.localeCompare(right.name) || left.id - right.id,
+        );
+      });
+      openStrategyRecord(record);
+      setStrategyValidation(result);
+    } catch (saveError) {
+      setStrategyError(saveError instanceof Error ? saveError.message : "Could not save the strategy.");
+    } finally {
+      setStrategySaving(false);
+    }
+  }
+
+  async function handleStrategyDelete() {
+    if (selectedStrategyId == null) {
+      return;
+    }
+
+    const record = strategies.find((strategy) => strategy.id === selectedStrategyId);
+    if (!window.confirm(`Delete strategy "${record?.name ?? selectedStrategyId}"?`)) {
+      return;
+    }
+
+    setStrategyError(null);
+    try {
+      await deleteStrategy(selectedStrategyId);
+      const remaining = strategies.filter((strategy) => strategy.id !== selectedStrategyId);
+      setStrategies(remaining);
+      openNewStrategy();
+    } catch (deleteError) {
+      setStrategyError(deleteError instanceof Error ? deleteError.message : "Could not delete the strategy.");
+    }
+  }
 
   function selectSymbol(symbol: SymbolSummary) {
     if (symbol.ticker !== selectedTicker) {
@@ -766,6 +1314,51 @@ export default function App() {
         return {
           ...indicator,
           parameters: nextParameters,
+        };
+      }),
+    );
+  }
+
+  function applyStrategyPreviewSpecs(nextSpecs: IndicatorSpec[]) {
+    // Preview specs are rebuilt from the draft on every rule edit; carry over
+    // user-chosen line styles. Ids embed the operand index (which shifts as
+    // rules change), so match on kind + parameters instead.
+    setStrategyPreviewSpecs((previousSpecs) =>
+      nextSpecs.map((spec) => {
+        const previous = previousSpecs.find(
+          (candidate) =>
+            candidate.kind === spec.kind &&
+            JSON.stringify(candidate.parameters) === JSON.stringify(spec.parameters),
+        );
+
+        return previous?.styles ? { ...spec, styles: previous.styles } : spec;
+      }),
+    );
+  }
+
+  function updateStrategyIndicatorLineStyle(
+    id: string,
+    slotIndex: number,
+    patch: Partial<IndicatorLineStyle>,
+  ) {
+    setStrategyPreviewSpecs((currentIndicators) =>
+      currentIndicators.map((indicator, indicatorIndex) => {
+        if (indicator.id !== id) {
+          return indicator;
+        }
+
+        const definition = indicatorDefinitionsByKind.get(indicator.kind);
+        const slotCount = definition ? definitionValueSlots(definition).length : slotIndex + 1;
+        const styles = normalizeLineStyles(
+          indicator.styles,
+          Math.max(slotCount, slotIndex + 1),
+          indicatorIndex,
+        );
+        styles[slotIndex] = { ...styles[slotIndex], ...patch };
+
+        return {
+          ...indicator,
+          styles,
         };
       }),
     );
@@ -902,11 +1495,26 @@ export default function App() {
     <main className="bg-background text-foreground min-h-screen">
       <div className="flex w-full flex-col gap-3 px-3 py-3 sm:px-4 lg:px-5 2xl:px-6">
         <header className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
-            <h1 className="text-lg font-semibold leading-none">geridon</h1>
-            <span className="text-muted-foreground truncate text-sm leading-none">
-              | backtest your trading strategies
-            </span>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+              <h1 className="text-lg font-semibold leading-none">geridon</h1>
+              <span className="text-muted-foreground truncate text-sm leading-none">
+                | backtest your trading strategies
+              </span>
+            </div>
+            <ToggleGroup
+              type="single"
+              value={activeTab}
+              onValueChange={handleTabChange}
+              aria-label="Workspace tab"
+            >
+              <ToggleGroupItem value="charts" className={selectedControlClass}>
+                Charts
+              </ToggleGroupItem>
+              <ToggleGroupItem value="strategies" className={selectedControlClass}>
+                Strategies
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -946,15 +1554,17 @@ export default function App() {
             <Card className="gap-4">
               <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIndicatorPickerOpen(true)}
-                    disabled={indicatorCatalog.length === 0}
-                  >
-                    <PlusIcon />
-                    Indicators
-                  </Button>
+                  {activeTab === "charts" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIndicatorPickerOpen(true)}
+                      disabled={indicatorCatalog.length === 0}
+                    >
+                      <PlusIcon />
+                      Indicators
+                    </Button>
+                  ) : null}
 
                   <ToggleGroup
                     type="single"
@@ -1047,31 +1657,67 @@ export default function App() {
                 <div className="relative">
                   <StockChart
                     candles={candles}
-                    indicators={indicatorsForChart}
+                    indicators={chartIndicators}
+                    signals={chartSignals}
                     timeframe={timeframe}
                     visibleStartMs={candleWindow?.startMs}
                     visibleEndMs={candleWindow?.endMs}
                     mode={chartMode}
                     tone={chartTone}
-                    loading={candlesLoading || symbolsLoading || indicatorsLoading}
+                    loading={
+                      candlesLoading ||
+                      symbolsLoading ||
+                      (activeTab === "strategies" ? strategyIndicatorsLoading : indicatorsLoading)
+                    }
                     onVisibleCandlesChange={handleVisibleCandlesChange}
                     onHoverCandleChange={handleHoverCandleChange}
                   />
-                  <IndicatorLegend
-                    className="absolute left-2 top-2 z-10 max-w-[75%]"
-                    indicators={activeIndicators}
-                    definitionsByKind={indicatorDefinitionsByKind}
-                    series={indicatorSeries}
-                    valueTimestampMs={legendTimestampMs}
-                    onUpdateParameter={updateIndicatorParameter}
-                    onUpdateLineStyle={updateIndicatorLineStyle}
-                    onRemove={removeIndicator}
-                  />
+                  {activeTab === "strategies" ? (
+                    <IndicatorLegend
+                      className="absolute left-2 top-2 z-10 max-w-[75%] transition-opacity duration-200 motion-reduce:transition-none"
+                      indicators={strategyPreviewSpecs}
+                      definitionsByKind={indicatorDefinitionsByKind}
+                      series={strategyIndicatorSeries}
+                      valueTimestampMs={legendTimestampMs}
+                      onUpdateLineStyle={updateStrategyIndicatorLineStyle}
+                    />
+                  ) : (
+                    <IndicatorLegend
+                      className="absolute left-2 top-2 z-10 max-w-[75%] transition-opacity duration-200 motion-reduce:transition-none"
+                      indicators={activeIndicators}
+                      definitionsByKind={indicatorDefinitionsByKind}
+                      series={indicatorSeries}
+                      valueTimestampMs={legendTimestampMs}
+                      onUpdateParameter={updateIndicatorParameter}
+                      onUpdateLineStyle={updateIndicatorLineStyle}
+                      onRemove={removeIndicator}
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
-  
-            <StrategyBuilder catalog={indicatorCatalog} />
+
+            {activeTab === "strategies" ? (
+              <div className="transition-all duration-200 motion-reduce:transition-none">
+                <StrategyBuilder
+                  catalog={indicatorCatalog}
+                  strategies={strategies}
+                  selectedId={selectedStrategyId}
+                  draft={strategyDraft}
+                  dirty={strategyDirty}
+                  loading={strategiesLoading || !strategyInitialized}
+                  saving={strategySaving}
+                  validating={strategyValidating}
+                  validation={strategyValidation}
+                  error={strategyError}
+                  onDraftChange={handleStrategyDraftChange}
+                  onSelectStrategy={handleStrategySelect}
+                  onDelete={handleStrategyDelete}
+                  onValidate={handleStrategyValidate}
+                  onSave={handleStrategySave}
+                />
+              </div>
+            ) : null}
           </div>
 
           <aside className="flex min-h-0 flex-col gap-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">

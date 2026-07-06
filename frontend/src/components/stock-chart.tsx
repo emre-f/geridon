@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import type { Candle, IndicatorSeries } from "@/lib/api";
+import type { Candle, IndicatorSeries, StrategySignal } from "@/lib/api";
 import { formatCompact, formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { strokeDashArray } from "@/lib/indicator-style";
 import { useElementSize } from "@/hooks/use-element-size";
@@ -12,6 +12,7 @@ export type ChartTone = "up" | "down";
 interface StockChartProps {
   candles: Candle[];
   indicators?: IndicatorSeries[];
+  signals?: StrategySignal[];
   timeframe: string;
   visibleStartMs?: number;
   visibleEndMs?: number;
@@ -66,6 +67,12 @@ interface IndicatorHistogramBar {
   opacity: number;
 }
 
+interface SignalMarker {
+  key: string;
+  side: StrategySignal["side"];
+  points: string;
+}
+
 interface IndicatorPaneChart {
   id: string;
   label: string;
@@ -102,6 +109,7 @@ const selectionGuideStroke = "var(--muted-foreground)";
 const selectionGuideOpacity = 0.5;
 const markerRadius = 4.5;
 const markerStrokeWidth = 2;
+const signalMarkerSize = 6;
 const chartFrameClass = "h-[clamp(500px,calc(100vh-16rem),720px)] w-full";
 const chartMorphDurationMs = 320;
 const indicatorPalette = [
@@ -414,14 +422,15 @@ function volumeBins(candles: Candle[], plotWidth: number) {
   }
 
   const maxBars = Math.max(1, Math.floor(plotWidth / minVolumeSlotWidth));
-  const binCount = Math.min(candles.length, maxBars);
+  // Fixed-size bins: proportional slicing yields alternating bin sizes (e.g.
+  // 2,2,3 repeating), and since indicator lines scale by bin size that renders
+  // as a periodic sawtooth. Only the final bin may be smaller.
+  const binSize = Math.max(1, Math.ceil(candles.length / maxBars));
+  const binCount = Math.ceil(candles.length / binSize);
 
   return Array.from({ length: binCount }, (_, binIndex) => {
-    const startIndex = Math.floor((binIndex * candles.length) / binCount);
-    const endIndex = Math.max(
-      startIndex + 1,
-      Math.floor(((binIndex + 1) * candles.length) / binCount),
-    );
+    const startIndex = binIndex * binSize;
+    const endIndex = Math.min(candles.length, startIndex + binSize);
     const binCandles = candles.slice(startIndex, endIndex);
     const first = binCandles[0];
     const last = binCandles.at(-1)!;
@@ -431,7 +440,11 @@ function volumeBins(candles: Candle[], plotWidth: number) {
       endIndex,
       startTime: first.timestamp_ms,
       endTime: last.timestamp_ms,
-      volume: binCandles.reduce((sum, candle) => sum + candle.volume, 0),
+      // Average per candle rather than sum: the final bin is often partial,
+      // and a summed bar (plus a line scaled by candle count) would collapse
+      // at the right edge of the chart.
+      volume:
+        binCandles.reduce((sum, candle) => sum + candle.volume, 0) / binCandles.length,
       rising: last.close >= first.open,
     };
   });
@@ -440,6 +453,7 @@ function volumeBins(candles: Candle[], plotWidth: number) {
 export function StockChart({
   candles,
   indicators = [],
+  signals = [],
   timeframe,
   visibleStartMs,
   visibleEndMs,
@@ -475,6 +489,15 @@ export function StockChart({
     [candles, viewportSize, viewportStart],
   );
   const indicatorMaps = useMemo(() => indicatorValueMaps(indicators), [indicators]);
+  const signalsByTimestamp = useMemo(() => {
+    const map = new Map<number, StrategySignal[]>();
+    for (const signal of signals) {
+      const current = map.get(signal.timestamp_ms) ?? [];
+      current.push(signal);
+      map.set(signal.timestamp_ms, current);
+    }
+    return map;
+  }, [signals]);
   const canPan = viewportSize > 0 && viewportSize < candles.length;
   const canZoomIn = candles.length > minimumViewportSize && viewportSize > minimumViewportSize;
   const canZoomOut = viewportSize < candles.length;
@@ -537,6 +560,26 @@ export function StockChart({
         closeY: priceToY(candle.close),
         rising: candle.close >= candle.open,
       };
+    });
+    const signalMarkers: SignalMarker[] = points.flatMap((point) => {
+      const pointSignals = signalsByTimestamp.get(point.candle.timestamp_ms) ?? [];
+      return pointSignals.map((signal, signalIndex) => {
+        const offset = signalIndex * (signalMarkerSize + 2);
+        const y =
+          signal.side === "buy"
+            ? clamp(point.lowY + 12 + offset, margin.top + signalMarkerSize, margin.top + plotHeight - signalMarkerSize)
+            : clamp(point.highY - 12 - offset, margin.top + signalMarkerSize, margin.top + plotHeight - signalMarkerSize);
+        const markerPoints =
+          signal.side === "buy"
+            ? `${point.x},${y - signalMarkerSize} ${point.x - signalMarkerSize},${y + signalMarkerSize} ${point.x + signalMarkerSize},${y + signalMarkerSize}`
+            : `${point.x},${y + signalMarkerSize} ${point.x - signalMarkerSize},${y - signalMarkerSize} ${point.x + signalMarkerSize},${y - signalMarkerSize}`;
+
+        return {
+          key: `${signal.side}-${point.candle.timestamp_ms}-${signalIndex}`,
+          side: signal.side,
+          points: markerPoints,
+        };
+      });
     });
     const indicatorOrder = new Map(indicators.map((indicator, index) => [indicator.id, index]));
     const overlayLines = overlayIndicators.flatMap((indicator, overlayIndex) => {
@@ -677,8 +720,8 @@ export function StockChart({
           key: `${indicator.id}-${valueDefinition.key}`,
           label: `${indicator.label} ${valueDefinition.label}`,
           visual: indicatorLineVisual(indicator, colorIndex, valueIndex, 1.5, 1),
-          // Bars aggregate candle volumes per bin, so scale the per-candle
-          // value by the bin size to keep the line comparable to bar heights.
+          // Bars show average volume per candle in the bin, so the line can
+          // plot per-candle values directly with no bin-size scaling.
           binValues: bins.map((bin) => {
             let binSum = 0;
             let binCount = 0;
@@ -693,7 +736,7 @@ export function StockChart({
               }
             }
 
-            return binCount === 0 ? null : (binSum / binCount) * (bin.endIndex - bin.startIndex);
+            return binCount === 0 ? null : binSum / binCount;
           }),
         }));
     });
@@ -731,6 +774,7 @@ export function StockChart({
 
     return {
       points,
+      signalMarkers,
       overlayLines,
       panes,
       volumeBars,
@@ -744,7 +788,7 @@ export function StockChart({
       priceMax,
       step,
     };
-  }, [height, indicatorMaps, indicators, mode, visibleCandles, width]);
+  }, [height, indicatorMaps, indicators, mode, signalsByTimestamp, visibleCandles, width]);
 
   const animatedPoints = useAnimatedChartPoints(chart.points);
   const isDragging = dragStartIndex != null && dragEndIndex != null;
@@ -1181,6 +1225,21 @@ export function StockChart({
             />
           )),
         )}
+
+        {chart.signalMarkers.length > 0 ? (
+          <g pointerEvents="none">
+            {chart.signalMarkers.map((marker) => (
+              <polygon
+                key={marker.key}
+                points={marker.points}
+                fill={marker.side === "buy" ? "var(--chart-up)" : "var(--chart-down)"}
+                stroke="var(--card)"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            ))}
+          </g>
+        ) : null}
 
         {chart.panes.map((pane) => (
           <g key={pane.id}>

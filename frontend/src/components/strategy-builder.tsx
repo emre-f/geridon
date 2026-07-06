@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   CheckIcon,
   PlusIcon,
@@ -9,14 +9,10 @@ import {
 } from "lucide-react";
 
 import {
-  createStrategy,
-  deleteStrategy,
-  listStrategies,
-  updateStrategy,
-  validateStrategy,
   type ComparisonOperator,
   type GroupOperator,
   type IndicatorDefinition,
+  type IndicatorValueDefinition,
   type PriceField,
   type StrategyDraft,
   type StrategyGroup,
@@ -30,7 +26,6 @@ import {
   comparisonOperatorOptions,
   createGroupNode,
   createRuleNode,
-  createStrategyDraft,
   defaultIndicatorOperand,
   describeIssuePath,
   groupOperatorOptions,
@@ -59,12 +54,57 @@ const groupOperatorHints: Record<GroupOperator, string> = {
   not: "the condition must be false",
 };
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  labelExtra,
+  children,
+}: {
+  label: string;
+  labelExtra?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-muted-foreground text-[11px] font-medium">{label}</span>
+      <span className="text-muted-foreground flex items-center gap-1 text-[11px] font-medium">
+        {label}
+        {labelExtra}
+      </span>
       {children}
     </label>
+  );
+}
+
+function OutputHelp({ values }: { values: IndicatorValueDefinition[] }) {
+  return (
+    <span className="group relative inline-flex">
+      <span
+        tabIndex={0}
+        aria-label="Output descriptions"
+        onClick={(event) => event.preventDefault()}
+        className="border-border text-muted-foreground inline-flex size-3.5 cursor-help items-center justify-center rounded-full border text-[10px] leading-none outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[2px]"
+      >
+        ?
+      </span>
+      <span className="border-border bg-popover text-popover-foreground invisible absolute left-0 top-[calc(100%+0.375rem)] z-50 w-64 rounded-md border p-2 text-[11px] font-normal opacity-0 shadow-md transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        {values.map((value) => {
+          const description = value.description?.trim();
+
+          return (
+            <span key={value.key} className="block leading-snug">
+              <span className="font-medium">{value.label}</span>
+              {": "}
+              {description ? (
+                <span className="text-muted-foreground">{description}</span>
+              ) : (
+                <span className="text-muted-foreground italic">
+                  {"<no description provided>"}
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </span>
+    </span>
   );
 }
 
@@ -134,7 +174,7 @@ function OperandEditor({
             </Select>
           </Field>
           {definition && definition.values.length > 1 ? (
-            <Field label="Output">
+            <Field label="Output" labelExtra={<OutputHelp values={definition.values} />}>
               <Select
                 value={operand.output}
                 aria-label={`${label} output`}
@@ -385,29 +425,45 @@ function ConditionGroupEditor({
   );
 }
 
-function draftFromRecord(record: StrategyRecord): StrategyDraft {
-  return {
-    name: record.name,
-    entry: asRootGroup(record.entry),
-    exit: asRootGroup(record.exit),
-  };
+interface StrategyBuilderProps {
+  catalog: IndicatorDefinition[];
+  strategies: StrategyRecord[];
+  selectedId: number | null;
+  draft: StrategyDraft | null;
+  dirty: boolean;
+  loading: boolean;
+  saving: boolean;
+  validating: boolean;
+  validation: StrategyValidationResult | null;
+  error: string | null;
+  onDraftChange: (draft: StrategyDraft) => void;
+  onSelectStrategy: (value: string) => void;
+  onDelete: () => void;
+  onValidate: () => void;
+  onSave: () => void;
 }
 
 /**
  * Visual rule builder for trading strategies. Strategies are validated by the
  * backend and stored in SQLite, so they survive browser storage resets.
  */
-export function StrategyBuilder({ catalog }: { catalog: IndicatorDefinition[] }) {
-  const [strategies, setStrategies] = useState<StrategyRecord[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [draft, setDraft] = useState<StrategyDraft | null>(null);
-  const [dirty, setDirty] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [validation, setValidation] = useState<StrategyValidationResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
+export function StrategyBuilder({
+  catalog,
+  strategies,
+  selectedId,
+  draft,
+  dirty,
+  loading,
+  saving,
+  validating,
+  validation,
+  error,
+  onDraftChange,
+  onSelectStrategy,
+  onDelete,
+  onValidate,
+  onSave,
+}: StrategyBuilderProps) {
   const catalogReady = catalog.length > 0;
   const entryGroup = useMemo(
     () => (draft ? asRootGroup(draft.entry) : null),
@@ -415,171 +471,11 @@ export function StrategyBuilder({ catalog }: { catalog: IndicatorDefinition[] })
   );
   const exitGroup = useMemo(() => (draft ? asRootGroup(draft.exit) : null), [draft]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadStrategies() {
-      try {
-        const records = await listStrategies();
-        if (cancelled) {
-          return;
-        }
-
-        setStrategies(records);
-        if (records.length > 0) {
-          setSelectedId(records[0].id);
-          setDraft(draftFromRecord(records[0]));
-          setDirty(false);
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Could not load strategies.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadStrategies();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Without stored strategies, start from a fresh draft once the indicator
-  // catalog is available (the default rule needs it).
-  useEffect(() => {
-    if (!loading && draft == null && catalogReady) {
-      setDraft(createStrategyDraft(catalog));
-      setDirty(true);
-    }
-  }, [catalog, catalogReady, draft, loading]);
-
   function editDraft(update: (draft: StrategyDraft) => StrategyDraft) {
-    setDraft((current) => (current ? update(current) : current));
-    setDirty(true);
-    setValidation(null);
-    setError(null);
-  }
-
-  function confirmDiscard() {
-    return !dirty || window.confirm("Discard unsaved strategy changes?");
-  }
-
-  function openStrategy(record: StrategyRecord) {
-    setSelectedId(record.id);
-    setDraft(draftFromRecord(record));
-    setDirty(false);
-    setValidation(null);
-    setError(null);
-  }
-
-  function handleSelectChange(value: string) {
-    if (!confirmDiscard()) {
-      return;
-    }
-
-    const record = strategies.find((strategy) => strategy.id === Number(value));
-    if (record) {
-      openStrategy(record);
-    }
-  }
-
-  function handleNew() {
-    if (!confirmDiscard()) {
-      return;
-    }
-
-    setSelectedId(null);
-    setDraft(createStrategyDraft(catalog));
-    setDirty(true);
-    setValidation(null);
-    setError(null);
-  }
-
-  async function handleDelete() {
-    if (selectedId == null) {
-      return;
-    }
-    const record = strategies.find((strategy) => strategy.id === selectedId);
-    if (!window.confirm(`Delete strategy "${record?.name ?? selectedId}"?`)) {
-      return;
-    }
-
-    setError(null);
-    try {
-      await deleteStrategy(selectedId);
-      const remaining = strategies.filter((strategy) => strategy.id !== selectedId);
-      setStrategies(remaining);
-      if (remaining.length > 0) {
-        openStrategy(remaining[0]);
-      } else {
-        setSelectedId(null);
-        setDraft(catalogReady ? createStrategyDraft(catalog) : null);
-        setDirty(true);
-        setValidation(null);
-      }
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error ? deleteError.message : "Could not delete the strategy.",
-      );
-    }
-  }
-
-  async function handleValidate() {
-    if (!draft) {
-      return null;
-    }
-
-    setValidating(true);
-    setError(null);
-    try {
-      const result = await validateStrategy(draft);
-      setValidation(result);
-      return result;
-    } catch (validateError) {
-      setError(
-        validateError instanceof Error ? validateError.message : "Could not validate the strategy.",
-      );
-      return null;
-    } finally {
-      setValidating(false);
-    }
-  }
-
-  async function handleSave() {
     if (!draft) {
       return;
     }
-
-    // Always validate before persisting so only runnable strategies are stored.
-    const result = await handleValidate();
-    if (!result?.valid) {
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    try {
-      const record =
-        selectedId == null
-          ? await createStrategy(draft)
-          : await updateStrategy(selectedId, draft);
-      setStrategies((current) => {
-        const others = current.filter((strategy) => strategy.id !== record.id);
-        return [...others, record].sort(
-          (left, right) => left.name.localeCompare(right.name) || left.id - right.id,
-        );
-      });
-      openStrategy(record);
-      setValidation(result);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Could not save the strategy.");
-    } finally {
-      setSaving(false);
-    }
+    onDraftChange(update(draft));
   }
 
   return (
@@ -595,27 +491,23 @@ export function StrategyBuilder({ catalog }: { catalog: IndicatorDefinition[] })
 
         <div className="flex flex-wrap items-center gap-2">
           <Select
-            value={selectedId == null ? "" : String(selectedId)}
+            value={selectedId == null ? "new" : String(selectedId)}
             aria-label="Stored strategies"
             className="w-48"
-            disabled={strategies.length === 0}
-            onChange={(event) => handleSelectChange(event.target.value)}
+            disabled={!catalogReady}
+            onChange={(event) => onSelectStrategy(event.target.value)}
           >
-            {selectedId == null ? <option value="">Unsaved strategy</option> : null}
+            <option value="new">(New)</option>
             {strategies.map((strategy) => (
               <option key={strategy.id} value={strategy.id}>
                 {strategy.name}
               </option>
             ))}
           </Select>
-          <Button type="button" variant="outline" onClick={handleNew} disabled={!catalogReady}>
-            <PlusIcon />
-            New
-          </Button>
           <Button
             type="button"
             variant="outline"
-            onClick={handleDelete}
+            onClick={onDelete}
             disabled={selectedId == null || saving}
           >
             <Trash2Icon />
@@ -692,13 +584,13 @@ export function StrategyBuilder({ catalog }: { catalog: IndicatorDefinition[] })
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleValidate}
+                onClick={onValidate}
                 disabled={validating || saving}
               >
                 {validating ? <RefreshCwIcon className="animate-spin" /> : <CheckIcon />}
                 Validate
               </Button>
-              <Button type="button" onClick={handleSave} disabled={saving || validating}>
+              <Button type="button" onClick={onSave} disabled={saving || validating}>
                 {saving ? <RefreshCwIcon className="animate-spin" /> : <SaveIcon />}
                 {selectedId == null ? "Save strategy" : "Save changes"}
               </Button>

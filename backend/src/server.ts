@@ -12,6 +12,7 @@ import {
   indicatorCatalog,
   normalizeIndicatorSpecs,
 } from "./services/indicators.ts";
+import { evaluateSignals } from "./services/signals.ts";
 import { validateStrategy } from "./services/strategies.ts";
 import type {
   Candle,
@@ -529,6 +530,64 @@ function handleListIndicators(tickerPath: string, searchParams: URLSearchParams)
   return { statusCode: 200, body };
 }
 
+function responseToCandle(candle: CandleResponse): Candle {
+  const timeframe = parseTimeframe(candle.timeframe);
+  return {
+    ticker: candle.ticker,
+    multiplier: timeframe.multiplier,
+    timespan: timeframe.timespan,
+    timestamp_ms: candle.timestamp_ms,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+    volume: candle.volume,
+    vwap: candle.vwap,
+    transactions: candle.transactions,
+  };
+}
+
+function handleSignals(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return badRequest("Request body must be an object.");
+  }
+
+  const raw = body as Record<string, unknown>;
+  if (typeof raw.ticker !== "string") {
+    return badRequest("ticker is required.");
+  }
+  const ticker = raw.ticker.toUpperCase().trim();
+  const tickerError = validateTicker(ticker);
+  if (tickerError) {
+    return badRequest(tickerError);
+  }
+  if (typeof raw.timeframe !== "string") {
+    return badRequest("timeframe is required.");
+  }
+  if (typeof raw.start_ms !== "number" || !Number.isFinite(raw.start_ms)) {
+    return badRequest("start_ms is required.");
+  }
+  if (typeof raw.end_ms !== "number" || !Number.isFinite(raw.end_ms)) {
+    return badRequest("end_ms is required.");
+  }
+
+  const { strategy, errors } = validateStrategy(raw.strategy);
+  if (!strategy) {
+    return { statusCode: 400, body: { valid: false, errors, strategy } };
+  }
+
+  const timeframe = parseTimeframe(raw.timeframe);
+  const candles = candlesForTimeframe({
+    ticker,
+    timeframe,
+    startMs: raw.start_ms,
+    endMs: raw.end_ms,
+    limit: 50_000,
+  }).map(responseToCandle);
+
+  return { statusCode: 200, body: { signals: evaluateSignals(strategy, candles) } };
+}
+
 const server = createServer(async (request, response) => {
   try {
     if (request.method === "OPTIONS") {
@@ -584,6 +643,12 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "POST" && url.pathname === "/api/v1/strategies/validate") {
       const result = handleValidateStrategy(await readJson(request));
+      sendJson(response, result.statusCode, result.body);
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/v1/signals") {
+      const result = handleSignals(await readJson(request));
       sendJson(response, result.statusCode, result.body);
       return;
     }
