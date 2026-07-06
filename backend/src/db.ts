@@ -72,5 +72,19 @@ export function createDb(db: Database): void {
       ON fetch_ranges (ticker, multiplier, timespan, start_ms, end_ms);
     CREATE INDEX IF NOT EXISTS ix_fetch_ranges_source_lookup
       ON fetch_ranges (ticker, multiplier, timespan, source, start_ms, end_ms);
+
+    CREATE TABLE IF NOT EXISTS strategies (
+      id INTEGER PRIMARY KEY,
+      name VARCHAR(80) NOT NULL,
+      definition TEXT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS chart_states (
+      ticker VARCHAR(16) PRIMARY KEY,
+      state TEXT NOT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }

@@ -12,10 +12,13 @@ import {
   indicatorCatalog,
   normalizeIndicatorSpecs,
 } from "./services/indicators.ts";
+import { validateStrategy } from "./services/strategies.ts";
 import type {
   Candle,
   CandleResponse,
   DeleteSymbolResponse,
+  Strategy,
+  StrategyRecord,
   SyncCandlesRequest,
   SymbolResponse,
   SymbolValidationResponse,
@@ -178,6 +181,7 @@ function handleDeleteSymbol(
       db.prepare("DELETE FROM fetch_ranges WHERE ticker = ?").run(ticker).changes,
     );
     const candlesDeleted = Number(db.prepare("DELETE FROM candles WHERE ticker = ?").run(ticker).changes);
+    db.prepare("DELETE FROM chart_states WHERE ticker = ?").run(ticker);
     db.exec("COMMIT");
 
     if (fetchRangesDeleted + candlesDeleted === 0) {
@@ -359,6 +363,140 @@ function handleListIndicatorCatalog() {
   return { statusCode: 200, body: indicatorCatalog };
 }
 
+function strategyRowToResponse(row: Record<string, unknown>): StrategyRecord {
+  const definition = JSON.parse(String(row.definition)) as Strategy;
+  return {
+    id: Number(row.id),
+    name: String(row.name),
+    entry: definition.entry,
+    exit: definition.exit,
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  };
+}
+
+function handleListStrategies() {
+  const rows = db.prepare("SELECT * FROM strategies ORDER BY name ASC, id ASC").all();
+  return { statusCode: 200, body: rows.map(strategyRowToResponse) };
+}
+
+function handleValidateStrategy(body: unknown) {
+  const { strategy, errors } = validateStrategy(body);
+  return { statusCode: 200, body: { valid: errors.length === 0, errors, strategy } };
+}
+
+function handleCreateStrategy(body: unknown) {
+  const { strategy, errors } = validateStrategy(body);
+  if (!strategy) {
+    return {
+      statusCode: 400,
+      body: { detail: errors[0]?.message ?? "Invalid strategy.", errors },
+    };
+  }
+
+  const result = db
+    .prepare("INSERT INTO strategies (name, definition) VALUES (?, ?)")
+    .run(strategy.name, JSON.stringify(strategy));
+  const row = db
+    .prepare("SELECT * FROM strategies WHERE id = ?")
+    .get(Number(result.lastInsertRowid))!;
+  return { statusCode: 201, body: strategyRowToResponse(row) };
+}
+
+function parseStrategyId(idPath: string) {
+  const id = Number(idPath);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function handleUpdateStrategy(idPath: string, body: unknown) {
+  const id = parseStrategyId(idPath);
+  if (id == null) {
+    return badRequest("Strategy id must be a positive integer.");
+  }
+  if (!db.prepare("SELECT 1 FROM strategies WHERE id = ?").get(id)) {
+    return { statusCode: 404, body: { detail: `Strategy ${id} was not found.` } };
+  }
+
+  const { strategy, errors } = validateStrategy(body);
+  if (!strategy) {
+    return {
+      statusCode: 400,
+      body: { detail: errors[0]?.message ?? "Invalid strategy.", errors },
+    };
+  }
+
+  db.prepare(
+    "UPDATE strategies SET name = ?, definition = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+  ).run(strategy.name, JSON.stringify(strategy), id);
+  const row = db.prepare("SELECT * FROM strategies WHERE id = ?").get(id)!;
+  return { statusCode: 200, body: strategyRowToResponse(row) };
+}
+
+function handleDeleteStrategy(idPath: string) {
+  const id = parseStrategyId(idPath);
+  if (id == null) {
+    return badRequest("Strategy id must be a positive integer.");
+  }
+
+  const changes = Number(db.prepare("DELETE FROM strategies WHERE id = ?").run(id).changes);
+  if (changes === 0) {
+    return { statusCode: 404, body: { detail: `Strategy ${id} was not found.` } };
+  }
+  return { statusCode: 200, body: { id, deleted: true } };
+}
+
+const maxChartStateBytes = 32_768;
+
+function handleListChartStates() {
+  const rows = db.prepare("SELECT ticker, state FROM chart_states").all();
+  const body: Record<string, unknown> = {};
+
+  for (const row of rows) {
+    try {
+      body[String(row.ticker)] = JSON.parse(String(row.state));
+    } catch {
+      // Skip rows that no longer parse instead of failing the whole listing.
+    }
+  }
+
+  return { statusCode: 200, body };
+}
+
+function handlePutChartState(tickerPath: string, body: unknown) {
+  const ticker = normalizeTicker(tickerPath);
+  const tickerError = validateTicker(ticker);
+  if (tickerError) {
+    return badRequest(tickerError);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return badRequest("Chart state must be a JSON object.");
+  }
+
+  const serialized = JSON.stringify(body);
+  if (serialized.length > maxChartStateBytes) {
+    return badRequest(`Chart state must be ${maxChartStateBytes} bytes or fewer.`);
+  }
+
+  db.prepare(
+    `
+    INSERT INTO chart_states (ticker, state) VALUES (?, ?)
+    ON CONFLICT(ticker) DO UPDATE SET state = excluded.state, updated_at = CURRENT_TIMESTAMP
+  `,
+  ).run(ticker, serialized);
+  return { statusCode: 200, body: { ticker, saved: true } };
+}
+
+function handleDeleteChartState(tickerPath: string) {
+  const ticker = normalizeTicker(tickerPath);
+  const tickerError = validateTicker(ticker);
+  if (tickerError) {
+    return badRequest(tickerError);
+  }
+
+  const changes = Number(db.prepare("DELETE FROM chart_states WHERE ticker = ?").run(ticker).changes);
+  return { statusCode: 200, body: { ticker, deleted: changes > 0 } };
+}
+
 function handleListIndicators(tickerPath: string, searchParams: URLSearchParams) {
   const ticker = normalizeTicker(tickerPath);
   const tickerError = validateTicker(ticker);
@@ -431,6 +569,59 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/v1/strategies") {
+      if (request.method === "GET") {
+        const result = handleListStrategies();
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+      if (request.method === "POST") {
+        const result = handleCreateStrategy(await readJson(request));
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/v1/strategies/validate") {
+      const result = handleValidateStrategy(await readJson(request));
+      sendJson(response, result.statusCode, result.body);
+      return;
+    }
+
+    const strategyMatch = url.pathname.match(/^\/api\/v1\/strategies\/(\d+)$/);
+    if (strategyMatch) {
+      if (request.method === "PUT") {
+        const result = handleUpdateStrategy(strategyMatch[1], await readJson(request));
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+      if (request.method === "DELETE") {
+        const result = handleDeleteStrategy(strategyMatch[1]);
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/chart-states") {
+      const result = handleListChartStates();
+      sendJson(response, result.statusCode, result.body);
+      return;
+    }
+
+    const chartStateMatch = url.pathname.match(/^\/api\/v1\/chart-states\/([^/]+)$/);
+    if (chartStateMatch) {
+      if (request.method === "PUT") {
+        const result = handlePutChartState(chartStateMatch[1], await readJson(request));
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+      if (request.method === "DELETE") {
+        const result = handleDeleteChartState(chartStateMatch[1]);
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/api/v1/candles/sync") {
       const body = await readJson<SyncCandlesRequest>(request);
       const result = await handleSync(body);
@@ -454,8 +645,15 @@ const server = createServer(async (request, response) => {
 
     sendJson(response, 404, { detail: "Not found." });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unexpected server error.";
+    const message =
+      error instanceof SyntaxError
+        ? "Request body must be valid JSON."
+        : error instanceof Error
+          ? error.message
+          : "Unexpected server error.";
     const statusCode =
+      error instanceof SyntaxError ||
+      message.startsWith("Request body must") ||
       message.startsWith("Unsupported timeframe") ||
       message.startsWith("Invalid datetime") ||
       message.startsWith("start and end query") ||

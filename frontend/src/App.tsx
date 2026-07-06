@@ -46,6 +46,7 @@ import {
 import {
   loadChartState,
   loadLastTicker,
+  pullChartStates,
   removeChartState,
   saveChartState,
   saveLastTicker,
@@ -58,6 +59,7 @@ import {
 import { cn } from "@/lib/utils";
 import { IndicatorLegend } from "@/components/indicator-legend";
 import { IndicatorPicker } from "@/components/indicator-picker";
+import { StrategyBuilder } from "@/components/strategy-builder";
 import { StockChart, type ChartMode, type ChartTone } from "@/components/stock-chart";
 import { Button } from "@/components/ui/button";
 import {
@@ -451,7 +453,9 @@ export default function App() {
       setError(null);
 
       try {
-        const nextSymbols = await listSymbols();
+        // Merge chart states stored in the backend DB into localStorage first
+        // so restoreChartState picks them up even after a storage wipe.
+        const [nextSymbols] = await Promise.all([listSymbols(), pullChartStates()]);
         if (cancelled) {
           return;
         }
@@ -896,17 +900,24 @@ export default function App() {
 
   return (
     <main className="bg-background text-foreground min-h-screen">
-      <div className="flex w-full flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5 2xl:px-6">
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="flex flex-col gap-1">
-            <p className="text-muted-foreground text-sm">Geridon</p>
-            <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
-              Market data viewer
-            </h1>
+      <div className="flex w-full flex-col gap-3 px-3 py-3 sm:px-4 lg:px-5 2xl:px-6">
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+            <h1 className="text-lg font-semibold leading-none">geridon</h1>
+            <span className="text-muted-foreground truncate text-sm leading-none">
+              | backtest your trading strategies
+            </span>
           </div>
 
-          <div className="flex w-full gap-2 sm:w-auto sm:items-center">
-            <Button type="button" variant="outline" size="icon" aria-label="Refresh chart" onClick={refresh}>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8"
+              aria-label="Refresh chart"
+              onClick={refresh}
+            >
               <RefreshCwIcon />
             </Button>
 
@@ -914,6 +925,7 @@ export default function App() {
               type="button"
               variant="outline"
               size="icon"
+              className="size-8"
               aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
               onClick={() => setTheme(isDark ? "light" : "dark")}
@@ -930,133 +942,137 @@ export default function App() {
         ) : null}
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <Card className="gap-4">
-            <CardHeader className="gap-4 px-4 sm:px-5 lg:flex lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex min-w-0 flex-col gap-2">
-                <CardTitle className="text-xl">{selectedTicker || "No symbol selected"}</CardTitle>
-                {symbolsLoading || candlesLoading ? (
-                  <Skeleton className="h-12 w-full max-w-[34rem]" />
-                ) : hasPriceSummary && latest ? (
-                  <div className="flex max-w-full items-center gap-3 overflow-x-auto whitespace-nowrap">
-                    <div className="shrink-0 text-[clamp(2rem,5vw,2.25rem)] font-medium leading-none tracking-normal text-foreground">
-                      {formatCurrency(latest.close)}
-                    </div>
-                    <div
-                      className={cn(
-                        "inline-flex min-w-fit shrink-0 items-center gap-2 text-[clamp(1rem,2.5vw,1.5rem)] font-semibold leading-none",
-                        chartTone === "down" ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]",
-                      )}
-                    >
-                      <span
+          <div className="flex min-w-0 flex-col gap-4">
+            <Card className="gap-4">
+              <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIndicatorPickerOpen(true)}
+                    disabled={indicatorCatalog.length === 0}
+                  >
+                    <PlusIcon />
+                    Indicators
+                  </Button>
+
+                  <ToggleGroup
+                    type="single"
+                    value={chartMode}
+                    onValueChange={(value) => value && setChartMode(value as ChartMode)}
+                    aria-label="Chart style"
+                  >
+                    <ToggleGroupItem value="line" className={selectedControlClass}>
+                      Line
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="candle" className={selectedControlClass}>
+                      Candle
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+
+                  <ToggleGroup
+                    type="single"
+                    value={timeframe}
+                    onValueChange={handleTimeframeChange}
+                    aria-label="Candle timeframe"
+                  >
+                    {timeframeOptions.map((option) => (
+                      <ToggleGroupItem
+                        key={option.value}
+                        value={option.value}
+                        disabled={!timeframes.includes(option.value)}
+                        className={selectedControlClass}
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+
+                  <ToggleGroup
+                    type="single"
+                    value={range}
+                    onValueChange={handleRangeChange}
+                    aria-label="Visible range"
+                  >
+                    {rangeOptions.map((option) => (
+                      <ToggleGroupItem key={option.value} value={option.value} className={selectedControlClass}>
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+
+                <div className="flex min-w-0 flex-col gap-2">
+                  <CardTitle className="text-xl">{selectedTicker || "No symbol selected"}</CardTitle>
+                  {symbolsLoading || candlesLoading ? (
+                    <Skeleton className="h-12 w-full max-w-[34rem]" />
+                  ) : hasPriceSummary && latest ? (
+                    <div className="flex items-center gap-3 whitespace-nowrap">
+                      <div className="shrink-0 text-[clamp(2rem,5vw,2.25rem)] font-medium leading-none tracking-normal text-foreground">
+                        {formatCurrency(latest.close)}
+                      </div>
+                      <div
                         className={cn(
-                          "inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5",
-                          priceSummaryClass,
+                          "inline-flex min-w-fit shrink-0 items-center gap-2 text-[clamp(1rem,2.5vw,1.5rem)] font-semibold leading-none",
+                          chartTone === "down" ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]",
                         )}
                       >
-                        {chartTone === "down" ? (
-                          <ArrowDownIcon className="size-[1.125rem]" aria-hidden="true" />
-                        ) : (
-                          <ArrowUpIcon className="size-[1.125rem]" aria-hidden="true" />
-                        )}
-                        {formatAbsolutePercent(rangePercent)}
-                      </span>
-                      <span>{formatSignedCompactCurrency(rangeChange)}</span>
-                      <span className="text-muted-foreground">({range})</span>
+                        <span
+                          className={cn(
+                            "inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5",
+                            priceSummaryClass,
+                          )}
+                        >
+                          {chartTone === "down" ? (
+                            <ArrowDownIcon className="size-[1.125rem]" aria-hidden="true" />
+                          ) : (
+                            <ArrowUpIcon className="size-[1.125rem]" aria-hidden="true" />
+                          )}
+                          {formatAbsolutePercent(rangePercent)}
+                        </span>
+                        <span>{formatSignedCompactCurrency(rangeChange)}</span>
+                        <span className="text-muted-foreground">({range})</span>
+                      </div>
                     </div>
-                  </div>
-                ) : null}
-                <CardDescription>
-                  {visibleWindowLabel && selectedSymbol
-                    ? visibleWindowLabel
-                    : "Start the backend API to load stored SQLite candles."}
-                </CardDescription>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIndicatorPickerOpen(true)}
-                  disabled={indicatorCatalog.length === 0}
-                >
-                  <PlusIcon />
-                  Indicators
-                </Button>
-
-                <ToggleGroup
-                  type="single"
-                  value={chartMode}
-                  onValueChange={(value) => value && setChartMode(value as ChartMode)}
-                  aria-label="Chart style"
-                >
-                  <ToggleGroupItem value="line" className={selectedControlClass}>
-                    Line
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="candle" className={selectedControlClass}>
-                    Candle
-                  </ToggleGroupItem>
-                </ToggleGroup>
-
-                <ToggleGroup
-                  type="single"
-                  value={timeframe}
-                  onValueChange={handleTimeframeChange}
-                  aria-label="Candle timeframe"
-                >
-                  {timeframeOptions.map((option) => (
-                    <ToggleGroupItem
-                      key={option.value}
-                      value={option.value}
-                      disabled={!timeframes.includes(option.value)}
-                      className={selectedControlClass}
-                    >
-                      {option.label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-
-                <ToggleGroup
-                  type="single"
-                  value={range}
-                  onValueChange={handleRangeChange}
-                  aria-label="Visible range"
-                >
-                  {rangeOptions.map((option) => (
-                    <ToggleGroupItem key={option.value} value={option.value} className={selectedControlClass}>
-                      {option.label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-            </CardHeader>
-
-            <CardContent className="px-4 sm:px-5">
-              <div className="relative">
-                <StockChart
-                  candles={candles}
-                  indicators={indicatorsForChart}
-                  timeframe={timeframe}
-                  visibleStartMs={candleWindow?.startMs}
-                  visibleEndMs={candleWindow?.endMs}
-                  mode={chartMode}
-                  tone={chartTone}
-                  loading={candlesLoading || symbolsLoading || indicatorsLoading}
-                  onVisibleCandlesChange={handleVisibleCandlesChange}
-                  onHoverCandleChange={handleHoverCandleChange}
-                />
-                <IndicatorLegend
-                  className="absolute left-2 top-2 z-10 max-w-[75%]"
-                  indicators={activeIndicators}
-                  definitionsByKind={indicatorDefinitionsByKind}
-                  series={indicatorSeries}
-                  valueTimestampMs={legendTimestampMs}
-                  onUpdateParameter={updateIndicatorParameter}
-                  onUpdateLineStyle={updateIndicatorLineStyle}
-                  onRemove={removeIndicator}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                  ) : null}
+                  <CardDescription>
+                    {visibleWindowLabel && selectedSymbol
+                      ? visibleWindowLabel
+                      : "Start the backend API to load stored SQLite candles."}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+  
+              <CardContent className="px-4 sm:px-5">
+                <div className="relative">
+                  <StockChart
+                    candles={candles}
+                    indicators={indicatorsForChart}
+                    timeframe={timeframe}
+                    visibleStartMs={candleWindow?.startMs}
+                    visibleEndMs={candleWindow?.endMs}
+                    mode={chartMode}
+                    tone={chartTone}
+                    loading={candlesLoading || symbolsLoading || indicatorsLoading}
+                    onVisibleCandlesChange={handleVisibleCandlesChange}
+                    onHoverCandleChange={handleHoverCandleChange}
+                  />
+                  <IndicatorLegend
+                    className="absolute left-2 top-2 z-10 max-w-[75%]"
+                    indicators={activeIndicators}
+                    definitionsByKind={indicatorDefinitionsByKind}
+                    series={indicatorSeries}
+                    valueTimestampMs={legendTimestampMs}
+                    onUpdateParameter={updateIndicatorParameter}
+                    onUpdateLineStyle={updateIndicatorLineStyle}
+                    onRemove={removeIndicator}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+  
+            <StrategyBuilder catalog={indicatorCatalog} />
+          </div>
 
           <aside className="flex min-h-0 flex-col gap-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
             <div ref={addPanelRef} className="relative px-1">

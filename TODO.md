@@ -16,14 +16,16 @@
 - [X] Allow indicator parameter editing
 
 ## 5. Strategy Builder
-- [ ] Design strategy JSON schema
-- [ ] Build visual rule builder
-- [ ] Add indicator selection
-- [ ] Add comparison operators
-- [ ] Add Cross Above
-- [ ] Add Cross Below
-- [ ] Add AND / OR / NOT groups
-- [ ] Validate strategy before running
+- [X] Design strategy JSON schema
+- [X] Build visual rule builder
+- [X] Add indicator selection
+- [X] Add comparison operators
+- [X] Add Cross Above
+- [X] Add Cross Below
+- [X] Add AND / OR / NOT groups
+- [X] Validate strategy before running
+- [X] Persist strategies in SQLite (CRUD API)
+- [X] Sync per-ticker chart state to SQLite (survives cleared browser storage)
 
 ## 6. Signal Generation
 - [ ] Generate buy signals

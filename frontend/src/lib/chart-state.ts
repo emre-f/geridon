@@ -1,15 +1,16 @@
 import type { ChartMode } from "@/components/stock-chart";
 import type { IndicatorKind, IndicatorLineStyle, IndicatorSpec } from "@/lib/api";
+import { fetchChartStates, putChartState } from "@/lib/api";
 import { isHexColor } from "@/lib/color-palette";
 import { defaultLineStyle, sanitizeLineStyle } from "@/lib/indicator-style";
 
 const chartStateStorageKey = "geridon-chart-state";
 const lastTickerStorageKey = "geridon-last-ticker";
+const serverSaveDelayMs = 600;
 
 const chartModes: ChartMode[] = ["line", "candle"];
 const timeframeValues = ["1h", "4h", "1d"];
 const rangeValues = ["1M", "3M", "1Y", "5Y", "MAX"];
-const indicatorKinds: IndicatorKind[] = ["sma", "ema", "rsi", "macd", "bollinger", "atr"];
 
 export interface ChartState {
   chartMode: ChartMode;
@@ -30,9 +31,12 @@ function sanitizeIndicators(value: unknown): IndicatorSpec[] {
     }
 
     const { id, kind, parameters, styles, colors } = entry as Record<string, unknown>;
+    // Kinds are validated against the backend catalog when indicators are
+    // requested, so any non-empty string is accepted here.
     if (
       typeof id !== "string" ||
-      !indicatorKinds.includes(kind as IndicatorKind) ||
+      typeof kind !== "string" ||
+      kind.length === 0 ||
       typeof parameters !== "object" ||
       parameters == null
     ) {
@@ -119,8 +123,47 @@ export function loadChartState(ticker: string): ChartState | null {
   return sanitizeChartState(loadStates()[ticker]);
 }
 
+const pendingServerSaves = new Map<string, ReturnType<typeof setTimeout>>();
+
 export function saveChartState(ticker: string, state: ChartState) {
   writeStates({ ...loadStates(), [ticker]: state });
+
+  // Write-through to SQLite, debounced per ticker so rapid edits (parameter
+  // nudges, range clicks) collapse into one request. Server failures are
+  // ignored: localStorage keeps working and the next edit retries.
+  const pending = pendingServerSaves.get(ticker);
+  if (pending != null) {
+    clearTimeout(pending);
+  }
+  pendingServerSaves.set(
+    ticker,
+    setTimeout(() => {
+      pendingServerSaves.delete(ticker);
+      putChartState(ticker, state).catch(() => {});
+    }, serverSaveDelayMs),
+  );
+}
+
+/**
+ * Pulls chart states stored in the backend SQLite database and merges them
+ * into localStorage (server wins per ticker). Local-only states survive and
+ * upload on their next edit; a missing backend leaves localStorage untouched.
+ */
+export async function pullChartStates() {
+  let serverStates: Record<string, unknown>;
+  try {
+    serverStates = await fetchChartStates();
+  } catch {
+    return;
+  }
+
+  const merged = { ...loadStates() };
+  for (const [ticker, state] of Object.entries(serverStates)) {
+    if (sanitizeChartState(state)) {
+      merged[ticker] = state;
+    }
+  }
+  writeStates(merged);
 }
 
 export function removeChartState(ticker: string) {

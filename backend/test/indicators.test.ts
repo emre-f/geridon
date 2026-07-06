@@ -4,7 +4,13 @@ import test from "node:test";
 import { computeIndicators, normalizeIndicatorSpecs } from "../src/services/indicators.ts";
 import type { CandleResponse, IndicatorSeriesResponse } from "../src/types.ts";
 
-function candle(index: number, close: number, high = close + 1, low = close - 1): CandleResponse {
+function candle(
+  index: number,
+  close: number,
+  high = close + 1,
+  low = close - 1,
+  volume = 100,
+): CandleResponse {
   return {
     ticker: "AAPL",
     timeframe: "1d",
@@ -14,7 +20,7 @@ function candle(index: number, close: number, high = close + 1, low = close - 1)
     high,
     low,
     close,
-    volume: 100,
+    volume,
     vwap: close,
     transactions: 1,
   };
@@ -54,4 +60,16 @@ test("computeIndicators calculates RSI, Bollinger Bands, ATR, and MACD", () => {
   assert.deepEqual(seriesValue(bollinger, "lower"), [null, 0.5, 1.5, 2.5, 3.5, 4.5]);
   assert.deepEqual(seriesValue(atr, "atr"), [null, 2, 2, 2, 2, 2]);
   assert.equal(seriesValue(macd, "histogram").at(-1) == null, false);
+});
+
+test("computeIndicators calculates RVOL against the prior-bar volume average", () => {
+  const volumes = [100, 100, 200, 300, 0];
+  const candles = volumes.map((volume, index) => candle(index, 10, 11, 9, volume));
+  const specs = normalizeIndicatorSpecs([{ kind: "rvol", parameters: { period: 2 } }]);
+
+  const [rvol] = computeIndicators(candles, specs);
+
+  // Warmup needs `period` prior bars; the current bar never feeds its own average.
+  assert.deepEqual(seriesValue(rvol, "average"), [null, null, 100, 150, 250]);
+  assert.deepEqual(seriesValue(rvol, "rvol"), [null, null, 2, 2, 0]);
 });

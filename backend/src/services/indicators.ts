@@ -10,10 +10,24 @@ import type {
 
 type IndicatorCandle = Pick<
   CandleResponse,
-  "timestamp_ms" | "open" | "high" | "low" | "close"
+  "timestamp_ms" | "open" | "high" | "low" | "close" | "volume"
 >;
 
-export const indicatorCatalog: IndicatorDefinition[] = [
+/**
+ * A catalog entry plus its runtime behavior. Adding an indicator means
+ * appending one implementation here: the API catalog, spec validation, the
+ * strategy builder, and chart rendering are all driven by this list.
+ */
+export interface IndicatorImplementation extends IndicatorDefinition {
+  compute: (
+    candles: IndicatorCandle[],
+    parameters: Record<string, number>,
+  ) => IndicatorPointResponse[];
+  /** Cross-parameter constraint check; returns an error message or null. */
+  validateParameters?: (parameters: Record<string, number>) => string | null;
+}
+
+const indicatorImplementations: IndicatorImplementation[] = [
   {
     kind: "sma",
     label: "SMA",
@@ -23,6 +37,7 @@ export const indicatorCatalog: IndicatorDefinition[] = [
     placement: "overlay",
     parameters: [{ key: "period", label: "Period", default_value: 20, min: 1, max: 500, step: 1 }],
     values: [{ key: "sma", label: "SMA", style: "line" }],
+    compute: (candles, parameters) => computeSma(candles, parameters.period),
   },
   {
     kind: "ema",
@@ -33,6 +48,7 @@ export const indicatorCatalog: IndicatorDefinition[] = [
     placement: "overlay",
     parameters: [{ key: "period", label: "Period", default_value: 20, min: 1, max: 500, step: 1 }],
     values: [{ key: "ema", label: "EMA", style: "line" }],
+    compute: (candles, parameters) => computeEma(candles, parameters.period),
   },
   {
     kind: "rsi",
@@ -43,6 +59,7 @@ export const indicatorCatalog: IndicatorDefinition[] = [
     placement: "pane",
     parameters: [{ key: "period", label: "Period", default_value: 14, min: 1, max: 500, step: 1 }],
     values: [{ key: "rsi", label: "RSI", style: "line" }],
+    compute: (candles, parameters) => computeRsi(candles, parameters.period),
   },
   {
     kind: "macd",
@@ -61,6 +78,9 @@ export const indicatorCatalog: IndicatorDefinition[] = [
       { key: "signal", label: "Signal", style: "line" },
       { key: "histogram", label: "Hist", style: "histogram" },
     ],
+    compute: (candles, parameters) => computeMacd(candles, parameters),
+    validateParameters: (parameters) =>
+      parameters.fast >= parameters.slow ? "macd.fast must be less than macd.slow." : null,
   },
   {
     kind: "bollinger",
@@ -78,6 +98,22 @@ export const indicatorCatalog: IndicatorDefinition[] = [
       { key: "middle", label: "Middle", style: "line" },
       { key: "lower", label: "Lower", style: "line" },
     ],
+    compute: (candles, parameters) =>
+      computeBollinger(candles, parameters.period, parameters.stdDev),
+  },
+  {
+    kind: "rvol",
+    label: "RVOL",
+    full_name: "Relative Volume",
+    description:
+      "Volume divided by the average volume of the prior N bars. 1 is a typical bar, 2 means twice the usual activity. Draws the average as a line over the volume bars.",
+    placement: "volume",
+    parameters: [{ key: "period", label: "Period", default_value: 20, min: 1, max: 500, step: 1 }],
+    values: [
+      { key: "rvol", label: "RVOL", style: "none" },
+      { key: "average", label: "Avg Vol", style: "line" },
+    ],
+    compute: (candles, parameters) => computeRvol(candles, parameters.period),
   },
   {
     kind: "atr",
@@ -88,14 +124,25 @@ export const indicatorCatalog: IndicatorDefinition[] = [
     placement: "pane",
     parameters: [{ key: "period", label: "Period", default_value: 14, min: 1, max: 500, step: 1 }],
     values: [{ key: "atr", label: "ATR", style: "line" }],
+    compute: (candles, parameters) => computeAtr(candles, parameters.period),
   },
 ];
 
-const catalogByKind = new Map(indicatorCatalog.map((definition) => [definition.kind, definition]));
+export const indicatorCatalog: IndicatorDefinition[] = indicatorImplementations.map(
+  ({ compute, validateParameters, ...definition }) => definition,
+);
+
+const catalogByKind = new Map(
+  indicatorImplementations.map((implementation) => [implementation.kind, implementation]),
+);
 const maxIndicatorSpecs = 12;
 
-function isIndicatorKind(value: string): value is IndicatorKind {
-  return catalogByKind.has(value as IndicatorKind);
+export function isIndicatorKind(value: string): value is IndicatorKind {
+  return catalogByKind.has(value);
+}
+
+export function indicatorDefinition(kind: IndicatorKind): IndicatorDefinition {
+  return catalogByKind.get(kind)!;
 }
 
 function normalizedParameter(
@@ -116,6 +163,26 @@ function normalizedParameter(
   }
 
   return normalized;
+}
+
+export function normalizeIndicatorParameters(
+  kind: IndicatorKind,
+  rawParameters: Record<string, unknown>,
+): Record<string, number> {
+  const implementation = catalogByKind.get(kind)!;
+  const parameters = Object.fromEntries(
+    implementation.parameters.map((parameter) => [
+      parameter.key,
+      normalizedParameter(kind, parameter, rawParameters[parameter.key]),
+    ]),
+  );
+
+  const constraintError = implementation.validateParameters?.(parameters);
+  if (constraintError) {
+    throw new Error(constraintError);
+  }
+
+  return parameters;
 }
 
 function normalizeId(kind: IndicatorKind, rawId: unknown, index: number) {
@@ -151,19 +218,7 @@ export function normalizeIndicatorSpecs(raw: unknown): IndicatorSpec[] {
       rawRecord.parameters && typeof rawRecord.parameters === "object" && !Array.isArray(rawRecord.parameters)
         ? (rawRecord.parameters as Record<string, unknown>)
         : {};
-    const parameters = Object.fromEntries(
-      definition.parameters.map((parameter) => [
-        parameter.key,
-        normalizedParameter(definition.kind, parameter, rawParameters[parameter.key]),
-      ]),
-    );
-
-    if (
-      definition.kind === "macd" &&
-      parameters.fast >= parameters.slow
-    ) {
-      throw new Error("macd.fast must be less than macd.slow.");
-    }
+    const parameters = normalizeIndicatorParameters(definition.kind, rawParameters);
 
     return {
       id: normalizeId(definition.kind, rawRecord.id, index),
@@ -250,21 +305,9 @@ function emaNullableValues(values: Array<number | null>, period: number): Array<
   return result;
 }
 
-function labelFor(kind: IndicatorKind, parameters: Record<string, number>) {
-  switch (kind) {
-    case "sma":
-      return `SMA ${parameters.period}`;
-    case "ema":
-      return `EMA ${parameters.period}`;
-    case "rsi":
-      return `RSI ${parameters.period}`;
-    case "macd":
-      return `MACD ${parameters.fast}/${parameters.slow}/${parameters.signal}`;
-    case "bollinger":
-      return `BB ${parameters.period}/${parameters.stdDev}`;
-    case "atr":
-      return `ATR ${parameters.period}`;
-  }
+function labelFor(definition: IndicatorDefinition, parameters: Record<string, number>) {
+  const parts = definition.parameters.map((parameter) => parameters[parameter.key]);
+  return parts.length > 0 ? `${definition.label} ${parts.join("/")}` : definition.label;
 }
 
 function computeSma(candles: IndicatorCandle[], period: number) {
@@ -380,6 +423,27 @@ function computeBollinger(
   });
 }
 
+function computeRvol(candles: IndicatorCandle[], period: number) {
+  // The average excludes the current bar so a volume spike does not inflate
+  // its own baseline.
+  let sum = 0;
+
+  return candles.map((candle, index) => {
+    const average = index >= period ? sum / period : null;
+    const rvol = average != null && average > 0 ? candle.volume / average : null;
+
+    sum += candle.volume;
+    if (index >= period) {
+      sum -= candles[index - period].volume;
+    }
+
+    return point(candle.timestamp_ms, {
+      rvol: rounded(rvol),
+      average: rounded(average),
+    });
+  });
+}
+
 function computeAtr(candles: IndicatorCandle[], period: number) {
   const values: Array<number | null> = Array(candles.length).fill(null);
   let trueRangeSum = 0;
@@ -417,40 +481,27 @@ export function computeIndicators(
   specs: IndicatorSpec[],
 ): IndicatorSeriesResponse[] {
   return specs.map((spec) => {
-    const definition = catalogByKind.get(spec.kind)!;
+    const implementation = catalogByKind.get(spec.kind)!;
     const parameters = spec.parameters ?? {};
-    const values = definition.values;
-    let points: IndicatorPointResponse[];
-
-    switch (spec.kind) {
-      case "sma":
-        points = computeSma(candles, parameters.period);
-        break;
-      case "ema":
-        points = computeEma(candles, parameters.period);
-        break;
-      case "rsi":
-        points = computeRsi(candles, parameters.period);
-        break;
-      case "macd":
-        points = computeMacd(candles, parameters);
-        break;
-      case "bollinger":
-        points = computeBollinger(candles, parameters.period, parameters.stdDev);
-        break;
-      case "atr":
-        points = computeAtr(candles, parameters.period);
-        break;
-    }
 
     return {
       id: spec.id ?? spec.kind,
       kind: spec.kind,
-      label: labelFor(spec.kind, parameters),
-      placement: definition.placement,
+      label: labelFor(implementation, parameters),
+      placement: implementation.placement,
       parameters,
-      values,
-      points,
+      values: implementation.values,
+      points: implementation.compute(candles, parameters),
     };
   });
+}
+
+export function computeIndicatorValueSeries(
+  candles: IndicatorCandle[],
+  kind: IndicatorKind,
+  parameters: Record<string, number>,
+  output: string,
+): Array<number | null> {
+  const implementation = catalogByKind.get(kind)!;
+  return implementation.compute(candles, parameters).map((point) => point.values[output] ?? null);
 }

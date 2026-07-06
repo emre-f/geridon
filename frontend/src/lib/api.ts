@@ -49,11 +49,13 @@ export interface SyncCandlesResponse {
   candles_skipped: number;
 }
 
-export type IndicatorKind = "sma" | "ema" | "rsi" | "macd" | "bollinger" | "atr";
+// Open-ended so new indicators only need a backend catalog entry; validity is
+// checked against the fetched catalog, not the type system.
+export type IndicatorKind = string;
 
-export type IndicatorPlacement = "overlay" | "pane";
+export type IndicatorPlacement = "overlay" | "pane" | "volume";
 
-export type IndicatorValueStyle = "line" | "histogram";
+export type IndicatorValueStyle = "line" | "histogram" | "none";
 
 export interface IndicatorParameterDefinition {
   key: string;
@@ -111,6 +113,77 @@ export interface IndicatorSeries {
   styles?: IndicatorLineStyle[];
   values: IndicatorValueDefinition[];
   points: IndicatorPoint[];
+}
+
+export type ComparisonOperator =
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "cross_above"
+  | "cross_below";
+
+export type GroupOperator = "and" | "or" | "not";
+
+export type PriceField = "open" | "high" | "low" | "close" | "volume";
+
+export interface IndicatorOperand {
+  type: "indicator";
+  kind: IndicatorKind;
+  parameters: Record<string, number>;
+  output: string;
+}
+
+export interface PriceOperand {
+  type: "price";
+  field: PriceField;
+}
+
+export interface ValueOperand {
+  type: "value";
+  value: number;
+}
+
+export type StrategyOperand = IndicatorOperand | PriceOperand | ValueOperand;
+
+export interface StrategyRule {
+  /** Client-side key for editing; the backend ignores and never returns it. */
+  id: string;
+  type: "rule";
+  left: StrategyOperand;
+  operator: ComparisonOperator;
+  right: StrategyOperand;
+}
+
+export interface StrategyGroup {
+  id: string;
+  type: "group";
+  operator: GroupOperator;
+  conditions: StrategyCondition[];
+}
+
+export type StrategyCondition = StrategyRule | StrategyGroup;
+
+export interface StrategyDraft {
+  name: string;
+  entry: StrategyCondition;
+  exit: StrategyCondition;
+}
+
+export interface StrategyRecord extends StrategyDraft {
+  id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StrategyValidationIssue {
+  path: string;
+  message: string;
+}
+
+export interface StrategyValidationResult {
+  valid: boolean;
+  errors: StrategyValidationIssue[];
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -186,6 +259,79 @@ export function listCandles(options: {
   });
 
   return fetchJson<Candle[]>(`/api/v1/candles/${encodeURIComponent(options.ticker)}?${params}`);
+}
+
+function generateNodeId() {
+  return `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// The backend stores conditions without ids, so attach fresh ones on load to
+// give the rule builder stable React keys.
+function withNodeIds(condition: StrategyCondition): StrategyCondition {
+  if (condition.type === "group") {
+    return {
+      ...condition,
+      id: generateNodeId(),
+      conditions: condition.conditions.map(withNodeIds),
+    };
+  }
+  return { ...condition, id: generateNodeId() };
+}
+
+function withRecordNodeIds(record: StrategyRecord): StrategyRecord {
+  return { ...record, entry: withNodeIds(record.entry), exit: withNodeIds(record.exit) };
+}
+
+export async function listStrategies() {
+  const records = await fetchJson<StrategyRecord[]>("/api/v1/strategies");
+  return records.map(withRecordNodeIds);
+}
+
+export async function createStrategy(draft: StrategyDraft) {
+  const record = await fetchJson<StrategyRecord>("/api/v1/strategies", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(draft),
+  });
+  return withRecordNodeIds(record);
+}
+
+export async function updateStrategy(id: number, draft: StrategyDraft) {
+  const record = await fetchJson<StrategyRecord>(`/api/v1/strategies/${id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(draft),
+  });
+  return withRecordNodeIds(record);
+}
+
+export function deleteStrategy(id: number) {
+  return fetchJson<{ id: number; deleted: boolean }>(`/api/v1/strategies/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function validateStrategy(draft: StrategyDraft) {
+  return fetchJson<StrategyValidationResult>("/api/v1/strategies/validate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(draft),
+  });
+}
+
+export function fetchChartStates() {
+  return fetchJson<Record<string, unknown>>("/api/v1/chart-states");
+}
+
+export function putChartState(ticker: string, state: unknown) {
+  return fetchJson<{ ticker: string; saved: boolean }>(
+    `/api/v1/chart-states/${encodeURIComponent(ticker)}`,
+    {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(state),
+    },
+  );
 }
 
 export function listIndicators(options: {

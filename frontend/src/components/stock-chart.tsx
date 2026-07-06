@@ -660,31 +660,81 @@ export function StockChart({
       };
     });
     const bins = volumeBins(visibleCandles, plotWidth);
-    const maxVolume = Math.max(...bins.map((bin) => bin.volume), 1);
+    const binXs = bins.map((bin) =>
+      bins.length === visibleCandles.length
+        ? margin.left + bin.startIndex * step
+        : margin.left + ((bin.startIndex + bin.endIndex - 1) / 2) * step,
+    );
+    const volumeIndicators = indicators.filter((indicator) => indicator.placement === "volume");
+    const volumeLineSeries = volumeIndicators.flatMap((indicator, volumeIndex) => {
+      const valueMap = indicatorMaps.get(indicator.id);
+      const colorIndex = indicatorOrder.get(indicator.id) ?? volumeIndex;
+
+      return indicator.values
+        .map((valueDefinition, valueIndex) => ({ valueDefinition, valueIndex }))
+        .filter(({ valueDefinition }) => valueDefinition.style === "line")
+        .map(({ valueDefinition, valueIndex }) => ({
+          key: `${indicator.id}-${valueDefinition.key}`,
+          label: `${indicator.label} ${valueDefinition.label}`,
+          visual: indicatorLineVisual(indicator, colorIndex, valueIndex, 1.5, 1),
+          // Bars aggregate candle volumes per bin, so scale the per-candle
+          // value by the bin size to keep the line comparable to bar heights.
+          binValues: bins.map((bin) => {
+            let binSum = 0;
+            let binCount = 0;
+
+            for (let candleIndex = bin.startIndex; candleIndex < bin.endIndex; candleIndex += 1) {
+              const value = valueMap
+                ?.get(visibleCandles[candleIndex].timestamp_ms)
+                ?.[valueDefinition.key];
+              if (finiteValue(value)) {
+                binSum += value;
+                binCount += 1;
+              }
+            }
+
+            return binCount === 0 ? null : (binSum / binCount) * (bin.endIndex - bin.startIndex);
+          }),
+        }));
+    });
+    const maxVolume = Math.max(
+      ...bins.map((bin) => bin.volume),
+      ...volumeLineSeries.flatMap((series) => series.binValues.filter(finiteValue)),
+      1,
+    );
+    const volumeToY = (value: number) =>
+      volumeTop + volumeHeight - (value / maxVolume) * volumeHeight;
     const volumeStep = plotWidth / Math.max(bins.length - 1, 1);
     const volumeBarWidth = clamp(volumeStep * 0.64, 1.25, 8);
-    const volumeBars: VolumeBar[] = bins.map((bin) => {
+    const volumeBars: VolumeBar[] = bins.map((bin, binIndex) => {
       const volumeBarHeight = (bin.volume / maxVolume) * volumeHeight;
-      const x =
-        bins.length === visibleCandles.length
-          ? margin.left + bin.startIndex * step
-          : margin.left + ((bin.startIndex + bin.endIndex - 1) / 2) * step;
 
       return {
         key: `${bin.startTime}-${bin.endTime}`,
-        x,
+        x: binXs[binIndex],
         y: volumeTop + volumeHeight - volumeBarHeight,
         width: volumeBarWidth,
         height: volumeBarHeight,
         rising: bin.rising,
       };
     });
+    const volumeLines: IndicatorLine[] = volumeLineSeries.map((series) => ({
+      key: series.key,
+      label: series.label,
+      ...series.visual,
+      paths: sparseLinePaths(
+        series.binValues.map((value, binIndex) =>
+          value == null ? null : { x: binXs[binIndex], y: volumeToY(value) },
+        ),
+      ),
+    }));
 
     return {
       points,
       overlayLines,
       panes,
       volumeBars,
+      volumeLines,
       plotWidth,
       plotHeight,
       volumeHeight,
@@ -1098,6 +1148,22 @@ export function StockChart({
               />
             ) : null}
           </g>
+        )}
+
+        {chart.volumeLines.map((line) =>
+          line.paths.map((path, pathIndex) => (
+            <path
+              key={`${line.key}-${pathIndex}`}
+              d={path}
+              fill="none"
+              stroke={line.color}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={line.width}
+              strokeDasharray={line.dashArray}
+              opacity={line.opacity}
+            />
+          )),
         )}
 
         {chart.overlayLines.map((line) =>

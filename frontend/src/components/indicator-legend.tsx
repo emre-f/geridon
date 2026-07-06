@@ -9,7 +9,7 @@ import type {
   IndicatorSeries,
   IndicatorSpec,
 } from "@/lib/api";
-import { formatCurrency } from "@/lib/format";
+import { formatCompact, formatCurrency } from "@/lib/format";
 import {
   definitionValueSlots,
   indicatorShortLabel,
@@ -23,6 +23,9 @@ import { NumberInput } from "@/components/ui/number-input";
 function formatLegendValue(value: number, placement: IndicatorDefinition["placement"]) {
   if (placement === "overlay") {
     return formatCurrency(value);
+  }
+  if (placement === "volume") {
+    return formatCompact(value);
   }
 
   return new Intl.NumberFormat("en-US", {
@@ -129,6 +132,12 @@ export function IndicatorLegend({
 
         const valueSlots = definitionValueSlots(definition);
         const lineStyles = normalizeLineStyles(indicator.styles, valueSlots.length, indicatorIndex);
+        // Values with style "none" carry no drawn line, so the chip dot shows
+        // the first slot that actually appears on the chart.
+        const dotSlotIndex = Math.max(
+          valueSlots.findIndex((valueDefinition) => valueDefinition.style !== "none"),
+          0,
+        );
         const label = indicatorShortLabel(definition, indicator.parameters);
         const values =
           valueTimestampMs == null
@@ -151,7 +160,7 @@ export function IndicatorLegend({
           >
             <span
               className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: lineStyles[0].color }}
+              style={{ backgroundColor: lineStyles[dotSlotIndex].color }}
               aria-hidden="true"
             />
             <span className="text-foreground font-medium">{label}</span>
@@ -268,6 +277,9 @@ function IndicatorSettings({
       <div className="border-border mt-2.5 flex flex-col gap-1.5 border-t pt-2.5">
         {valueSlots.map((valueDefinition, slotIndex) => {
           const lineStyle = lineStyles[slotIndex];
+          if (valueDefinition.style === "none") {
+            return null;
+          }
 
           return (
             <div

@@ -83,10 +83,8 @@ export async function syncCandlesFromProvider(options: {
       fetchedRanges += 1;
       candlesReceived += candles.length;
 
-      if (candles.length === 0) {
-        continue;
-      }
-
+      // Record coverage even for empty chunks (weekends, pre-inception ranges)
+      // so they are not re-fetched on every sync.
       options.db.exec("BEGIN");
       try {
         for (const candle of candles) {

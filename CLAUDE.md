@@ -1,5 +1,9 @@
 ## Picking the right models for workflows and subagents
 
+THE PLAN BELOW IS FOR IF I HAD MORE ROOM. RIGHT NOW I WOULD LIKE TO CONSERVE TOKENS AND GET AS MUCH USAGE OUT OF YOU AS POSSIBLE. PLEASE USE THE CODEX AGENT FOR CODING AS MUCH AS POSSIBLE, GIVE IT DETAILED INSTRUCTIONS AND LET IT APPLY. YOU CAN USE YOUR OWN TASTE AND TESTS TO VALIDATE AFTEREWARDS, EVEN BETTER ASK ME TO VALIDATE INSTEAD OF RUNNING A BUNCH OF TESTS. REMEMBER THE GOAL IS TO SAVE AS MUCH USAGE AS POSSIBLE. PLEASE USE CHEAPER AGENTS LIKE GPT 5.5, SONNET OR HAIKU FOR SIMPELR TASKS.
+
+## OLD PLAN
+
 Rankings, higher = better. Cost reflects what I actually pay (OpenAI has really generous limits), not list price. Intelligence is how hard a problem you can hand the model unsupervised. Taste covers UI/UX, code quality, API design, and copy.
 
 | model    | cost | intelligence | taste |

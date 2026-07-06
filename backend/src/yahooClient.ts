@@ -123,17 +123,31 @@ export class YahooFinanceClient {
     url.searchParams.set("includePrePost", "false");
 
     const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-    if (!response.ok) {
-      throw new Error(`Yahoo Finance request failed with HTTP ${response.status}.`);
-    }
 
-    const payload = (await response.json()) as YahooChartPayload;
-    if (payload.chart?.error) {
-      const description = payload.chart.error.description ?? payload.chart.error.code;
+    let payload: YahooChartPayload | null = null;
+    try {
+      payload = (await response.json()) as YahooChartPayload;
+    } catch {
+      payload = null;
+    }
+    const description =
+      payload?.chart?.error?.description ?? payload?.chart?.error?.code ?? null;
+
+    // Yahoo rejects ranges that end before the ticker's first trade with an
+    // HTTP 400 instead of an empty result; treat that as "no data".
+    if (response.status === 400 && description?.includes("Data doesn't exist")) {
+      return [];
+    }
+    if (!response.ok) {
+      throw new Error(
+        `Yahoo Finance request failed with HTTP ${response.status}${description ? `: ${description}` : ""}.`,
+      );
+    }
+    if (payload?.chart?.error) {
       throw new Error(`Yahoo Finance request failed: ${description ?? "unknown error"}.`);
     }
 
-    const result = payload.chart?.result?.[0];
+    const result = payload?.chart?.result?.[0];
     if (!result) {
       return [];
     }

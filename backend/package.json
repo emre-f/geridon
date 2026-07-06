@@ -11,7 +11,9 @@
     "dev": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/server.ts",
     "start": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/server.ts",
     "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.ts",
-    "sync": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts sync"
+    "sync": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts sync",
+    "backfill": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/backfill.ts",
+    "universe": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/fetchUniverse.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
