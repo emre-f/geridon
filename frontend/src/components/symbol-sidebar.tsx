@@ -50,8 +50,9 @@ export function SymbolSidebar({
   onSymbolFilterChange: (value: string) => void;
 }) {
   return (
-    <aside className="flex min-h-0 flex-col gap-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
-      <div ref={addPanelRef} className="relative px-1">
+    // 4.25rem = header + page paddings above/below the grid at xl.
+    <aside className="flex min-h-0 flex-col gap-2 xl:sticky xl:top-4 xl:h-[calc(100vh-4.25rem)]">
+      <div ref={addPanelRef} className="relative">
         <div className="flex items-center justify-between gap-3">
           <CardTitle>Symbols</CardTitle>
           <Button
@@ -67,7 +68,7 @@ export function SymbolSidebar({
         </div>
         {addPanelOpen ? (
           <form
-            className="absolute left-1 right-1 top-[calc(100%+0.75rem)] z-20 flex gap-3 rounded-md border border-[var(--control-border)] bg-[var(--control-surface)] p-3 shadow-xl"
+            className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 flex gap-2 rounded-md border border-[var(--control-border)] bg-[var(--control-surface)] p-2 shadow-xl"
             onSubmit={onAddSymbolSubmit}
           >
             <div className="min-w-0 flex-1">
@@ -89,7 +90,7 @@ export function SymbolSidebar({
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex min-h-0 flex-col gap-2 xl:flex-1">
         <div className="relative">
           <SearchIcon className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
           <Input
@@ -101,16 +102,16 @@ export function SymbolSidebar({
           />
         </div>
 
-        <div className="border-border min-h-72 overflow-y-auto rounded-md border">
+        <div className="border-border min-h-72 overflow-y-auto rounded-md border xl:flex-1">
           {symbolsLoading ? (
-            <div className="flex flex-col gap-2 p-2">
+            <div className="flex flex-col gap-1 p-1">
               <Skeleton className="h-10" />
               <Skeleton className="h-10" />
               <Skeleton className="h-10" />
               <Skeleton className="h-10" />
             </div>
           ) : visibleSymbols.length > 0 ? (
-            <div className="flex flex-col p-1">
+            <div className="flex flex-col p-0.5">
               {visibleSymbols.map((symbol) => {
                 const isSelected = symbol.ticker === selectedTicker;
                 const timeframeLabels = symbol.timeframes
@@ -122,7 +123,7 @@ export function SymbolSidebar({
                     key={symbol.ticker}
                     type="button"
                     className={cn(
-                      "hover:!bg-[var(--control-hover)] hover:!text-foreground flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                      "hover:!bg-[var(--control-hover)] hover:!text-foreground flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors",
                       isSelected && selectedSymbolClass,
                     )}
                     aria-pressed={isSelected}

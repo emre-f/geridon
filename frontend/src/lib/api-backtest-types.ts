@@ -48,6 +48,8 @@ export interface BacktestRunSummary {
   sell_percent: number;
   initial_capital: number;
   metrics: BacktestMetrics;
+  /** True when the strategy's entry/exit rules were edited after this run. */
+  strategy_outdated: boolean;
   created_at: string;
 }
 

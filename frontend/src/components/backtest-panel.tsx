@@ -165,6 +165,11 @@ export function BacktestPanel({
     }
   }, [coverage]);
 
+  // Reload when the strategy definition is saved too, so the "older rules"
+  // flags on past runs stay accurate.
+  const strategyUpdatedAt =
+    strategies.find((strategy) => strategy.id === strategyId)?.updated_at ?? null;
+
   useEffect(() => {
     setActiveRun(null);
     setError(null);
@@ -197,7 +202,7 @@ export function BacktestPanel({
     return () => {
       cancelled = true;
     };
-  }, [strategyId]);
+  }, [strategyId, strategyUpdatedAt]);
 
   // Load the active run's candles and the indicators its strategy reads.
   useEffect(() => {
@@ -458,6 +463,7 @@ export function BacktestPanel({
           sell_percent: record.sell_percent,
           initial_capital: record.initial_capital,
           metrics: record.metrics,
+          strategy_outdated: record.strategy_outdated,
           created_at: record.created_at,
         },
         ...current,

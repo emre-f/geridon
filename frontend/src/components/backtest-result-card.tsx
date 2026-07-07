@@ -1,4 +1,4 @@
-import { DownloadIcon, XIcon } from "lucide-react";
+import { ShareIcon, XIcon } from "lucide-react";
 
 import type {
   BacktestMetrics,
@@ -21,9 +21,10 @@ import { BacktestTradesTable } from "@/components/backtest-trades-table";
 import { EquityChart, type EquityOverlay } from "@/components/equity-chart";
 import { IndicatorLegend } from "@/components/indicator-legend";
 import { StockChart, type ChartMode, type ChartTone } from "@/components/stock-chart";
+import { StrategyRulesSummary } from "@/components/strategy-rules-summary";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { SlashTabs } from "@/components/ui/slash-tabs";
 
 export function BacktestResultCard({
@@ -96,45 +97,65 @@ export function BacktestResultCard({
   return (
     <Card className="gap-4">
       <CardHeader className="flex flex-col gap-3 px-4 sm:px-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle className="text-xl">
-            {activeRun.ticker}
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
+        <div className="flex w-full flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-xl">{activeRun.ticker}</CardTitle>
+            {activeRun.strategy_outdated ? (
+              <Badge
+                variant="outline"
+                className="border-amber-500/60 text-amber-600 dark:text-amber-400"
+                title="The strategy's rules have been edited since this run. The results and the rules shown below reflect what actually ran."
+              >
+                Ran on older rules
+              </Badge>
+            ) : null}
+            <div className="ml-auto flex items-center gap-2">
+              <SlashTabs
+                options={chartModeOptions}
+                value={chartMode}
+                onValueChange={(value) => onChartModeChange(value as ChartMode)}
+                aria-label="Chart style"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => downloadBacktestCard(activeRun, strategyName)}
+              >
+                <ShareIcon />
+                Share
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={onClose}
+              >
+                <XIcon />
+                Close
+              </Button>
+            </div>
+          </div>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
+            <span className="text-foreground font-medium">
+              <span className="text-muted-foreground font-normal">Strategy </span>
               {strategyName}
             </span>
-          </CardTitle>
-          <span className="text-muted-foreground text-xs">
-            {formatRunRange(activeRun)} · {activeRun.timeframe.toUpperCase()} ·{" "}
-            {formatRunSizing(activeRun)} · ran {formatRanAt(activeRun.created_at)}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            <SlashTabs
-              options={chartModeOptions}
-              value={chartMode}
-              onValueChange={(value) => onChartModeChange(value as ChartMode)}
-              aria-label="Chart style"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => downloadBacktestCard(activeRun, strategyName)}
-            >
-              <DownloadIcon />
-              Save as image
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground size-8"
-              aria-label="Close results"
-              onClick={onClose}
-            >
-              <XIcon />
-            </Button>
+            <span aria-hidden="true">·</span>
+            <span>{formatRunRange(activeRun)}</span>
+            <span aria-hidden="true">·</span>
+            <span>{activeRun.timeframe.toUpperCase()}</span>
+            <span aria-hidden="true">·</span>
+            <span>{formatRunSizing(activeRun)}</span>
+            <span aria-hidden="true">·</span>
+            <span>ran {formatRanAt(activeRun.created_at)}</span>
           </div>
         </div>
+        <StrategyRulesSummary
+          snapshot={activeRun.strategy_snapshot}
+          definitionsByKind={definitionsByKind}
+        />
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4 px-4 sm:px-5">
@@ -160,8 +181,6 @@ export function BacktestResultCard({
             onUpdateLineStyle={onUpdateRunIndicatorLineStyle}
           />
         </div>
-
-        <Separator />
 
         <section className="flex flex-col gap-3" aria-label="Backtest results">
           <BacktestMetricsGrid metrics={metrics} />

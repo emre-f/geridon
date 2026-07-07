@@ -41,15 +41,15 @@ function PriceSummary({
   return (
     <div
       className={cn(
-        "inline-flex min-w-fit shrink-0 items-center gap-1.5 text-base font-semibold leading-none",
+        "inline-flex min-w-fit shrink-0 items-center gap-1.5 text-sm font-semibold leading-none",
         chartTone === "down" ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]",
       )}
     >
-      <span className={cn("inline-flex h-7 items-center gap-1 rounded-md px-2", priceSummaryClass)}>
+      <span className={cn("inline-flex h-6 items-center gap-1 rounded-md px-2", priceSummaryClass)}>
         {chartTone === "down" ? (
-          <ArrowDownIcon className="size-4" aria-hidden="true" />
+          <ArrowDownIcon className="size-3.5" aria-hidden="true" />
         ) : (
-          <ArrowUpIcon className="size-4" aria-hidden="true" />
+          <ArrowUpIcon className="size-3.5" aria-hidden="true" />
         )}
         {formatAbsolutePercent(rangePercent)}
       </span>
@@ -104,11 +104,39 @@ export function ChartPanelHeader({
 }) {
   return (
     <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2">
+          <SlashTabs
+            options={chartModeOptions}
+            value={chartMode}
+            onValueChange={(value) => onChartModeChange(value as ChartMode)}
+            aria-label="Chart style"
+          />
+          <SlashTabs
+            options={timeframeOptions.map((option) => ({
+              ...option,
+              disabled: !timeframes.includes(option.value),
+            }))}
+            value={timeframe}
+            onValueChange={onTimeframeChange}
+            aria-label="Candle timeframe"
+          />
+          <SlashTabs
+            options={rangeOptions}
+            value={range}
+            onValueChange={onRangeChange}
+            aria-label="Visible range"
+          />
+        </div>
+
         {activeChart ? (
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
+            size="sm"
+            className="mt-[-0.125rem]"
+            aria-label="Add indicator"
+            title="Add indicator"
             onClick={onOpenIndicatorPicker}
             disabled={indicatorCatalogLength === 0}
           >
@@ -116,28 +144,6 @@ export function ChartPanelHeader({
             Indicators
           </Button>
         ) : null}
-
-        <SlashTabs
-          options={chartModeOptions}
-          value={chartMode}
-          onValueChange={(value) => onChartModeChange(value as ChartMode)}
-          aria-label="Chart style"
-        />
-        <SlashTabs
-          options={timeframeOptions.map((option) => ({
-            ...option,
-            disabled: !timeframes.includes(option.value),
-          }))}
-          value={timeframe}
-          onValueChange={onTimeframeChange}
-          aria-label="Candle timeframe"
-        />
-        <SlashTabs
-          options={rangeOptions}
-          value={range}
-          onValueChange={onRangeChange}
-          aria-label="Visible range"
-        />
       </div>
 
       <div className="flex min-w-0 flex-col gap-2">
@@ -153,7 +159,7 @@ export function ChartPanelHeader({
               >
                 /
               </span>
-              <Skeleton className="h-8 w-full max-w-[28rem]" />
+              <Skeleton className="h-6 w-full max-w-[28rem]" />
             </>
           ) : hasPriceSummary && latest ? (
             <>
@@ -163,7 +169,7 @@ export function ChartPanelHeader({
               >
                 /
               </span>
-              <div className="shrink-0 text-[clamp(1.5rem,4vw,1.875rem)] font-medium leading-none tracking-normal text-foreground">
+              <div className="shrink-0 text-xl font-semibold leading-none tracking-normal text-foreground">
                 {formatCurrency(latest.close)}
               </div>
               <PriceSummary

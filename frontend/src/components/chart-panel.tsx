@@ -24,6 +24,7 @@ export function ChartPanel({
   chartIndicators,
   chartMode,
   chartSignals,
+  chartTimeframe,
   chartTone,
   hasPriceSummary,
   indicatorCatalogLength,
@@ -63,6 +64,7 @@ export function ChartPanel({
   chartIndicators: IndicatorSeries[];
   chartMode: ChartMode;
   chartSignals: StrategySignal[];
+  chartTimeframe: string;
   chartTone: ChartTone;
   hasPriceSummary: boolean;
   indicatorCatalogLength: number;
@@ -137,7 +139,7 @@ export function ChartPanel({
             candles={candles}
             indicators={chartIndicators}
             signals={chartSignals}
-            timeframe={timeframe}
+            timeframe={chartTimeframe}
             visibleStartMs={candleWindow?.startMs}
             visibleEndMs={candleWindow?.endMs}
             mode={chartMode}

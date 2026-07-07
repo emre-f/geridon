@@ -57,6 +57,15 @@ export function BacktestRunsList({
                 L/S
               </Badge>
             ) : null}
+            {run.strategy_outdated ? (
+              <Badge
+                variant="outline"
+                className="border-amber-500/60 px-1.5 py-0 text-[10px] text-amber-600 dark:text-amber-400"
+                title="The strategy's rules have been edited since this run; open it to see the rules it used."
+              >
+                older rules
+              </Badge>
+            ) : null}
             <span className="text-muted-foreground text-xs">{formatRunRange(run)}</span>
             <span
               className={cn(

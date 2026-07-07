@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,20 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function sameUnderlinePosition(
+  previous: UnderlinePosition | null,
+  next: UnderlinePosition | null,
+) {
+  if (previous === next) {
+    return true;
+  }
+  if (!previous || !next) {
+    return false;
+  }
+
+  return Math.abs(previous.left - next.left) < 0.1 && Math.abs(previous.right - next.right) < 0.1;
+}
+
 /**
  * Minimal single-select control: plain text options separated by "/", with a
  * gray underline under the active one. On selection the underline's leading
@@ -43,6 +57,14 @@ export function SlashTabs({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
   const [underline, setUnderline] = useState<UnderlinePosition | null>(null);
+  const underlineRef = useRef<UnderlinePosition | null>(null);
+  const optionsKey = useMemo(
+    () =>
+      options
+        .map((option) => `${option.value}:${option.label}:${option.disabled ? "disabled" : ""}`)
+        .join("|"),
+    [options],
+  );
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -50,10 +72,19 @@ export function SlashTabs({
       return;
     }
 
+    function updateUnderline(next: UnderlinePosition | null) {
+      if (sameUnderlinePosition(underlineRef.current, next)) {
+        return;
+      }
+
+      underlineRef.current = next;
+      setUnderline(next);
+    }
+
     function measure(animate: boolean) {
       const button = buttonRefs.current.get(value);
       if (!container || !button) {
-        setUnderline(null);
+        updateUnderline(null);
         return;
       }
 
@@ -61,18 +92,13 @@ export function SlashTabs({
       const buttonRect = button.getBoundingClientRect();
       const left = buttonRect.left - containerRect.left;
       const right = containerRect.right - buttonRect.right;
+      const previous = underlineRef.current;
 
-      setUnderline((previous) => {
-        if (previous && previous.left === left && previous.right === right) {
-          return previous;
-        }
-
-        return {
-          left,
-          right,
-          animate: animate && previous != null && !prefersReducedMotion(),
-          movingRight: previous ? left >= previous.left : true,
-        };
+      updateUnderline({
+        left,
+        right,
+        animate: animate && previous != null && !prefersReducedMotion(),
+        movingRight: previous ? left >= previous.left : true,
       });
     }
 
@@ -81,7 +107,7 @@ export function SlashTabs({
     const observer = new ResizeObserver(() => measure(false));
     observer.observe(container);
     return () => observer.disconnect();
-  }, [options, value]);
+  }, [optionsKey, value]);
 
   return (
     <div

@@ -76,6 +76,19 @@ const defaultTicker = "SPY";
 const visibleSymbolLimit = 80;
 const maxActiveIndicators = 6;
 
+// Stable empty fallbacks: a fresh [] each render would retrigger the chart's
+// candles/signals effects and loop setState before any data has loaded.
+const noCandles: Candle[] = [];
+const noSignals: StrategySignal[] = [];
+
+interface CandleData {
+  ticker: string;
+  timeframe: string;
+  startMs: number;
+  endMs: number;
+  candles: Candle[];
+}
+
 function defaultSymbol(symbols: SymbolSummary[]) {
   return symbols.find((symbol) => symbol.ticker === defaultTicker) ?? symbols[0];
 }
@@ -104,7 +117,7 @@ export default function App() {
   const [addTickerInput, setAddTickerInput] = useState("");
   const [timeframe, setTimeframe] = useState("1d");
   const [range, setRange] = useState(defaultRangeForTimeframe("1d"));
-  const [candles, setCandles] = useState<Candle[]>([]);
+  const [candleData, setCandleData] = useState<CandleData | null>(null);
   const [visibleCandles, setVisibleCandles] = useState<Candle[]>([]);
   const [indicatorCatalog, setIndicatorCatalog] = useState<IndicatorDefinition[]>([]);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
@@ -135,6 +148,12 @@ export default function App() {
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const addPanelRef = useRef<HTMLDivElement | null>(null);
   const addTickerInputRef = useRef<HTMLInputElement | null>(null);
+  const lastChartDisplayRef = useRef<{
+    ticker: string;
+    timeframe: string;
+    startMs: number;
+    endMs: number;
+  } | null>(null);
 
   const selectedSymbol = useMemo(
     () => symbols.find((symbol) => symbol.ticker === selectedTicker),
@@ -163,6 +182,33 @@ export default function App() {
     () => coverageWindow(selectedSymbol, timeframe),
     [selectedSymbol, timeframe],
   );
+  const candleDataCurrent =
+    candleData != null &&
+    candleRequestWindow != null &&
+    candleData.ticker === selectedTicker &&
+    candleData.timeframe === timeframe &&
+    candleData.startMs === candleRequestWindow.startMs &&
+    candleData.endMs === candleRequestWindow.endMs;
+  const canShowPendingTimeframeCandles =
+    candleData != null && candleData.ticker === selectedTicker && !candleDataCurrent;
+  const staleChartDisplay =
+    canShowPendingTimeframeCandles && lastChartDisplayRef.current?.ticker === selectedTicker
+      ? lastChartDisplayRef.current
+      : null;
+  const chartCandles =
+    candleDataCurrent || canShowPendingTimeframeCandles ? candleData?.candles ?? noCandles : noCandles;
+  const chartTimeframe =
+    candleDataCurrent
+      ? timeframe
+      : canShowPendingTimeframeCandles
+        ? staleChartDisplay?.timeframe ?? candleData?.timeframe ?? timeframe
+        : timeframe;
+  const chartCandleWindow =
+    candleDataCurrent && candleWindow
+      ? candleWindow
+      : staleChartDisplay
+        ? { startMs: staleChartDisplay.startMs, endMs: staleChartDisplay.endMs }
+        : undefined;
   const indicatorRequestKey = useMemo(
     () =>
       JSON.stringify(
@@ -235,9 +281,10 @@ export default function App() {
     }));
   }, [strategyIndicatorSeries, strategyPreviewSpecs]);
   const chartIndicators = activeTab === "strategies" ? strategyIndicatorsForChart : indicatorsForChart;
-  const chartSignals = activeTab === "strategies" ? strategySignals : [];
+  const chartSignals = activeTab === "strategies" ? strategySignals : noSignals;
 
-  const summaryCandles = visibleCandles.length > 0 ? visibleCandles : candles;
+  const summaryCandles =
+    visibleCandles.length > 0 && chartCandles.length > 0 ? visibleCandles : chartCandles;
   const latest = summaryCandles.at(-1);
   const first = summaryCandles.at(0);
   const rangeChange = latest && first ? latest.close - first.close : 0;
@@ -389,7 +436,7 @@ export default function App() {
       restoreChartState(nextSymbol);
     } else {
       setSelectedTicker("");
-      setCandles([]);
+      setCandleData(null);
     }
 
     return nextSymbols;
@@ -455,13 +502,15 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedTicker || !candleRequestWindow) {
-      setCandles([]);
+      setCandleData(null);
       setVisibleCandles([]);
       setIndicatorSeries([]);
       return;
     }
 
     let cancelled = false;
+    const requestTicker = selectedTicker;
+    const requestTimeframe = timeframe;
     const requestWindow = candleRequestWindow;
 
     async function loadCandles() {
@@ -470,19 +519,25 @@ export default function App() {
 
       try {
         const nextCandles = await listCandles({
-          ticker: selectedTicker,
-          timeframe,
+          ticker: requestTicker,
+          timeframe: requestTimeframe,
           startMs: requestWindow.startMs,
           endMs: requestWindow.endMs,
         });
 
         if (!cancelled) {
-          setCandles(nextCandles);
+          setCandleData({
+            ticker: requestTicker,
+            timeframe: requestTimeframe,
+            startMs: requestWindow.startMs,
+            endMs: requestWindow.endMs,
+            candles: nextCandles,
+          });
           setVisibleCandles([]);
         }
       } catch (loadError) {
         if (!cancelled) {
-          setCandles([]);
+          setCandleData(null);
           setVisibleCandles([]);
           setError(loadError instanceof Error ? loadError.message : "Could not load candles.");
         }
@@ -697,11 +752,28 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (!candleDataCurrent || !candleWindow || !selectedTicker) {
+      return;
+    }
+
+    lastChartDisplayRef.current = {
+      ticker: selectedTicker,
+      timeframe,
+      startMs: candleWindow.startMs,
+      endMs: candleWindow.endMs,
+    };
+  }, [candleDataCurrent, candleWindow, selectedTicker, timeframe]);
+
+  useEffect(() => {
     setVisibleCandles([]);
   }, [range, selectedTicker, timeframe]);
 
   const handleVisibleCandlesChange = useCallback((nextVisibleCandles: Candle[]) => {
-    setVisibleCandles(nextVisibleCandles);
+    // Keep the empty-state identity stable so the chart's notify effect can't
+    // ping-pong renders with this component.
+    setVisibleCandles((current) =>
+      current.length === 0 && nextVisibleCandles.length === 0 ? current : nextVisibleCandles,
+    );
   }, []);
 
   const handleHoverCandleChange = useCallback((nextHoverCandle: Candle | null) => {
@@ -1138,7 +1210,7 @@ export default function App() {
       removeChartState(ticker);
       await loadSymbolList();
       if (ticker === selectedTicker) {
-        setCandles([]);
+        setCandleData(null);
       }
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : `Could not delete ${ticker}.`);
@@ -1244,9 +1316,9 @@ export default function App() {
               <ChartPanel
                 activeIndicators={activeIndicators}
                 activeTab={activeTab}
-                candles={candles}
+                candles={chartCandles}
                 candlesLoading={candlesLoading}
-                candleWindow={candleWindow}
+                candleWindow={chartCandleWindow}
                 chartIndicators={chartIndicators}
                 chartMode={chartMode}
                 chartSignals={chartSignals}
@@ -1267,6 +1339,7 @@ export default function App() {
                 strategyIndicatorsLoading={strategyIndicatorsLoading}
                 strategyPreviewSpecs={strategyPreviewSpecs}
                 symbolsLoading={symbolsLoading}
+                chartTimeframe={chartTimeframe}
                 timeframe={timeframe}
                 timeframes={timeframes}
                 visibleWindowLabel={visibleWindowLabel}

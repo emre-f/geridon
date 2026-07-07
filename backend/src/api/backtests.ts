@@ -3,14 +3,12 @@ import { runBacktest } from "../services/backtest.ts";
 import { evaluateSignals } from "../services/signals.ts";
 import { validateStrategy } from "../services/strategies.ts";
 import { parseTimeframe } from "../timeframes.ts";
-import type {
-  BacktestMetrics,
-  BacktestPositionMode,
-  BacktestResult,
-  BacktestRunRecord,
-  BacktestRunSummary,
-  Strategy,
-} from "../types.ts";
+import type { BacktestPositionMode, Strategy } from "../types.ts";
+import {
+  backtestRunRecord,
+  backtestRunSummary,
+  snapshotMatchesDefinition,
+} from "./backtestResponses.ts";
 import {
   badRequest,
   candlesForTimeframe,
@@ -58,33 +56,6 @@ export function handleSignals(db: Database, body: unknown) {
   }).map(responseToCandle);
 
   return { statusCode: 200, body: { signals: evaluateSignals(strategy, candles) } };
-}
-
-function backtestRunSummary(row: Record<string, unknown>): BacktestRunSummary {
-  return {
-    id: Number(row.id),
-    strategy_id: Number(row.strategy_id),
-    ticker: String(row.ticker),
-    timeframe: String(row.timeframe),
-    start_ms: Number(row.start_ms),
-    end_ms: Number(row.end_ms),
-    position_mode: (row.position_mode ?? "long_only") as BacktestPositionMode,
-    buy_percent: Number(row.buy_percent),
-    sell_percent: Number(row.sell_percent),
-    initial_capital: Number(row.initial_capital),
-    metrics: JSON.parse(String(row.metrics)) as BacktestMetrics,
-    created_at: String(row.created_at),
-  };
-}
-
-function backtestRunRecord(row: Record<string, unknown>): BacktestRunRecord {
-  const detail = JSON.parse(String(row.detail)) as Pick<BacktestResult, "equity_curve" | "trades">;
-  return {
-    ...backtestRunSummary(row),
-    strategy_snapshot: JSON.parse(String(row.strategy_snapshot)) as Strategy,
-    equity_curve: detail.equity_curve,
-    trades: detail.trades,
-  };
 }
 
 export function handleRunBacktest(db: Database, body: unknown) {
@@ -195,7 +166,8 @@ export function handleRunBacktest(db: Database, body: unknown) {
   const row = db
     .prepare("SELECT * FROM backtest_runs WHERE id = ?")
     .get(Number(inserted.lastInsertRowid))!;
-  return { statusCode: 201, body: backtestRunRecord(row) };
+  // A fresh run always snapshots the current definition, so it is never outdated.
+  return { statusCode: 201, body: backtestRunRecord(row, false) };
 }
 
 export function handleListStrategyBacktests(db: Database, idPath: string) {
@@ -203,22 +175,30 @@ export function handleListStrategyBacktests(db: Database, idPath: string) {
   if (id == null) {
     return badRequest("Strategy id must be a positive integer.");
   }
-  if (!db.prepare("SELECT 1 FROM strategies WHERE id = ?").get(id)) {
+  const strategyRow = db.prepare("SELECT definition FROM strategies WHERE id = ?").get(id);
+  if (!strategyRow) {
     return { statusCode: 404, body: { detail: `Strategy ${id} was not found.` } };
   }
 
+  const definition = String(strategyRow.definition);
   const rows = db
     .prepare(
       `
       SELECT id, strategy_id, ticker, timeframe, start_ms, end_ms,
-             position_mode, buy_percent, sell_percent, initial_capital, metrics, created_at
+             position_mode, buy_percent, sell_percent, initial_capital, metrics,
+             strategy_snapshot, created_at
       FROM backtest_runs
       WHERE strategy_id = ?
       ORDER BY created_at DESC, id DESC
     `,
     )
     .all(id);
-  return { statusCode: 200, body: rows.map(backtestRunSummary) };
+  return {
+    statusCode: 200,
+    body: rows.map((row) =>
+      backtestRunSummary(row, !snapshotMatchesDefinition(String(row.strategy_snapshot), definition)),
+    ),
+  };
 }
 
 export function handleGetBacktest(db: Database, idPath: string) {
@@ -231,7 +211,14 @@ export function handleGetBacktest(db: Database, idPath: string) {
   if (!row) {
     return { statusCode: 404, body: { detail: `Backtest ${id} was not found.` } };
   }
-  return { statusCode: 200, body: backtestRunRecord(row) };
+
+  const strategyRow = db
+    .prepare("SELECT definition FROM strategies WHERE id = ?")
+    .get(Number(row.strategy_id));
+  const outdated = strategyRow
+    ? !snapshotMatchesDefinition(String(row.strategy_snapshot), String(strategyRow.definition))
+    : true;
+  return { statusCode: 200, body: backtestRunRecord(row, outdated) };
 }
 
 export function handleDeleteBacktest(db: Database, idPath: string) {
