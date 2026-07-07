@@ -78,15 +78,22 @@ export function buildEquityChartPlot({
   const baselineY = yAt(initialCapital);
   const areaPath = `${linePath}L${xAt(points.length - 1).toFixed(2)},${baselineY.toFixed(2)}L${xAt(0).toFixed(2)},${baselineY.toFixed(2)}Z`;
 
-  const overlayPaths = overlayPlots
-    .filter(({ matched }) => matched.length > 1)
-    .map(({ overlay, matched }) => ({
-      overlay,
-      path: matched
-        .map((point, order) => `${order === 0 ? "M" : "L"}${xAt(point.index).toFixed(2)},${yAt(point.value).toFixed(2)}`)
-        .join(""),
-      valueByIndex: new Map(matched.map((point) => [point.index, point.value])),
-    }));
+  // Single pass: overlays with fewer than two matched points draw nothing.
+  const overlayPaths = overlayPlots.flatMap(({ overlay, matched }) => {
+    if (matched.length <= 1) {
+      return [];
+    }
+
+    return [
+      {
+        overlay,
+        path: matched
+          .map((point, order) => `${order === 0 ? "M" : "L"}${xAt(point.index).toFixed(2)},${yAt(point.value).toFixed(2)}`)
+          .join(""),
+        valueByIndex: new Map(matched.map((point) => [point.index, point.value])),
+      },
+    ];
+  });
 
   const markers =
     trades.length > maxTradeMarkers

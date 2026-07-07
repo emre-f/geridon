@@ -28,18 +28,21 @@ export function formatRunSizing(run: BacktestRunSummary) {
     : `buy ${run.buy_percent}% / sell ${run.sell_percent}%`;
 }
 
+// Hoisted: Intl constructors are expensive to rebuild per call.
+const ranAtFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export function formatRanAt(createdAt: string) {
   // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
   const ms = Date.parse(createdAt.includes("Z") ? createdAt : `${createdAt}Z`);
   if (Number.isNaN(ms)) {
     return createdAt;
   }
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(ms));
+  return ranAtFormat.format(new Date(ms));
 }
 
 export function comparisonCacheKey(ticker: string, run: BacktestRunRecord) {

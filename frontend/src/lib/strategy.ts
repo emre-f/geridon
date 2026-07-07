@@ -37,7 +37,7 @@ export const priceFieldOptions: Array<{ value: PriceField; label: string }> = [
   { value: "volume", label: "Volume" },
 ];
 
-export function createNodeId() {
+function createNodeId() {
   return `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -98,7 +98,7 @@ function strategyIndicatorKey(operand: Extract<StrategyOperand, { type: "indicat
   return `${operand.kind}:${parametersKey(operand.parameters)}`;
 }
 
-export function collectIndicatorOperands(
+function collectIndicatorOperands(
   condition: SnapshotCondition,
   operands: StrategyOperand[] = [],
 ) {

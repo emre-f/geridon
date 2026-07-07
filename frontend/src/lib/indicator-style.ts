@@ -6,7 +6,7 @@ import type {
 } from "@/lib/api";
 import { isHexColor, paletteColorAt } from "@/lib/color-palette";
 
-export const fallbackValueDefinition: IndicatorValueDefinition = {
+const fallbackValueDefinition: IndicatorValueDefinition = {
   key: "value",
   label: "Color",
   style: "line",
@@ -32,13 +32,13 @@ export function indicatorShortLabel(
 export const lineStrokes: IndicatorLineStroke[] = ["solid", "dashed", "dotted"];
 export const lineWidths = [1, 2, 3, 4];
 export const minLineOpacity = 0.1;
-export const maxLineOpacity = 1;
+const maxLineOpacity = 1;
 
-export function isLineStroke(value: unknown): value is IndicatorLineStroke {
+function isLineStroke(value: unknown): value is IndicatorLineStroke {
   return lineStrokes.includes(value as IndicatorLineStroke);
 }
 
-export function clampLineWidth(value: number) {
+function clampLineWidth(value: number) {
   return Math.min(Math.max(Math.round(value), lineWidths[0]), lineWidths[lineWidths.length - 1]);
 }
 

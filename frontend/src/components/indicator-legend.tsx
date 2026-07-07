@@ -17,6 +17,10 @@ import {
 import { cn } from "@/lib/utils";
 import { IndicatorSettings } from "@/components/indicator-settings";
 
+// Hoisted: Intl constructors are expensive to rebuild per legend value.
+const preciseLegendFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
+const roundedLegendFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+
 function formatLegendValue(value: number, placement: IndicatorDefinition["placement"]) {
   if (placement === "overlay") {
     return formatCurrency(value);
@@ -25,9 +29,7 @@ function formatLegendValue(value: number, placement: IndicatorDefinition["placem
     return formatCompact(value);
   }
 
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: Math.abs(value) < 10 ? 4 : 2,
-  }).format(value);
+  return (Math.abs(value) < 10 ? preciseLegendFormat : roundedLegendFormat).format(value);
 }
 
 /**
@@ -58,7 +60,13 @@ export function IndicatorLegend({
   onRemove?: (id: string) => void;
   className?: string;
 }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openChipId, setOpenId] = useState<string | null>(null);
+  // Derived rather than reset in an effect: a remembered id whose indicator
+  // was removed simply stops matching, so the settings panel closes itself.
+  const openId =
+    openChipId != null && indicators.some((indicator) => indicator.id === openChipId)
+      ? openChipId
+      : null;
   // Chips are interactive whenever line styles are editable; parameter and
   // remove controls appear only when their callbacks are provided.
   const interactive = Boolean(onUpdateLineStyle);
@@ -74,12 +82,6 @@ export function IndicatorLegend({
       ),
     [series],
   );
-
-  useEffect(() => {
-    if (openId && !indicators.some((indicator) => indicator.id === openId)) {
-      setOpenId(null);
-    }
-  }, [indicators, openId]);
 
   useEffect(() => {
     if (!openId) {

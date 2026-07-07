@@ -4,35 +4,36 @@ import { SearchIcon } from "lucide-react";
 import type { IndicatorDefinition } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 
-/**
- * Modal for adding an indicator: a searchable catalog list showing each
- * indicator's short name, full name, and a one-line description.
- */
-export function IndicatorPicker({
-  open,
-  catalog,
-  activeCount,
-  maxCount,
-  onAdd,
-  onClose,
-}: {
+interface IndicatorPickerProps {
   open: boolean;
   catalog: IndicatorDefinition[];
   activeCount: number;
   maxCount: number;
   onAdd: (definition: IndicatorDefinition) => void;
   onClose: () => void;
-}) {
+}
+
+/**
+ * Modal for adding an indicator: a searchable catalog list showing each
+ * indicator's short name, full name, and a one-line description.
+ */
+export function IndicatorPicker({ open, ...dialogProps }: IndicatorPickerProps) {
+  // Mounting the dialog fresh each open resets the search query naturally.
+  return open ? <IndicatorPickerDialog {...dialogProps} /> : null;
+}
+
+function IndicatorPickerDialog({
+  catalog,
+  activeCount,
+  maxCount,
+  onAdd,
+  onClose,
+}: Omit<IndicatorPickerProps, "open">) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const atLimit = activeCount >= maxCount;
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setQuery("");
     inputRef.current?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -43,7 +44,7 @@ export function IndicatorPicker({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+  }, [onClose]);
 
   const filteredCatalog = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -57,10 +58,6 @@ export function IndicatorPicker({
       ),
     );
   }, [catalog, query]);
-
-  if (!open) {
-    return null;
-  }
 
   function addDefinition(definition: IndicatorDefinition) {
     onAdd(definition);

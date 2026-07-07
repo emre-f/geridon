@@ -25,7 +25,7 @@ function loadPaletteColors(): string[] {
   try {
     const stored = JSON.parse(localStorage.getItem(paletteStorageKey) ?? "[]");
     if (Array.isArray(stored)) {
-      const colors = stored.filter(isHexColor).map((color) => color.toLowerCase());
+      const colors = stored.flatMap((color) => (isHexColor(color) ? [color.toLowerCase()] : []));
       if (colors.length >= minPaletteColors) {
         return colors.slice(0, maxPaletteColors);
       }
@@ -54,11 +54,11 @@ function setPaletteColors(nextColors: string[]) {
   }
 }
 
-export function getPaletteColors() {
+function getPaletteColors() {
   return paletteColors;
 }
 
-export function subscribeToPalette(listener: () => void) {
+function subscribeToPalette(listener: () => void) {
   paletteListeners.add(listener);
   return () => {
     paletteListeners.delete(listener);

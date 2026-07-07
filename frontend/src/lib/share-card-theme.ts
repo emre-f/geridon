@@ -25,10 +25,13 @@ export function shareCardFont(weight: number, size: number) {
   return `${weight} ${size}px ${fontStack}`;
 }
 
+// Hoisted: Intl constructors are expensive to rebuild per call.
+const cardDateFormat = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+
 export function formatCardDate(ms: number) {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(ms));
+  return cardDateFormat.format(new Date(ms));
 }

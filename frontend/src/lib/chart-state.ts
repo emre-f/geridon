@@ -52,14 +52,18 @@ function sanitizeIndicators(value: unknown): IndicatorSpec[] {
     }
 
     // Older stored states carried a plain color list; fold it into styles.
-    const legacyStyles = Array.isArray(colors)
-      ? colors
-          .filter(isHexColor)
-          .map((color, colorIndex) => ({
-            ...defaultLineStyle(specs.length + colorIndex),
+    // One pass; the palette index counts only the colors that were kept.
+    const legacyStyles: IndicatorLineStyle[] = [];
+    if (Array.isArray(colors)) {
+      for (const color of colors) {
+        if (isHexColor(color)) {
+          legacyStyles.push({
+            ...defaultLineStyle(specs.length + legacyStyles.length),
             color: color.toLowerCase(),
-          }))
-      : [];
+          });
+        }
+      }
+    }
     const sanitizedStyles: IndicatorLineStyle[] = Array.isArray(styles)
       ? styles.map((style, styleIndex) =>
           sanitizeLineStyle(style, defaultLineStyle(specs.length + styleIndex)),

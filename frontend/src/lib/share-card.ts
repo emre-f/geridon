@@ -121,7 +121,7 @@ function drawEquityCurve(
   );
 }
 
-export function renderBacktestCard(run: BacktestRunRecord, strategyName: string) {
+function renderBacktestCard(run: BacktestRunRecord, strategyName: string) {
   const canvas = document.createElement("canvas");
   canvas.width = shareCardWidth * shareCardScale;
   canvas.height = shareCardHeight * shareCardScale;
