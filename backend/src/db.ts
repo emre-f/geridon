@@ -86,5 +86,36 @@ export function createDb(db: Database): void {
       state TEXT NOT NULL,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS backtest_runs (
+      id INTEGER PRIMARY KEY,
+      strategy_id INTEGER NOT NULL REFERENCES strategies(id) ON DELETE CASCADE,
+      ticker VARCHAR(16) NOT NULL,
+      timeframe VARCHAR(8) NOT NULL,
+      start_ms INTEGER NOT NULL,
+      end_ms INTEGER NOT NULL,
+      position_mode VARCHAR(16) NOT NULL DEFAULT 'long_only',
+      buy_percent FLOAT NOT NULL,
+      sell_percent FLOAT NOT NULL,
+      initial_capital FLOAT NOT NULL,
+      strategy_snapshot TEXT NOT NULL,
+      metrics TEXT NOT NULL,
+      detail TEXT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_backtest_runs_strategy
+      ON backtest_runs (strategy_id, created_at);
   `);
+
+  // Databases created before a column existed need it added in place.
+  const backtestColumns = db
+    .prepare("SELECT name FROM pragma_table_info('backtest_runs')")
+    .all()
+    .map((row) => String(row.name));
+  if (!backtestColumns.includes("position_mode")) {
+    db.exec(
+      "ALTER TABLE backtest_runs ADD COLUMN position_mode VARCHAR(16) NOT NULL DEFAULT 'long_only'",
+    );
+  }
 }

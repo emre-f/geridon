@@ -35,12 +35,15 @@
 - [X] Verify signals visually
 
 ## 7. Backtesting Engine
-- [ ] Parse strategy
-- [ ] Execute historical simulation
-- [ ] Track portfolio value
-- [ ] Track positions
-- [ ] Track cash
-- [ ] Calculate trade history
+- [X] Parse strategy
+- [X] Execute historical simulation
+- [X] Track portfolio value
+- [X] Track positions
+- [X] Track cash
+- [X] Calculate trade history
+- [X] Position sizing (buy % of equity, sell % of position; next-open fills)
+- [X] Persist runs per strategy (history list + reopen without recompute)
+- [X] Shareable result image (PNG export)
 
 ## 8. Results
 - [ ] Calculate total return

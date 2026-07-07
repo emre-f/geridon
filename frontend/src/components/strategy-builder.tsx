@@ -1,6 +1,9 @@
 import { useMemo, type ReactNode } from "react";
 import {
   CheckIcon,
+  CopyIcon,
+  EyeIcon,
+  EyeOffIcon,
   PlusIcon,
   RefreshCwIcon,
   SaveIcon,
@@ -242,6 +245,41 @@ function OperandEditor({
   );
 }
 
+/**
+ * Eye toggle shared by rules and groups. A hidden condition stays fully
+ * editable but is skipped during evaluation, so its effect can be previewed
+ * without deleting it.
+ */
+function VisibilityToggle({
+  hidden,
+  subject,
+  onToggle,
+}: {
+  hidden: boolean;
+  subject: "rule" | "group";
+  onToggle: () => void;
+}) {
+  const label = hidden ? `Show ${subject}` : `Hide ${subject} from evaluation`;
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className={cn(
+        "size-8",
+        hidden ? "text-muted-foreground/70 hover:text-foreground" : "text-muted-foreground hover:text-foreground",
+      )}
+      aria-label={label}
+      aria-pressed={hidden}
+      title={label}
+      onClick={onToggle}
+    >
+      {hidden ? <EyeOffIcon /> : <EyeIcon />}
+    </Button>
+  );
+}
+
 function RuleEditor({
   rule,
   catalog,
@@ -253,46 +291,67 @@ function RuleEditor({
   onChange: (rule: StrategyRule) => void;
   onRemove: () => void;
 }) {
+  const hidden = rule.enabled === false;
+
   return (
-    <div className="border-border bg-background flex flex-wrap items-end gap-x-3 gap-y-2 rounded-md border p-2.5">
-      <OperandEditor
-        label="Left side"
-        operand={rule.left}
-        catalog={catalog}
-        onChange={(left) => onChange({ ...rule, left })}
-      />
-      <Field label="Condition">
-        <Select
-          value={rule.operator}
-          aria-label="Comparison operator"
-          className="w-36"
-          onChange={(event) =>
-            onChange({ ...rule, operator: event.target.value as ComparisonOperator })
-          }
-        >
-          {comparisonOperatorOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <OperandEditor
-        label="Right side"
-        operand={rule.right}
-        catalog={catalog}
-        onChange={(right) => onChange({ ...rule, right })}
-      />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="text-muted-foreground hover:text-destructive ml-auto size-8"
-        aria-label="Remove rule"
-        onClick={onRemove}
+    <div
+      className={cn(
+        "border-border bg-background flex flex-wrap items-end gap-x-3 gap-y-2 rounded-md border p-2.5",
+        hidden && "border-dashed",
+      )}
+    >
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-wrap items-end gap-x-3 gap-y-2",
+          hidden && "opacity-50",
+        )}
       >
-        <XIcon />
-      </Button>
+        <OperandEditor
+          label="Left side"
+          operand={rule.left}
+          catalog={catalog}
+          onChange={(left) => onChange({ ...rule, left })}
+        />
+        <Field label="Condition">
+          <Select
+            value={rule.operator}
+            aria-label="Comparison operator"
+            className="w-36"
+            onChange={(event) =>
+              onChange({ ...rule, operator: event.target.value as ComparisonOperator })
+            }
+          >
+            {comparisonOperatorOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <OperandEditor
+          label="Right side"
+          operand={rule.right}
+          catalog={catalog}
+          onChange={(right) => onChange({ ...rule, right })}
+        />
+      </div>
+      <div className="ml-auto flex items-center">
+        <VisibilityToggle
+          hidden={hidden}
+          subject="rule"
+          onToggle={() => onChange({ ...rule, enabled: hidden })}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-destructive size-8"
+          aria-label="Remove rule"
+          onClick={onRemove}
+        >
+          <XIcon />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -312,6 +371,7 @@ function ConditionGroupEditor({
 }) {
   // NOT wraps a single condition, so block adding once it has one.
   const canAdd = group.operator !== "not" || group.conditions.length < 1;
+  const hidden = group.enabled === false;
 
   function replaceAt(index: number, condition: StrategyGroup | StrategyRule) {
     onChange({
@@ -338,26 +398,29 @@ function ConditionGroupEditor({
       className={cn(
         "border-border flex flex-col gap-2 rounded-md border p-2.5",
         depth > 0 && "bg-muted/40",
+        hidden && "border-dashed",
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <ToggleGroup
-          type="single"
-          value={group.operator}
-          aria-label="Group operator"
-          onValueChange={(value) =>
-            value && onChange({ ...group, operator: value as GroupOperator })
-          }
-        >
-          {groupOperatorOptions.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
-              {option.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <span className="text-muted-foreground hidden text-xs sm:inline">
-          {groupOperatorHints[group.operator]}
-        </span>
+        <div className={cn("flex flex-wrap items-center gap-2", hidden && "opacity-50")}>
+          <ToggleGroup
+            type="single"
+            value={group.operator}
+            aria-label="Group operator"
+            onValueChange={(value) =>
+              value && onChange({ ...group, operator: value as GroupOperator })
+            }
+          >
+            {groupOperatorOptions.map((option) => (
+              <ToggleGroupItem key={option.value} value={option.value}>
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <span className="text-muted-foreground hidden text-xs sm:inline">
+            {groupOperatorHints[group.operator]}
+          </span>
+        </div>
 
         <div className="ml-auto flex items-center gap-1.5">
           <Button type="button" variant="outline" size="sm" disabled={!canAdd} onClick={() => append(createRuleNode(catalog))}>
@@ -375,16 +438,23 @@ function ConditionGroupEditor({
             Group
           </Button>
           {onRemove ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-destructive size-8"
-              aria-label="Remove group"
-              onClick={onRemove}
-            >
-              <XIcon />
-            </Button>
+            <>
+              <VisibilityToggle
+                hidden={hidden}
+                subject="group"
+                onToggle={() => onChange({ ...group, enabled: hidden })}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-destructive size-8"
+                aria-label="Remove group"
+                onClick={onRemove}
+              >
+                <XIcon />
+              </Button>
+            </>
           ) : null}
         </div>
       </div>
@@ -394,7 +464,12 @@ function ConditionGroupEditor({
           No conditions yet. Add a rule to get started.
         </p>
       ) : (
-        <div className="border-border flex flex-col gap-2 border-l-2 pl-2.5">
+        <div
+          className={cn(
+            "border-border flex flex-col gap-2 border-l-2 pl-2.5",
+            hidden && "opacity-50",
+          )}
+        >
           {group.conditions.map((condition, index) =>
             condition.type === "group" ? (
               <ConditionGroupEditor
@@ -438,6 +513,7 @@ interface StrategyBuilderProps {
   error: string | null;
   onDraftChange: (draft: StrategyDraft) => void;
   onSelectStrategy: (value: string) => void;
+  onDuplicate: () => void;
   onDelete: () => void;
   onValidate: () => void;
   onSave: () => void;
@@ -460,6 +536,7 @@ export function StrategyBuilder({
   error,
   onDraftChange,
   onSelectStrategy,
+  onDuplicate,
   onDelete,
   onValidate,
   onSave,
@@ -504,6 +581,16 @@ export function StrategyBuilder({
               </option>
             ))}
           </Select>
+          <Button
+            type="button"
+            variant="outline"
+            title="Copy this strategy (including unsaved edits) into a new one, keeping the original as is"
+            onClick={onDuplicate}
+            disabled={selectedId == null || !draft || saving}
+          >
+            <CopyIcon />
+            Duplicate
+          </Button>
           <Button
             type="button"
             variant="outline"

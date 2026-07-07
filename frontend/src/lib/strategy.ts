@@ -2,13 +2,17 @@ import type {
   ComparisonOperator,
   GroupOperator,
   IndicatorDefinition,
+  IndicatorKind,
+  IndicatorSpec,
   PriceField,
+  SnapshotCondition,
   StrategyCondition,
   StrategyDraft,
   StrategyGroup,
   StrategyOperand,
   StrategyRule,
 } from "@/lib/api";
+import { defaultLineStyle, definitionValueSlots } from "@/lib/indicator-style";
 
 export const comparisonOperatorOptions: Array<{ value: ComparisonOperator; label: string }> = [
   { value: "gt", label: "is greater than" },
@@ -82,6 +86,82 @@ export function createStrategyDraft(catalog: IndicatorDefinition[]): StrategyDra
  */
 export function asRootGroup(condition: StrategyCondition): StrategyGroup {
   return condition.type === "group" ? condition : createGroupNode([condition]);
+}
+
+function parametersKey(parameters: Record<string, number>) {
+  return JSON.stringify(
+    Object.fromEntries(Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right))),
+  );
+}
+
+function strategyIndicatorKey(operand: Extract<StrategyOperand, { type: "indicator" }>) {
+  return `${operand.kind}:${parametersKey(operand.parameters)}`;
+}
+
+export function collectIndicatorOperands(
+  condition: SnapshotCondition,
+  operands: StrategyOperand[] = [],
+) {
+  // Disabled conditions are skipped during evaluation, so keep their
+  // indicators off the chart too.
+  if (condition.enabled === false) {
+    return operands;
+  }
+
+  if (condition.type === "group") {
+    for (const child of condition.conditions) {
+      collectIndicatorOperands(child, operands);
+    }
+    return operands;
+  }
+
+  if (condition.left.type === "indicator") {
+    operands.push(condition.left);
+  }
+  if (condition.right.type === "indicator") {
+    operands.push(condition.right);
+  }
+  return operands;
+}
+
+/**
+ * Deduplicated indicator specs for every indicator a strategy references, so
+ * the chart can plot exactly what the rules read. Accepts drafts and stored
+ * snapshots alike.
+ */
+export function strategyIndicatorSpecs(
+  strategy: { entry: SnapshotCondition; exit: SnapshotCondition } | null,
+  definitionsByKind: Map<IndicatorKind, IndicatorDefinition>,
+): IndicatorSpec[] {
+  if (!strategy) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const operands = [
+    ...collectIndicatorOperands(strategy.entry),
+    ...collectIndicatorOperands(strategy.exit),
+  ].filter((operand): operand is Extract<StrategyOperand, { type: "indicator" }> => operand.type === "indicator");
+
+  return operands.flatMap((operand, index) => {
+    const key = strategyIndicatorKey(operand);
+    const definition = definitionsByKind.get(operand.kind);
+    if (seen.has(key) || !definition) {
+      return [];
+    }
+    seen.add(key);
+
+    return [
+      {
+        id: `strategy-${operand.kind}-${index}-${key}`,
+        kind: operand.kind,
+        parameters: operand.parameters,
+        styles: definitionValueSlots(definition).map((_, slotIndex) =>
+          defaultLineStyle(seen.size - 1 + slotIndex),
+        ),
+      },
+    ];
+  });
 }
 
 /** Turns a backend issue path like "entry.conditions[0].left" into readable text. */

@@ -86,6 +86,29 @@ test("validateStrategy accepts price, value operands and nested NOT groups", () 
   assert.ok(strategy);
 });
 
+test("validateStrategy keeps enabled only when false and rejects non-boolean values", () => {
+  const disabled = goldenCross();
+  disabled.entry.conditions[0].enabled = false;
+  disabled.exit.enabled = true;
+
+  const { strategy, errors } = validateStrategy(disabled);
+  assert.deepEqual(errors, []);
+  assert.ok(strategy);
+  const rule = strategy.entry.type === "group" ? strategy.entry.conditions[0] : null;
+  assert.ok(rule);
+  assert.equal(rule.enabled, false);
+  // enabled: true is the default, so it is not stored.
+  assert.ok(!("enabled" in strategy.exit));
+
+  const invalid = goldenCross();
+  invalid.entry.enabled = "yes";
+  const result = validateStrategy(invalid);
+  assert.equal(result.strategy, null);
+  assert.deepEqual(result.errors, [
+    { path: "entry", message: "Condition enabled flag must be a boolean." },
+  ]);
+});
+
 test("validateStrategy requires name, entry, and exit", () => {
   const { strategy, errors } = validateStrategy({});
 

@@ -42,7 +42,6 @@ import {
   type IndicatorSeries,
   type StrategyCondition,
   type StrategyDraft,
-  type StrategyOperand,
   type StrategyRecord,
   type StrategySignal,
   type StrategyValidationResult,
@@ -70,8 +69,9 @@ import {
   definitionValueSlots,
   normalizeLineStyles,
 } from "@/lib/indicator-style";
-import { asRootGroup, createStrategyDraft } from "@/lib/strategy";
+import { asRootGroup, createStrategyDraft, strategyIndicatorSpecs } from "@/lib/strategy";
 import { cn } from "@/lib/utils";
+import { BacktestPanel } from "@/components/backtest-panel";
 import { IndicatorLegend } from "@/components/indicator-legend";
 import { IndicatorPicker } from "@/components/indicator-picker";
 import { StrategyBuilder } from "@/components/strategy-builder";
@@ -116,7 +116,7 @@ const visibleSymbolLimit = 80;
 const maxActiveIndicators = 6;
 
 type Theme = "light" | "dark";
-type AppTab = "charts" | "strategies";
+type AppTab = "charts" | "strategies" | "backtest";
 
 interface SymbolContextMenu {
   ticker: string;
@@ -266,11 +266,16 @@ function draftFromRecord(record: StrategyRecord): StrategyDraft {
 }
 
 function stripConditionIds(condition: StrategyCondition): unknown {
+  // Stored records only carry enabled when false, so mirror that here to keep
+  // dirty comparisons stable.
+  const enabled = condition.enabled === false ? { enabled: false } : {};
+
   if (condition.type === "group") {
     return {
       type: condition.type,
       operator: condition.operator,
       conditions: condition.conditions.map(stripConditionIds),
+      ...enabled,
     };
   }
 
@@ -279,6 +284,7 @@ function stripConditionIds(condition: StrategyCondition): unknown {
     left: condition.left,
     operator: condition.operator,
     right: condition.right,
+    ...enabled,
   };
 }
 
@@ -297,69 +303,6 @@ function sameDraft(left: StrategyDraft | null, right: StrategyDraft | null) {
 
   return JSON.stringify(serializableDraft(left)) === JSON.stringify(serializableDraft(right));
 }
-
-function parametersKey(parameters: Record<string, number>) {
-  return JSON.stringify(
-    Object.fromEntries(Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right))),
-  );
-}
-
-function strategyIndicatorKey(operand: Extract<StrategyOperand, { type: "indicator" }>) {
-  return `${operand.kind}:${parametersKey(operand.parameters)}`;
-}
-
-function collectIndicatorOperands(condition: StrategyCondition, operands: StrategyOperand[] = []) {
-  if (condition.type === "group") {
-    for (const child of condition.conditions) {
-      collectIndicatorOperands(child, operands);
-    }
-    return operands;
-  }
-
-  if (condition.left.type === "indicator") {
-    operands.push(condition.left);
-  }
-  if (condition.right.type === "indicator") {
-    operands.push(condition.right);
-  }
-  return operands;
-}
-
-function strategyIndicatorSpecs(
-  draft: StrategyDraft | null,
-  definitionsByKind: Map<IndicatorKind, IndicatorDefinition>,
-): IndicatorSpec[] {
-  if (!draft) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const operands = [
-    ...collectIndicatorOperands(draft.entry),
-    ...collectIndicatorOperands(draft.exit),
-  ].filter((operand): operand is Extract<StrategyOperand, { type: "indicator" }> => operand.type === "indicator");
-
-  return operands.flatMap((operand, index) => {
-    const key = strategyIndicatorKey(operand);
-    const definition = definitionsByKind.get(operand.kind);
-    if (seen.has(key) || !definition) {
-      return [];
-    }
-    seen.add(key);
-
-    return [
-      {
-        id: `strategy-${operand.kind}-${index}-${key}`,
-        kind: operand.kind,
-        parameters: operand.parameters,
-        styles: definitionValueSlots(definition).map((_, slotIndex) =>
-          defaultLineStyle(seen.size - 1 + slotIndex),
-        ),
-      },
-    ];
-  });
-}
-
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(storedTheme);
@@ -1079,10 +1022,10 @@ export default function App() {
       return;
     }
 
-    if (value === "charts" && !confirmDiscardStrategyChanges()) {
-      return;
-    }
-    if (value === "charts") {
+    if (activeTab === "strategies") {
+      if (!confirmDiscardStrategyChanges()) {
+        return;
+      }
       resetCurrentStrategyDraft();
       setStrategyValidation(null);
       setStrategyError(null);
@@ -1129,6 +1072,25 @@ export default function App() {
     if (record) {
       openStrategyRecord(record);
     }
+  }
+
+  /**
+   * Turns the current draft (including unsaved edits) into a new unsaved
+   * strategy, leaving the stored original untouched. Saving then creates a
+   * separate record.
+   */
+  function handleStrategyDuplicate() {
+    if (!strategyDraft) {
+      return;
+    }
+
+    const suffix = " (copy)";
+    const base = strategyDraft.name.trim().slice(0, 80 - suffix.length);
+    setSelectedStrategyId(null);
+    setStrategyDraft({ ...strategyDraft, name: `${base}${suffix}` });
+    setStrategyValidation(null);
+    setStrategyError(null);
+    saveLastStrategySelection("new");
   }
 
   function handleStrategyDraftChange(nextDraft: StrategyDraft) {
@@ -1514,6 +1476,9 @@ export default function App() {
               <ToggleGroupItem value="strategies" className={selectedControlClass}>
                 Strategies
               </ToggleGroupItem>
+              <ToggleGroupItem value="backtest" className={selectedControlClass}>
+                Backtest
+              </ToggleGroupItem>
             </ToggleGroup>
           </div>
 
@@ -1551,6 +1516,7 @@ export default function App() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-4">
+            {activeTab !== "backtest" ? (
             <Card className="gap-4">
               <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1696,6 +1662,7 @@ export default function App() {
                 </div>
               </CardContent>
             </Card>
+            ) : null}
 
             {activeTab === "strategies" ? (
               <div className="transition-all duration-200 motion-reduce:transition-none">
@@ -1712,12 +1679,25 @@ export default function App() {
                   error={strategyError}
                   onDraftChange={handleStrategyDraftChange}
                   onSelectStrategy={handleStrategySelect}
+                  onDuplicate={handleStrategyDuplicate}
                   onDelete={handleStrategyDelete}
                   onValidate={handleStrategyValidate}
                   onSave={handleStrategySave}
                 />
               </div>
             ) : null}
+
+            {/* Kept mounted so the loaded run and comparisons survive tab switches. */}
+            <div className={activeTab === "backtest" ? "contents" : "hidden"}>
+              <BacktestPanel
+                strategies={strategies}
+                initialStrategyId={selectedStrategyId}
+                strategyDirty={strategyDirty}
+                symbols={symbols}
+                defaultTicker={selectedTicker}
+                definitionsByKind={indicatorDefinitionsByKind}
+              />
+            </div>
           </div>
 
           <aside className="flex min-h-0 flex-col gap-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">

@@ -134,17 +134,43 @@ function evaluateCondition(
   return !evaluateCondition(condition.conditions[0], candles, index, cache);
 }
 
+/**
+ * Drops conditions with `enabled: false` so they evaluate exactly as if they
+ * were deleted. Groups left with no active conditions (including NOT groups
+ * whose only child is disabled) are dropped too.
+ */
+export function pruneDisabledConditions(condition: StrategyCondition): StrategyCondition | null {
+  if (condition.enabled === false) {
+    return null;
+  }
+  if (condition.type === "rule") {
+    return condition;
+  }
+
+  const conditions = condition.conditions
+    .map(pruneDisabledConditions)
+    .filter((child): child is StrategyCondition => child != null);
+  if (conditions.length === 0) {
+    return null;
+  }
+
+  return { ...condition, conditions };
+}
+
 export function evaluateSignals(strategy: Strategy, candles: Candle[]): StrategySignal[] {
   const signals: StrategySignal[] = [];
   const cache = new Map<string, NumericSeries>();
+  // A side with every condition disabled simply never fires.
+  const entry = pruneDisabledConditions(strategy.entry);
+  const exit = pruneDisabledConditions(strategy.exit);
 
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
 
-    if (evaluateCondition(strategy.entry, candles, index, cache)) {
+    if (entry && evaluateCondition(entry, candles, index, cache)) {
       signals.push({ timestamp_ms: candle.timestamp_ms, side: "buy" });
     }
-    if (evaluateCondition(strategy.exit, candles, index, cache)) {
+    if (exit && evaluateCondition(exit, candles, index, cache)) {
       signals.push({ timestamp_ms: candle.timestamp_ms, side: "sell" });
     }
   }

@@ -107,6 +107,22 @@ function validateOperand(
   return null;
 }
 
+/**
+ * Parses the optional per-condition enabled flag. Only `false` is stored so
+ * existing strategies (which predate the flag) keep their exact shape.
+ */
+function validateEnabled(
+  raw: Record<string, unknown>,
+  path: string,
+  context: ValidationContext,
+): { enabled: false } | Record<string, never> | null {
+  if (raw.enabled != null && typeof raw.enabled !== "boolean") {
+    issue(context, path, "Condition enabled flag must be a boolean.");
+    return null;
+  }
+  return raw.enabled === false ? { enabled: false } : {};
+}
+
 function validateCondition(
   raw: unknown,
   path: string,
@@ -145,7 +161,8 @@ function validateCondition(
     const conditions = raw.conditions.map((condition, index) =>
       validateCondition(condition, `${path}.conditions[${index}]`, depth + 1, context),
     );
-    if (conditions.some((condition) => condition == null)) {
+    const enabled = validateEnabled(raw, path, context);
+    if (conditions.some((condition) => condition == null) || enabled == null) {
       return null;
     }
 
@@ -153,6 +170,7 @@ function validateCondition(
       type: "group",
       operator: raw.operator as GroupOperator,
       conditions: conditions as StrategyCondition[],
+      ...enabled,
     };
   }
 
@@ -175,7 +193,8 @@ function validateCondition(
 
     const left = validateOperand(raw.left, `${path}.left`, context);
     const right = validateOperand(raw.right, `${path}.right`, context);
-    if (operator == null || left == null || right == null) {
+    const enabled = validateEnabled(raw, path, context);
+    if (operator == null || left == null || right == null || enabled == null) {
       return null;
     }
 
@@ -192,7 +211,7 @@ function validateCondition(
       return null;
     }
 
-    return { type: "rule", left, operator, right };
+    return { type: "rule", left, operator, right, ...enabled };
   }
 
   issue(context, path, 'Condition type must be "rule" or "group".');
