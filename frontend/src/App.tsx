@@ -86,7 +86,18 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SlashTabs } from "@/components/ui/slash-tabs";
+
+const tabOptions = [
+  { value: "charts", label: "Charts" },
+  { value: "strategies", label: "Strategies" },
+  { value: "backtest", label: "Backtest" },
+];
+
+const chartModeOptions = [
+  { value: "line", label: "Line" },
+  { value: "candle", label: "Candle" },
+];
 
 const timeframeOptions = [
   { value: "1h", label: "1H" },
@@ -460,8 +471,6 @@ export default function App() {
       : candleWindow
         ? `${formatDate(candleWindow.startMs, timeframe)} - ${formatDate(candleWindow.endMs, timeframe)}`
         : null;
-  const selectedControlClass =
-    "!border-[var(--control-border)] !bg-[var(--control-surface)] !text-[var(--control-muted-foreground)] hover:!bg-[var(--control-muted)] hover:!text-[var(--control-muted-foreground)] data-[state=on]:!bg-[var(--control-selected)] data-[state=on]:!text-[var(--control-selected-foreground)] data-[state=on]:hover:!bg-[var(--control-selected-hover)]";
   const selectedSymbolClass =
     "!bg-[var(--control-selected)] !text-[var(--control-selected-foreground)] hover:!bg-[var(--control-selected-hover)] hover:!text-[var(--control-selected-foreground)]";
   const priceSummaryClass =
@@ -1458,28 +1467,20 @@ export default function App() {
       <div className="flex w-full flex-col gap-3 px-3 py-3 sm:px-4 lg:px-5 2xl:px-6">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+            <div className="group/title flex min-w-0 items-center whitespace-nowrap">
               <h1 className="text-lg font-semibold leading-none">geridon</h1>
-              <span className="text-muted-foreground truncate text-sm leading-none">
-                | backtest your trading strategies
+              <span className="max-w-0 overflow-hidden opacity-0 transition-all duration-200 ease-in-out group-hover/title:max-w-72 group-hover/title:opacity-100">
+                <span className="text-muted-foreground pl-2 text-sm leading-none">
+                  / backtest your trading strategies
+                </span>
               </span>
             </div>
-            <ToggleGroup
-              type="single"
+            <SlashTabs
+              options={tabOptions}
               value={activeTab}
               onValueChange={handleTabChange}
               aria-label="Workspace tab"
-            >
-              <ToggleGroupItem value="charts" className={selectedControlClass}>
-                Charts
-              </ToggleGroupItem>
-              <ToggleGroupItem value="strategies" className={selectedControlClass}>
-                Strategies
-              </ToggleGroupItem>
-              <ToggleGroupItem value="backtest" className={selectedControlClass}>
-                Backtest
-              </ToggleGroupItem>
-            </ToggleGroup>
+            />
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -1519,7 +1520,7 @@ export default function App() {
             {activeTab !== "backtest" ? (
             <Card className="gap-4">
               <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                   {activeTab === "charts" ? (
                     <Button
                       type="button"
@@ -1532,93 +1533,97 @@ export default function App() {
                     </Button>
                   ) : null}
 
-                  <ToggleGroup
-                    type="single"
+                  <SlashTabs
+                    options={chartModeOptions}
                     value={chartMode}
-                    onValueChange={(value) => value && setChartMode(value as ChartMode)}
+                    onValueChange={(value) => setChartMode(value as ChartMode)}
                     aria-label="Chart style"
-                  >
-                    <ToggleGroupItem value="line" className={selectedControlClass}>
-                      Line
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="candle" className={selectedControlClass}>
-                      Candle
-                    </ToggleGroupItem>
-                  </ToggleGroup>
+                  />
 
-                  <ToggleGroup
-                    type="single"
+                  <SlashTabs
+                    options={timeframeOptions.map((option) => ({
+                      ...option,
+                      disabled: !timeframes.includes(option.value),
+                    }))}
                     value={timeframe}
                     onValueChange={handleTimeframeChange}
                     aria-label="Candle timeframe"
-                  >
-                    {timeframeOptions.map((option) => (
-                      <ToggleGroupItem
-                        key={option.value}
-                        value={option.value}
-                        disabled={!timeframes.includes(option.value)}
-                        className={selectedControlClass}
-                      >
-                        {option.label}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
+                  />
 
-                  <ToggleGroup
-                    type="single"
+                  <SlashTabs
+                    options={rangeOptions}
                     value={range}
                     onValueChange={handleRangeChange}
                     aria-label="Visible range"
-                  >
-                    {rangeOptions.map((option) => (
-                      <ToggleGroupItem key={option.value} value={option.value} className={selectedControlClass}>
-                        {option.label}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
+                  />
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-2">
-                  <CardTitle className="text-xl">{selectedTicker || "No symbol selected"}</CardTitle>
-                  {symbolsLoading || candlesLoading ? (
-                    <Skeleton className="h-12 w-full max-w-[34rem]" />
-                  ) : hasPriceSummary && latest ? (
-                    <div className="flex items-center gap-3 whitespace-nowrap">
-                      <div className="shrink-0 text-[clamp(2rem,5vw,2.25rem)] font-medium leading-none tracking-normal text-foreground">
+                  <div className="flex min-w-0 items-center gap-3 whitespace-nowrap">
+                    <CardTitle className="shrink-0 text-xl">
+                      {selectedTicker || "No symbol selected"}
+                    </CardTitle>
+                    {symbolsLoading || candlesLoading ? (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="shrink-0 select-none text-xl text-muted-foreground/50"
+                        >
+                          /
+                        </span>
+                        <Skeleton className="h-8 w-full max-w-[28rem]" />
+                      </>
+                    ) : hasPriceSummary && latest ? (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="shrink-0 select-none text-xl text-muted-foreground/50"
+                        >
+                          /
+                        </span>
+                      <div className="shrink-0 text-[clamp(1.5rem,4vw,1.875rem)] font-medium leading-none tracking-normal text-foreground">
                         {formatCurrency(latest.close)}
                       </div>
                       <div
                         className={cn(
-                          "inline-flex min-w-fit shrink-0 items-center gap-2 text-[clamp(1rem,2.5vw,1.5rem)] font-semibold leading-none",
+                          "inline-flex min-w-fit shrink-0 items-center gap-1.5 text-base font-semibold leading-none",
                           chartTone === "down" ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]",
                         )}
                       >
                         <span
                           className={cn(
-                            "inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5",
+                            "inline-flex h-7 items-center gap-1 rounded-md px-2",
                             priceSummaryClass,
                           )}
                         >
                           {chartTone === "down" ? (
-                            <ArrowDownIcon className="size-[1.125rem]" aria-hidden="true" />
+                            <ArrowDownIcon className="size-4" aria-hidden="true" />
                           ) : (
-                            <ArrowUpIcon className="size-[1.125rem]" aria-hidden="true" />
+                            <ArrowUpIcon className="size-4" aria-hidden="true" />
                           )}
                           {formatAbsolutePercent(rangePercent)}
                         </span>
                         <span>{formatSignedCompactCurrency(rangeChange)}</span>
                         <span className="text-muted-foreground">({range})</span>
                       </div>
-                    </div>
+                      {visibleWindowLabel && selectedSymbol ? (
+                        <span className="min-w-0 truncate text-sm text-muted-foreground">
+                          {visibleWindowLabel}
+                        </span>
+                      ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                  {!(hasPriceSummary && latest) || !(visibleWindowLabel && selectedSymbol) ? (
+                    <CardDescription>
+                      {visibleWindowLabel && selectedSymbol
+                        ? visibleWindowLabel
+                        : "Start the backend API to load stored SQLite candles."}
+                    </CardDescription>
                   ) : null}
-                  <CardDescription>
-                    {visibleWindowLabel && selectedSymbol
-                      ? visibleWindowLabel
-                      : "Start the backend API to load stored SQLite candles."}
-                  </CardDescription>
                 </div>
               </CardHeader>
-  
+
               <CardContent className="px-4 sm:px-5">
                 <div className="relative">
                   <StockChart

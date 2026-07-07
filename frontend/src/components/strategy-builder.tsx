@@ -49,7 +49,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SlashTabs } from "@/components/ui/slash-tabs";
 
 const groupOperatorHints: Record<GroupOperator, string> = {
   and: "every condition must be true",
@@ -403,20 +403,12 @@ function ConditionGroupEditor({
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className={cn("flex flex-wrap items-center gap-2", hidden && "opacity-50")}>
-          <ToggleGroup
-            type="single"
+          <SlashTabs
+            options={groupOperatorOptions}
             value={group.operator}
             aria-label="Group operator"
-            onValueChange={(value) =>
-              value && onChange({ ...group, operator: value as GroupOperator })
-            }
-          >
-            {groupOperatorOptions.map((option) => (
-              <ToggleGroupItem key={option.value} value={option.value}>
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            onValueChange={(value) => onChange({ ...group, operator: value as GroupOperator })}
+          />
           <span className="text-muted-foreground hidden text-xs sm:inline">
             {groupOperatorHints[group.operator]}
           </span>

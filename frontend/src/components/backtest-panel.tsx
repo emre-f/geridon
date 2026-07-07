@@ -51,7 +51,12 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SlashTabs } from "@/components/ui/slash-tabs";
+
+const chartModeOptions = [
+  { value: "line", label: "Line" },
+  { value: "candle", label: "Candle" },
+];
 
 interface BacktestPanelProps {
   strategies: StrategyRecord[];
@@ -846,15 +851,12 @@ export function BacktestPanel({
                 {formatRunSizing(activeRun)} · ran {formatRanAt(activeRun.created_at)}
               </span>
               <div className="ml-auto flex items-center gap-2">
-                <ToggleGroup
-                  type="single"
+                <SlashTabs
+                  options={chartModeOptions}
                   value={chartMode}
-                  onValueChange={(value) => value && setChartMode(value as ChartMode)}
+                  onValueChange={(value) => setChartMode(value as ChartMode)}
                   aria-label="Chart style"
-                >
-                  <ToggleGroupItem value="line">Line</ToggleGroupItem>
-                  <ToggleGroupItem value="candle">Candle</ToggleGroupItem>
-                </ToggleGroup>
+                />
                 <Button
                   type="button"
                   variant="outline"

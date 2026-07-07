@@ -117,8 +117,10 @@
   --control-selected-foreground: oklch(0.15 0.012 54);
 }
 
-* {
-  border-color: var(--border);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 body {
