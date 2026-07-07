@@ -1,18 +1,14 @@
 import { useMemo, useState } from "react";
 
-import type { BacktestEquityPoint, BacktestTrade, IndicatorLineStyle } from "@/lib/api";
+import type { BacktestEquityPoint, BacktestTrade } from "@/lib/api";
+import type { EquityOverlay } from "@/components/equity-chart-types";
 import { formatCompactCurrency, formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { buildEquityChartPlot, equityChartMargin as margin } from "@/lib/equity-chart-plot";
 import { strokeDashArray } from "@/lib/indicator-style";
 import { useElementSize } from "@/hooks/use-element-size";
 import { cn } from "@/lib/utils";
 
-/** A buy-and-hold comparison line, already normalized to the run's starting capital. */
-export interface EquityOverlay {
-  id: string;
-  label: string;
-  style: IndicatorLineStyle;
-  points: Array<{ timestamp_ms: number; value: number }>;
-}
+export type { EquityOverlay };
 
 interface EquityChartProps {
   points: BacktestEquityPoint[];
@@ -24,28 +20,6 @@ interface EquityChartProps {
   className?: string;
 }
 
-const margin = { top: 12, right: 64, bottom: 26, left: 10 };
-const maxTradeMarkers = 60;
-
-function niceTicks(min: number, max: number, count = 4) {
-  if (!(max > min)) {
-    return [min];
-  }
-  const step = (max - min) / count;
-  const magnitude = 10 ** Math.floor(Math.log10(step));
-  const niceStep = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((m) => m >= step) ?? step;
-  const ticks: number[] = [];
-  for (let tick = Math.ceil(min / niceStep) * niceStep; tick <= max + niceStep / 1e6; tick += niceStep) {
-    ticks.push(tick);
-  }
-  return ticks;
-}
-
-/**
- * Equity curve for a backtest run: the strategy line tinted by outcome, a
- * dashed baseline at the starting capital, optional buy-and-hold comparison
- * overlays, and a crosshair tooltip covering every visible series.
- */
 export function EquityChart({
   points,
   trades,
@@ -58,88 +32,19 @@ export function EquityChart({
   const [containerRef, { width }] = useElementSize<HTMLDivElement>();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const plot = useMemo(() => {
-    if (points.length === 0 || width <= 0) {
-      return null;
-    }
-
-    const innerWidth = Math.max(width - margin.left - margin.right, 10);
-    const innerHeight = height - margin.top - margin.bottom;
-    const indexByTimestamp = new Map(points.map((point, index) => [point.timestamp_ms, index]));
-
-    // Comparison points that don't share a bar with the equity curve (e.g. a
-    // different trading calendar) are dropped rather than interpolated.
-    const overlayPlots = overlays.map((overlay) => ({
-      overlay,
-      matched: overlay.points.flatMap((point) => {
-        const index = indexByTimestamp.get(point.timestamp_ms);
-        return index == null ? [] : [{ index, value: point.value }];
+  const plot = useMemo(
+    () =>
+      buildEquityChartPlot({
+        points,
+        trades,
+        initialCapital,
+        timeframe,
+        overlays,
+        width,
+        height,
       }),
-    }));
-
-    let min = Math.min(...points.map((point) => point.equity), initialCapital);
-    let max = Math.max(...points.map((point) => point.equity), initialCapital);
-    for (const { matched } of overlayPlots) {
-      for (const point of matched) {
-        min = Math.min(min, point.value);
-        max = Math.max(max, point.value);
-      }
-    }
-    const pad = (max - min || max || 1) * 0.08;
-    const domainMin = min - pad;
-    const domainMax = max + pad;
-
-    const xAt = (index: number) =>
-      margin.left + (points.length === 1 ? innerWidth / 2 : (index / (points.length - 1)) * innerWidth);
-    const yAt = (value: number) =>
-      margin.top + ((domainMax - value) / (domainMax - domainMin)) * innerHeight;
-
-    const linePath = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${xAt(index).toFixed(2)},${yAt(point.equity).toFixed(2)}`)
-      .join("");
-    const baselineY = yAt(initialCapital);
-    const areaPath = `${linePath}L${xAt(points.length - 1).toFixed(2)},${baselineY.toFixed(2)}L${xAt(0).toFixed(2)},${baselineY.toFixed(2)}Z`;
-
-    const overlayPaths = overlayPlots
-      .filter(({ matched }) => matched.length > 1)
-      .map(({ overlay, matched }) => ({
-        overlay,
-        path: matched
-          .map((point, order) => `${order === 0 ? "M" : "L"}${xAt(point.index).toFixed(2)},${yAt(point.value).toFixed(2)}`)
-          .join(""),
-        valueByIndex: new Map(matched.map((point) => [point.index, point.value])),
-      }));
-
-    const markers =
-      trades.length > maxTradeMarkers
-        ? []
-        : trades.flatMap((trade) => {
-            const index = indexByTimestamp.get(trade.timestamp_ms);
-            if (index == null) {
-              return [];
-            }
-            return [{ trade, x: xAt(index), y: yAt(points[index].equity) }];
-          });
-
-    const tickCountX = Math.max(2, Math.min(6, Math.floor(innerWidth / 130)));
-    const xTicks = Array.from({ length: tickCountX }, (_, tick) => {
-      const index = Math.round((tick / (tickCountX - 1)) * (points.length - 1));
-      return { x: xAt(index), label: formatDate(points[index].timestamp_ms, timeframe) };
-    });
-
-    return {
-      innerWidth,
-      xAt,
-      yAt,
-      linePath,
-      areaPath,
-      baselineY,
-      overlayPaths,
-      markers,
-      xTicks,
-      yTicks: niceTicks(domainMin, domainMax).map((value) => ({ y: yAt(value), value })),
-    };
-  }, [height, initialCapital, overlays, points, timeframe, trades, width]);
+    [height, initialCapital, overlays, points, timeframe, trades, width],
+  );
 
   if (points.length === 0) {
     return null;

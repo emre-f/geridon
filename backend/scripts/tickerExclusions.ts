@@ -59,10 +59,6 @@ export function isExcludedTicker(symbol: string): boolean {
   return excludedTickers.has(normalizeTicker(symbol));
 }
 
-export function excludedTickerList(): string[] {
-  return [...excludedTickers].sort();
-}
-
 export function isNonChartableSecurityName(name: string): boolean {
   const normalized = ` ${name.toLowerCase().replace(/[^a-z0-9%]+/g, " ")} `;
 

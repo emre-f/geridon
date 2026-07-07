@@ -7,17 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  MoonIcon,
-  PlusIcon,
-  RefreshCwIcon,
-  SearchIcon,
-  SunIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
 
 import {
   createStrategy,
@@ -40,20 +29,21 @@ import {
   type IndicatorParameterDefinition,
   type IndicatorSpec,
   type IndicatorSeries,
-  type StrategyCondition,
   type StrategyDraft,
   type StrategyRecord,
   type StrategySignal,
   type StrategyValidationResult,
   type SymbolSummary,
 } from "@/lib/api";
+import type { AppTab, SymbolContextMenu } from "@/lib/app-types";
+import { formatDate } from "@/lib/format";
 import {
-  formatAbsolutePercent,
-  formatCompact,
-  formatCompactCurrency,
-  formatCurrency,
-  formatDate,
-} from "@/lib/format";
+  availableTimeframes,
+  coverageWindow,
+  defaultRangeForTimeframe,
+  queryWindow,
+  timeframeForRange,
+} from "@/lib/chart-options";
 import {
   loadChartState,
   loadLastStrategySelection,
@@ -69,189 +59,25 @@ import {
   definitionValueSlots,
   normalizeLineStyles,
 } from "@/lib/indicator-style";
-import { asRootGroup, createStrategyDraft, strategyIndicatorSpecs } from "@/lib/strategy";
-import { cn } from "@/lib/utils";
+import { createStrategyDraft, strategyIndicatorSpecs } from "@/lib/strategy";
+import { draftFromRecord, sameDraft } from "@/lib/strategy-draft";
+import { AppHeader } from "@/components/app-header";
 import { BacktestPanel } from "@/components/backtest-panel";
-import { IndicatorLegend } from "@/components/indicator-legend";
+import { ChartPanel } from "@/components/chart-panel";
 import { IndicatorPicker } from "@/components/indicator-picker";
 import { StrategyBuilder } from "@/components/strategy-builder";
-import { StockChart, type ChartMode, type ChartTone } from "@/components/stock-chart";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { SlashTabs } from "@/components/ui/slash-tabs";
+import { SymbolContextMenu as SymbolContextMenuView } from "@/components/symbol-context-menu";
+import { SymbolSidebar } from "@/components/symbol-sidebar";
+import type { ChartMode, ChartTone } from "@/components/stock-chart";
+import { Card, CardContent } from "@/components/ui/card";
+import { useThemeMode } from "@/hooks/use-theme-mode";
 
-const tabOptions = [
-  { value: "charts", label: "Charts" },
-  { value: "strategies", label: "Strategies" },
-  { value: "backtest", label: "Backtest" },
-];
-
-const chartModeOptions = [
-  { value: "line", label: "Line" },
-  { value: "candle", label: "Candle" },
-];
-
-const timeframeOptions = [
-  { value: "1h", label: "1H" },
-  { value: "4h", label: "4H" },
-  { value: "1d", label: "1D" },
-];
-
-const rangeOptions = [
-  { value: "1M", label: "1M", days: 31 },
-  { value: "3M", label: "3M", days: 93 },
-  { value: "1Y", label: "1Y", days: 366 },
-  { value: "5Y", label: "5Y", days: 366 * 5 },
-  { value: "MAX", label: "MAX", days: null },
-];
-
-const timeframeOrder = ["1h", "4h", "1d"];
-const defaultRangeByTimeframe: Record<string, string> = {
-  "1h": "3M",
-  "4h": "1Y",
-  "1d": "5Y",
-};
-const longRangeValues = new Set(["5Y", "MAX"]);
-const coverageTolerance = 0.95;
-const themeStorageKey = "geridon-theme";
 const defaultTicker = "SPY";
 const visibleSymbolLimit = 80;
 const maxActiveIndicators = 6;
 
-type Theme = "light" | "dark";
-type AppTab = "charts" | "strategies" | "backtest";
-
-interface SymbolContextMenu {
-  ticker: string;
-  x: number;
-  y: number;
-}
-
-function storedTheme(): Theme {
-  try {
-    return localStorage.getItem(themeStorageKey) === "light" ? "light" : "dark";
-  } catch {
-    return "dark";
-  }
-}
-
-function availableTimeframes(symbol: SymbolSummary | undefined) {
-  if (!symbol) {
-    return [];
-  }
-
-  const stored = new Set(symbol.timeframes.map((timeframe) => timeframe.timeframe));
-  const values = new Set<string>();
-
-  if (stored.has("1h")) {
-    values.add("1h");
-    values.add("4h");
-  }
-  if (stored.has("1d")) {
-    values.add("1d");
-  }
-
-  return Array.from(values).sort((left, right) => timeframeOrder.indexOf(left) - timeframeOrder.indexOf(right));
-}
-
-function coverageForTimeframe(symbol: SymbolSummary | undefined, timeframe: string) {
-  if (!symbol) {
-    return undefined;
-  }
-
-  const sourceTimeframe = timeframe === "4h" ? "1h" : timeframe;
-  return symbol.timeframes.find((item) => item.timeframe === sourceTimeframe);
-}
-
-function queryWindow(symbol: SymbolSummary | undefined, timeframe: string, range: string) {
-  const coverage = coverageForTimeframe(symbol, timeframe);
-  if (!coverage) {
-    return undefined;
-  }
-
-  const rangeOption = rangeOptions.find((option) => option.value === range) ?? rangeOptions[0];
-  const endMs = coverage.end_ms;
-  const startMs =
-    rangeOption.days == null
-      ? coverage.start_ms
-      : Math.max(coverage.start_ms, endMs - rangeOption.days * 24 * 60 * 60 * 1000);
-
-  return { startMs, endMs };
-}
-
-function coverageWindow(symbol: SymbolSummary | undefined, timeframe: string) {
-  const coverage = coverageForTimeframe(symbol, timeframe);
-  if (!coverage) {
-    return undefined;
-  }
-
-  return { startMs: coverage.start_ms, endMs: coverage.end_ms };
-}
-
 function defaultSymbol(symbols: SymbolSummary[]) {
   return symbols.find((symbol) => symbol.ticker === defaultTicker) ?? symbols[0];
-}
-
-function defaultRangeForTimeframe(timeframe: string) {
-  return defaultRangeByTimeframe[timeframe] ?? rangeOptions[0].value;
-}
-
-function timeframeCoversRange(symbol: SymbolSummary | undefined, timeframe: string, range: string) {
-  const rangeOption = rangeOptions.find((option) => option.value === range);
-  const coverage = coverageForTimeframe(symbol, timeframe);
-
-  if (!rangeOption || !coverage) {
-    return false;
-  }
-
-  if (rangeOption.days == null) {
-    return timeframe === "1d";
-  }
-
-  return (
-    coverage.end_ms - coverage.start_ms >=
-    rangeOption.days * 24 * 60 * 60 * 1000 * coverageTolerance
-  );
-}
-
-function timeframeForRange(
-  symbol: SymbolSummary | undefined,
-  range: string,
-  currentTimeframe: string,
-  nextTimeframes: string[],
-) {
-  if (nextTimeframes.length === 0) {
-    return currentTimeframe;
-  }
-
-  if (
-    !longRangeValues.has(range) &&
-    nextTimeframes.includes(currentTimeframe) &&
-    timeframeCoversRange(symbol, currentTimeframe, range)
-  ) {
-    return currentTimeframe;
-  }
-
-  const preferences = longRangeValues.has(range)
-    ? ["1d", "4h", "1h"]
-    : [currentTimeframe, "4h", "1h", "1d"];
-  const coveredTimeframe = preferences.find(
-    (value) => nextTimeframes.includes(value) && timeframeCoversRange(symbol, value, range),
-  );
-
-  return coveredTimeframe ?? (nextTimeframes.includes(currentTimeframe) ? currentTimeframe : nextTimeframes[0]);
-}
-
-function formatSignedCompactCurrency(value: number) {
-  return `${value > 0 ? "+" : ""}${formatCompactCurrency(value)}`;
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -268,55 +94,8 @@ function createIndicatorId(kind: IndicatorKind) {
   return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function draftFromRecord(record: StrategyRecord): StrategyDraft {
-  return {
-    name: record.name,
-    entry: asRootGroup(record.entry),
-    exit: asRootGroup(record.exit),
-  };
-}
-
-function stripConditionIds(condition: StrategyCondition): unknown {
-  // Stored records only carry enabled when false, so mirror that here to keep
-  // dirty comparisons stable.
-  const enabled = condition.enabled === false ? { enabled: false } : {};
-
-  if (condition.type === "group") {
-    return {
-      type: condition.type,
-      operator: condition.operator,
-      conditions: condition.conditions.map(stripConditionIds),
-      ...enabled,
-    };
-  }
-
-  return {
-    type: condition.type,
-    left: condition.left,
-    operator: condition.operator,
-    right: condition.right,
-    ...enabled,
-  };
-}
-
-function serializableDraft(draft: StrategyDraft) {
-  return {
-    name: draft.name,
-    entry: stripConditionIds(draft.entry),
-    exit: stripConditionIds(draft.exit),
-  };
-}
-
-function sameDraft(left: StrategyDraft | null, right: StrategyDraft | null) {
-  if (!left || !right) {
-    return left === right;
-  }
-
-  return JSON.stringify(serializableDraft(left)) === JSON.stringify(serializableDraft(right));
-}
-
 export default function App() {
-  const [theme, setTheme] = useState<Theme>(storedTheme);
+  const { setTheme, isDark } = useThemeMode();
   const [activeTab, setActiveTab] = useState<AppTab>("charts");
   const [chartMode, setChartMode] = useState<ChartMode>("line");
   const [symbols, setSymbols] = useState<SymbolSummary[]>([]);
@@ -471,26 +250,6 @@ export default function App() {
       : candleWindow
         ? `${formatDate(candleWindow.startMs, timeframe)} - ${formatDate(candleWindow.endMs, timeframe)}`
         : null;
-  const selectedSymbolClass =
-    "!bg-[var(--control-selected)] !text-[var(--control-selected-foreground)] hover:!bg-[var(--control-selected-hover)] hover:!text-[var(--control-selected-foreground)]";
-  const priceSummaryClass =
-    chartTone === "down"
-      ? "bg-[var(--chart-down-muted)] text-[var(--chart-down)]"
-      : "bg-[var(--chart-up-muted)] text-[var(--chart-up)]";
-  const isDark = theme === "dark";
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle("dark", isDark);
-    root.style.colorScheme = theme;
-
-    try {
-      localStorage.setItem(themeStorageKey, theme);
-    } catch {
-      // Ignore storage failures so the toggle still works for the current session.
-    }
-  }, [isDark, theme]);
-
   useEffect(() => {
     if (!selectedTicker) {
       return;
@@ -1458,56 +1217,20 @@ export default function App() {
       return;
     }
     const ticker = selectedTicker;
-      setSelectedTicker("");
-      globalThis.requestAnimationFrame(() => setSelectedTicker(ticker));
+    setSelectedTicker("");
+    globalThis.requestAnimationFrame(() => setSelectedTicker(ticker));
   }
 
   return (
     <main className="bg-background text-foreground min-h-screen">
       <div className="flex w-full flex-col gap-3 px-3 py-3 sm:px-4 lg:px-5 2xl:px-6">
-        <header className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="group/title flex min-w-0 items-center whitespace-nowrap">
-              <h1 className="text-lg font-semibold leading-none">geridon</h1>
-              <span className="max-w-0 overflow-hidden opacity-0 transition-all duration-200 ease-in-out group-hover/title:max-w-72 group-hover/title:opacity-100">
-                <span className="text-muted-foreground pl-2 text-sm leading-none">
-                  / backtest your trading strategies
-                </span>
-              </span>
-            </div>
-            <SlashTabs
-              options={tabOptions}
-              value={activeTab}
-              onValueChange={handleTabChange}
-              aria-label="Workspace tab"
-            />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              aria-label="Refresh chart"
-              onClick={refresh}
-            >
-              <RefreshCwIcon />
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              onClick={() => setTheme(isDark ? "light" : "dark")}
-            >
-              {isDark ? <SunIcon /> : <MoonIcon />}
-            </Button>
-          </div>
-        </header>
+        <AppHeader
+          activeTab={activeTab}
+          isDark={isDark}
+          onRefresh={refresh}
+          onTabChange={handleTabChange}
+          onThemeChange={() => setTheme(isDark ? "light" : "dark")}
+        />
 
         {error ? (
           <Card className="border-destructive/40 bg-destructive/5 py-4">
@@ -1518,155 +1241,46 @@ export default function App() {
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-4">
             {activeTab !== "backtest" ? (
-            <Card className="gap-4">
-              <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  {activeTab === "charts" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIndicatorPickerOpen(true)}
-                      disabled={indicatorCatalog.length === 0}
-                    >
-                      <PlusIcon />
-                      Indicators
-                    </Button>
-                  ) : null}
-
-                  <SlashTabs
-                    options={chartModeOptions}
-                    value={chartMode}
-                    onValueChange={(value) => setChartMode(value as ChartMode)}
-                    aria-label="Chart style"
-                  />
-
-                  <SlashTabs
-                    options={timeframeOptions.map((option) => ({
-                      ...option,
-                      disabled: !timeframes.includes(option.value),
-                    }))}
-                    value={timeframe}
-                    onValueChange={handleTimeframeChange}
-                    aria-label="Candle timeframe"
-                  />
-
-                  <SlashTabs
-                    options={rangeOptions}
-                    value={range}
-                    onValueChange={handleRangeChange}
-                    aria-label="Visible range"
-                  />
-                </div>
-
-                <div className="flex min-w-0 flex-col gap-2">
-                  <div className="flex min-w-0 items-center gap-3 whitespace-nowrap">
-                    <CardTitle className="shrink-0 text-xl">
-                      {selectedTicker || "No symbol selected"}
-                    </CardTitle>
-                    {symbolsLoading || candlesLoading ? (
-                      <>
-                        <span
-                          aria-hidden="true"
-                          className="shrink-0 select-none text-xl text-muted-foreground/50"
-                        >
-                          /
-                        </span>
-                        <Skeleton className="h-8 w-full max-w-[28rem]" />
-                      </>
-                    ) : hasPriceSummary && latest ? (
-                      <>
-                        <span
-                          aria-hidden="true"
-                          className="shrink-0 select-none text-xl text-muted-foreground/50"
-                        >
-                          /
-                        </span>
-                      <div className="shrink-0 text-[clamp(1.5rem,4vw,1.875rem)] font-medium leading-none tracking-normal text-foreground">
-                        {formatCurrency(latest.close)}
-                      </div>
-                      <div
-                        className={cn(
-                          "inline-flex min-w-fit shrink-0 items-center gap-1.5 text-base font-semibold leading-none",
-                          chartTone === "down" ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "inline-flex h-7 items-center gap-1 rounded-md px-2",
-                            priceSummaryClass,
-                          )}
-                        >
-                          {chartTone === "down" ? (
-                            <ArrowDownIcon className="size-4" aria-hidden="true" />
-                          ) : (
-                            <ArrowUpIcon className="size-4" aria-hidden="true" />
-                          )}
-                          {formatAbsolutePercent(rangePercent)}
-                        </span>
-                        <span>{formatSignedCompactCurrency(rangeChange)}</span>
-                        <span className="text-muted-foreground">({range})</span>
-                      </div>
-                      {visibleWindowLabel && selectedSymbol ? (
-                        <span className="min-w-0 truncate text-sm text-muted-foreground">
-                          {visibleWindowLabel}
-                        </span>
-                      ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                  {!(hasPriceSummary && latest) || !(visibleWindowLabel && selectedSymbol) ? (
-                    <CardDescription>
-                      {visibleWindowLabel && selectedSymbol
-                        ? visibleWindowLabel
-                        : "Start the backend API to load stored SQLite candles."}
-                    </CardDescription>
-                  ) : null}
-                </div>
-              </CardHeader>
-
-              <CardContent className="px-4 sm:px-5">
-                <div className="relative">
-                  <StockChart
-                    candles={candles}
-                    indicators={chartIndicators}
-                    signals={chartSignals}
-                    timeframe={timeframe}
-                    visibleStartMs={candleWindow?.startMs}
-                    visibleEndMs={candleWindow?.endMs}
-                    mode={chartMode}
-                    tone={chartTone}
-                    loading={
-                      candlesLoading ||
-                      symbolsLoading ||
-                      (activeTab === "strategies" ? strategyIndicatorsLoading : indicatorsLoading)
-                    }
-                    onVisibleCandlesChange={handleVisibleCandlesChange}
-                    onHoverCandleChange={handleHoverCandleChange}
-                  />
-                  {activeTab === "strategies" ? (
-                    <IndicatorLegend
-                      className="absolute left-2 top-2 z-10 max-w-[75%] transition-opacity duration-200 motion-reduce:transition-none"
-                      indicators={strategyPreviewSpecs}
-                      definitionsByKind={indicatorDefinitionsByKind}
-                      series={strategyIndicatorSeries}
-                      valueTimestampMs={legendTimestampMs}
-                      onUpdateLineStyle={updateStrategyIndicatorLineStyle}
-                    />
-                  ) : (
-                    <IndicatorLegend
-                      className="absolute left-2 top-2 z-10 max-w-[75%] transition-opacity duration-200 motion-reduce:transition-none"
-                      indicators={activeIndicators}
-                      definitionsByKind={indicatorDefinitionsByKind}
-                      series={indicatorSeries}
-                      valueTimestampMs={legendTimestampMs}
-                      onUpdateParameter={updateIndicatorParameter}
-                      onUpdateLineStyle={updateIndicatorLineStyle}
-                      onRemove={removeIndicator}
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              <ChartPanel
+                activeIndicators={activeIndicators}
+                activeTab={activeTab}
+                candles={candles}
+                candlesLoading={candlesLoading}
+                candleWindow={candleWindow}
+                chartIndicators={chartIndicators}
+                chartMode={chartMode}
+                chartSignals={chartSignals}
+                chartTone={chartTone}
+                hasPriceSummary={hasPriceSummary}
+                indicatorCatalogLength={indicatorCatalog.length}
+                indicatorDefinitionsByKind={indicatorDefinitionsByKind}
+                indicatorSeries={indicatorSeries}
+                indicatorsLoading={indicatorsLoading}
+                latest={latest}
+                legendTimestampMs={legendTimestampMs}
+                range={range}
+                rangeChange={rangeChange}
+                rangePercent={rangePercent}
+                selectedSymbol={selectedSymbol}
+                selectedTicker={selectedTicker}
+                strategyIndicatorSeries={strategyIndicatorSeries}
+                strategyIndicatorsLoading={strategyIndicatorsLoading}
+                strategyPreviewSpecs={strategyPreviewSpecs}
+                symbolsLoading={symbolsLoading}
+                timeframe={timeframe}
+                timeframes={timeframes}
+                visibleWindowLabel={visibleWindowLabel}
+                onChartModeChange={setChartMode}
+                onHoverCandleChange={handleHoverCandleChange}
+                onOpenIndicatorPicker={() => setIndicatorPickerOpen(true)}
+                onRangeChange={handleRangeChange}
+                onRemoveIndicator={removeIndicator}
+                onTimeframeChange={handleTimeframeChange}
+                onUpdateIndicatorLineStyle={updateIndicatorLineStyle}
+                onUpdateIndicatorParameter={updateIndicatorParameter}
+                onUpdateStrategyIndicatorLineStyle={updateStrategyIndicatorLineStyle}
+                onVisibleCandlesChange={handleVisibleCandlesChange}
+              />
             ) : null}
 
             {activeTab === "strategies" ? (
@@ -1705,114 +1319,25 @@ export default function App() {
             </div>
           </div>
 
-          <aside className="flex min-h-0 flex-col gap-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
-            <div ref={addPanelRef} className="relative px-1">
-              <div className="flex items-center justify-between gap-3">
-                <CardTitle>Symbols</CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label={addPanelOpen ? "Close add symbol" : "Add symbol"}
-                  title={addPanelOpen ? "Close add symbol" : "Add symbol"}
-                  onClick={() => setAddPanelOpen((open) => !open)}
-                >
-                  {addPanelOpen ? <XIcon /> : <PlusIcon />}
-                </Button>
-              </div>
-              {addPanelOpen ? (
-                <form
-                  className="absolute left-1 right-1 top-[calc(100%+0.75rem)] z-20 flex gap-3 rounded-md border border-[var(--control-border)] bg-[var(--control-surface)] p-3 shadow-xl"
-                  onSubmit={handleAddSymbolSubmit}
-                >
-                  <div className="min-w-0 flex-1">
-                    <Input
-                      ref={addTickerInputRef}
-                      value={addTickerInput}
-                      onChange={(event) => setAddTickerInput(event.target.value.toUpperCase())}
-                      placeholder="Ticker"
-                      aria-label="Ticker to add"
-                      disabled={addingSymbol}
-                      maxLength={16}
-                    />
-                  </div>
-                  <Button type="submit" variant="secondary" disabled={addingSymbol || symbolsLoading}>
-                    {addingSymbol ? <RefreshCwIcon className="animate-spin" /> : <PlusIcon />}
-                    {addingSymbol ? "Adding" : "Add"}
-                  </Button>
-                </form>
-              ) : null}
-            </div>
-
-            <div className="flex min-h-0 flex-col gap-3">
-              <div className="relative">
-                <SearchIcon className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-                <Input
-                  value={symbolFilter}
-                  onChange={(event) => setSymbolFilter(event.target.value.toUpperCase())}
-                  placeholder="Search symbols"
-                  aria-label="Search symbols"
-                  className="pl-9"
-                />
-              </div>
-
-              <div className="border-border min-h-72 overflow-y-auto rounded-md border">
-                {symbolsLoading ? (
-                  <div className="flex flex-col gap-2 p-2">
-                    <Skeleton className="h-10" />
-                    <Skeleton className="h-10" />
-                    <Skeleton className="h-10" />
-                    <Skeleton className="h-10" />
-                  </div>
-                ) : visibleSymbols.length > 0 ? (
-                  <div className="flex flex-col p-1">
-                    {visibleSymbols.map((symbol) => {
-                      const isSelected = symbol.ticker === selectedTicker;
-                      const timeframeLabels = symbol.timeframes
-                        .map((item) => item.timeframe.toUpperCase())
-                        .join(", ");
-
-                      return (
-                        <button
-                          key={symbol.ticker}
-                          type="button"
-                          className={cn(
-                            "hover:!bg-[var(--control-hover)] hover:!text-foreground flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                            isSelected && selectedSymbolClass,
-                          )}
-                          aria-pressed={isSelected}
-                          disabled={deletingTicker === symbol.ticker}
-                          onClick={() => selectSymbol(symbol)}
-                          onContextMenu={(event) => openSymbolContextMenu(event, symbol.ticker)}
-                        >
-                          <span className="font-medium">{symbol.ticker}</span>
-                          <span
-                            className={cn(
-                              "text-muted-foreground text-xs",
-                              isSelected && "!text-current opacity-80",
-                            )}
-                          >
-                            {timeframeLabels}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground flex min-h-72 items-center justify-center px-4 text-center text-sm">
-                    {symbolFilter ? "No matching symbols." : "No stored symbols."}
-                  </div>
-                )}
-              </div>
-
-              {filteredSymbols.length > visibleSymbols.length ? (
-                <p className="text-muted-foreground text-xs">
-                  Showing first {formatCompact(visibleSymbols.length)}{" "}
-                  {symbolFilter ? "matches" : "symbols"}.
-                </p>
-              ) : null}
-            </div>
-          </aside>
+          <SymbolSidebar
+            addPanelRef={addPanelRef}
+            addTickerInputRef={addTickerInputRef}
+            addPanelOpen={addPanelOpen}
+            addTickerInput={addTickerInput}
+            addingSymbol={addingSymbol}
+            deletingTicker={deletingTicker}
+            filteredSymbols={filteredSymbols}
+            selectedTicker={selectedTicker}
+            symbolFilter={symbolFilter}
+            symbolsLoading={symbolsLoading}
+            visibleSymbols={visibleSymbols}
+            onAddPanelOpenChange={setAddPanelOpen}
+            onAddTickerInputChange={setAddTickerInput}
+            onAddSymbolSubmit={handleAddSymbolSubmit}
+            onContextMenu={openSymbolContextMenu}
+            onSelectSymbol={selectSymbol}
+            onSymbolFilterChange={setSymbolFilter}
+          />
         </div>
       </div>
       <IndicatorPicker
@@ -1824,27 +1349,11 @@ export default function App() {
         onClose={() => setIndicatorPickerOpen(false)}
       />
       {symbolContextMenu ? (
-        <div
-          className="bg-popover text-popover-foreground border-border fixed z-50 min-w-44 rounded-md border p-1 shadow-lg"
-          style={{ left: symbolContextMenu.x, top: symbolContextMenu.y }}
-          role="menu"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-            role="menuitem"
-            disabled={deletingTicker === symbolContextMenu.ticker}
-            onClick={() => handleDeleteSymbol(symbolContextMenu.ticker)}
-          >
-            {deletingTicker === symbolContextMenu.ticker ? (
-              <RefreshCwIcon className="size-4 animate-spin" />
-            ) : (
-              <Trash2Icon className="size-4" />
-            )}
-            Delete {symbolContextMenu.ticker}
-          </button>
-        </div>
+        <SymbolContextMenuView
+          menu={symbolContextMenu}
+          deletingTicker={deletingTicker}
+          onDelete={handleDeleteSymbol}
+        />
       ) : null}
     </main>
   );

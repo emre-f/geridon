@@ -1,13 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  DownloadIcon,
-  FlaskConicalIcon,
-  PlayIcon,
-  PlusIcon,
-  RefreshCwIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FlaskConicalIcon } from "lucide-react";
 
 import {
   deleteBacktest,
@@ -28,18 +20,28 @@ import {
   type StrategyRecord,
   type SymbolSummary,
 } from "@/lib/api";
-import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import {
+  comparisonCacheKey,
+  createComparisonId,
+  dayEndMs,
+  dayStartMs,
+  formatRanAt,
+  holdCurve,
+  toDateInputValue,
+  type ComparisonPoint,
+} from "@/lib/backtest-utils";
+import {
+  availableTimeframes,
+  coverageForTimeframe,
+} from "@/lib/chart-options";
 import { defaultLineStyle, normalizeLineStyles } from "@/lib/indicator-style";
-import { downloadBacktestCard } from "@/lib/share-card";
 import { strategyIndicatorSpecs } from "@/lib/strategy";
-import { cn } from "@/lib/utils";
-import { ColorPicker } from "@/components/color-picker";
-import { EquityChart, type EquityOverlay } from "@/components/equity-chart";
-import { IndicatorLegend } from "@/components/indicator-legend";
-import { StockChart, type ChartMode, type ChartTone } from "@/components/stock-chart";
-import { SymbolCombobox } from "@/components/symbol-combobox";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import type { ComparisonSlot } from "@/components/backtest-types";
+import { BacktestResultCard } from "@/components/backtest-result-card";
+import { BacktestRunForm } from "@/components/backtest-run-form";
+import { BacktestRunsList } from "@/components/backtest-runs-list";
+import type { EquityOverlay } from "@/components/equity-chart";
+import type { ChartMode, ChartTone } from "@/components/stock-chart";
 import {
   Card,
   CardContent,
@@ -47,16 +49,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { NumberInput } from "@/components/ui/number-input";
-import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { SlashTabs } from "@/components/ui/slash-tabs";
-
-const chartModeOptions = [
-  { value: "line", label: "Line" },
-  { value: "candle", label: "Candle" },
-];
 
 interface BacktestPanelProps {
   strategies: StrategyRecord[];
@@ -68,106 +61,8 @@ interface BacktestPanelProps {
   definitionsByKind: Map<IndicatorKind, IndicatorDefinition>;
 }
 
-interface ComparisonSlot {
-  id: string;
-  ticker: string;
-  visible: boolean;
-  style: IndicatorLineStyle;
-}
-
-interface ComparisonPoint {
-  timestamp_ms: number;
-  close: number;
-}
-
-const timeframeOrder = ["1h", "4h", "1d"];
 const maxComparisons = 3;
 const preferredComparisonTickers = ["SPY", "QQQ"];
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-muted-foreground text-[11px] font-medium">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function symbolTimeframes(symbol: SymbolSummary | undefined) {
-  if (!symbol) {
-    return [];
-  }
-  const stored = new Set(symbol.timeframes.map((timeframe) => timeframe.timeframe));
-  const values: string[] = [];
-  if (stored.has("1h")) {
-    values.push("1h", "4h");
-  }
-  if (stored.has("1d")) {
-    values.push("1d");
-  }
-  return values.sort((left, right) => timeframeOrder.indexOf(left) - timeframeOrder.indexOf(right));
-}
-
-function symbolCoverage(symbol: SymbolSummary | undefined, timeframe: string) {
-  const sourceTimeframe = timeframe === "4h" ? "1h" : timeframe;
-  return symbol?.timeframes.find((item) => item.timeframe === sourceTimeframe);
-}
-
-function toDateInputValue(ms: number) {
-  return new Date(ms).toISOString().slice(0, 10);
-}
-
-function dayStartMs(value: string) {
-  return Date.parse(`${value}T00:00:00Z`);
-}
-
-function dayEndMs(value: string) {
-  return Date.parse(`${value}T23:59:59.999Z`);
-}
-
-function formatRunRange(run: BacktestRunSummary) {
-  return `${formatDate(run.start_ms, "1d")} – ${formatDate(run.end_ms, "1d")}`;
-}
-
-function formatRunSizing(run: BacktestRunSummary) {
-  return run.position_mode === "always_in"
-    ? "always in market (100% flips)"
-    : `buy ${run.buy_percent}% / sell ${run.sell_percent}%`;
-}
-
-function formatRanAt(createdAt: string) {
-  // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
-  const ms = Date.parse(createdAt.includes("Z") ? createdAt : `${createdAt}Z`);
-  if (Number.isNaN(ms)) {
-    return createdAt;
-  }
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(ms));
-}
-
-function comparisonCacheKey(ticker: string, run: BacktestRunRecord) {
-  return `${ticker}|${run.timeframe}|${run.start_ms}|${run.end_ms}`;
-}
-
-function createComparisonId() {
-  return `cmp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-/** Buy-and-hold curve: the run's starting capital riding the ticker's closes. */
-function holdCurve(points: ComparisonPoint[], initialCapital: number) {
-  const first = points.find((point) => point.close > 0);
-  if (!first) {
-    return [];
-  }
-  return points.map((point) => ({
-    timestamp_ms: point.timestamp_ms,
-    value: (initialCapital * point.close) / first.close,
-  }));
-}
 
 /**
  * The Backtest tab: run a saved strategy through the simulator, inspect the
@@ -221,9 +116,9 @@ export function BacktestPanel({
     [symbols, ticker],
   );
   const tickerList = useMemo(() => symbols.map((symbol) => symbol.ticker), [symbols]);
-  const timeframes = useMemo(() => symbolTimeframes(selectedSymbol), [selectedSymbol]);
+  const timeframes = useMemo(() => availableTimeframes(selectedSymbol), [selectedSymbol]);
   const coverage = useMemo(
-    () => symbolCoverage(selectedSymbol, timeframe),
+    () => coverageForTimeframe(selectedSymbol, timeframe),
     [selectedSymbol, timeframe],
   );
   const strategyName = useMemo(() => {
@@ -608,8 +503,6 @@ export function BacktestPanel({
   }
 
   const metrics = activeRun?.metrics ?? null;
-  const returnTone =
-    metrics && metrics.total_return_pct < 0 ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]";
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -635,127 +528,32 @@ export function BacktestPanel({
             </p>
           ) : (
             <>
-              <div className="flex flex-wrap items-end gap-3">
-                <Field label="Strategy">
-                  <Select
-                    value={strategyId == null ? "" : String(strategyId)}
-                    aria-label="Backtest strategy"
-                    className="w-48"
-                    onChange={(event) => setStrategyId(Number(event.target.value))}
-                  >
-                    {strategies.map((strategy) => (
-                      <option key={strategy.id} value={strategy.id}>
-                        {strategy.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Symbol">
-                  <SymbolCombobox
-                    value={selectedSymbol?.ticker ?? ""}
-                    tickers={tickerList}
-                    ariaLabel="Backtest symbol"
-                    className="w-28"
-                    onSelect={setTicker}
-                  />
-                </Field>
-                <Field label="Timeframe">
-                  <Select
-                    value={timeframe}
-                    aria-label="Backtest timeframe"
-                    className="w-20"
-                    onChange={(event) => setTimeframe(event.target.value)}
-                  >
-                    {timeframes.map((value) => (
-                      <option key={value} value={value}>
-                        {value.toUpperCase()}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="From">
-                  <Input
-                    type="date"
-                    value={startDate}
-                    aria-label="Backtest start date"
-                    className="w-36"
-                    min={coverage ? toDateInputValue(coverage.start_ms) : undefined}
-                    max={endDate || undefined}
-                    onChange={(event) => setStartDate(event.target.value)}
-                  />
-                </Field>
-                <Field label="To">
-                  <Input
-                    type="date"
-                    value={endDate}
-                    aria-label="Backtest end date"
-                    className="w-36"
-                    min={startDate || undefined}
-                    max={coverage ? toDateInputValue(coverage.end_ms) : undefined}
-                    onChange={(event) => setEndDate(event.target.value)}
-                  />
-                </Field>
-                <Field label="Mode">
-                  <Select
-                    value={positionMode}
-                    aria-label="Position mode"
-                    className="w-40"
-                    onChange={(event) => setPositionMode(event.target.value as BacktestPositionMode)}
-                  >
-                    <option value="long_only">Long only</option>
-                    <option value="always_in">Always in market</option>
-                  </Select>
-                </Field>
-                <Field label="Buy % of equity">
-                  <NumberInput
-                    className="w-24"
-                    aria-label="Buy percent of equity"
-                    value={positionMode === "always_in" ? 100 : buyPercent}
-                    min={1}
-                    max={100}
-                    step={1}
-                    disabled={positionMode === "always_in"}
-                    title={
-                      positionMode === "always_in"
-                        ? "Always in market flips the whole account, so sizing is fixed at 100%."
-                        : undefined
-                    }
-                    onValueChange={setBuyPercent}
-                  />
-                </Field>
-                <Field label="Sell % of position">
-                  <NumberInput
-                    className="w-24"
-                    aria-label="Sell percent of position"
-                    value={positionMode === "always_in" ? 100 : sellPercent}
-                    min={1}
-                    max={100}
-                    step={1}
-                    disabled={positionMode === "always_in"}
-                    title={
-                      positionMode === "always_in"
-                        ? "Always in market flips the whole account, so sizing is fixed at 100%."
-                        : undefined
-                    }
-                    onValueChange={setSellPercent}
-                  />
-                </Field>
-                <Field label="Starting capital">
-                  <NumberInput
-                    className="w-28"
-                    aria-label="Starting capital"
-                    value={initialCapital}
-                    min={100}
-                    max={100_000_000}
-                    step={1000}
-                    onValueChange={setInitialCapital}
-                  />
-                </Field>
-                <Button type="button" onClick={handleRun} disabled={running || !selectedSymbol || strategyId == null}>
-                  {running ? <RefreshCwIcon className="animate-spin" /> : <PlayIcon />}
-                  Run backtest
-                </Button>
-              </div>
+              <BacktestRunForm
+                buyPercent={buyPercent}
+                coverage={coverage}
+                endDate={endDate}
+                initialCapital={initialCapital}
+                positionMode={positionMode}
+                running={running}
+                selectedSymbol={selectedSymbol}
+                sellPercent={sellPercent}
+                startDate={startDate}
+                strategies={strategies}
+                strategyId={strategyId}
+                timeframe={timeframe}
+                timeframes={timeframes}
+                tickerList={tickerList}
+                onBuyPercentChange={setBuyPercent}
+                onEndDateChange={setEndDate}
+                onInitialCapitalChange={setInitialCapital}
+                onPositionModeChange={setPositionMode}
+                onRun={handleRun}
+                onSellPercentChange={setSellPercent}
+                onStartDateChange={setStartDate}
+                onStrategyIdChange={setStrategyId}
+                onTickerChange={setTicker}
+                onTimeframeChange={setTimeframe}
+              />
 
               {strategyDirty && strategyId === initialStrategyId ? (
                 <p className="text-muted-foreground text-xs">
@@ -770,66 +568,14 @@ export function BacktestPanel({
 
               <section className="flex flex-col gap-2" aria-label="Past runs">
                 <h3 className="text-sm font-medium">Past runs</h3>
-                {runsLoading ? (
-                  <p className="text-muted-foreground text-sm">Loading…</p>
-                ) : runs.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No runs yet for this strategy.</p>
-                ) : (
-                  <div className="flex flex-col">
-                    {runs.map((run) => (
-                      <div
-                        key={run.id}
-                        className={cn(
-                          "hover:bg-muted/50 group flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors",
-                          activeRun?.id === run.id && "bg-muted/60",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5 text-left"
-                          onClick={() => handleOpenRun(run)}
-                        >
-                          <span className="text-muted-foreground w-28 shrink-0 text-xs">
-                            {formatRanAt(run.created_at)}
-                          </span>
-                          <span className="w-14 shrink-0 font-medium">{run.ticker}</span>
-                          <span className="text-muted-foreground w-8 shrink-0 text-xs">
-                            {run.timeframe.toUpperCase()}
-                          </span>
-                          {run.position_mode === "always_in" ? (
-                            <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                              L/S
-                            </Badge>
-                          ) : null}
-                          <span className="text-muted-foreground text-xs">{formatRunRange(run)}</span>
-                          <span
-                            className={cn(
-                              "ml-auto font-medium",
-                              run.metrics.total_return_pct < 0
-                                ? "text-[var(--chart-down)]"
-                                : "text-[var(--chart-up)]",
-                            )}
-                          >
-                            {formatPercent(run.metrics.total_return_pct)}
-                          </span>
-                          {openingRunId === run.id ? (
-                            <RefreshCwIcon className="text-muted-foreground size-3.5 animate-spin" />
-                          ) : null}
-                        </button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive size-7 opacity-0 transition-opacity group-hover:opacity-100"
-                          aria-label="Delete run"
-                          onClick={() => handleDeleteRun(run)}
-                        >
-                          <Trash2Icon className="size-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <BacktestRunsList
+                  activeRunId={activeRun?.id}
+                  openingRunId={openingRunId}
+                  runs={runs}
+                  runsLoading={runsLoading}
+                  onDeleteRun={handleDeleteRun}
+                  onOpenRun={handleOpenRun}
+                />
               </section>
             </>
           )}
@@ -837,267 +583,42 @@ export function BacktestPanel({
       </Card>
 
       {activeRun && metrics ? (
-        <Card className="gap-4">
-          <CardHeader className="flex flex-col gap-3 px-4 sm:px-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-xl">
-                {activeRun.ticker}
-                <span className="text-muted-foreground ml-2 text-sm font-normal">
-                  {strategyName}
-                </span>
-              </CardTitle>
-              <span className="text-muted-foreground text-xs">
-                {formatRunRange(activeRun)} · {activeRun.timeframe.toUpperCase()} ·{" "}
-                {formatRunSizing(activeRun)} · ran {formatRanAt(activeRun.created_at)}
-              </span>
-              <div className="ml-auto flex items-center gap-2">
-                <SlashTabs
-                  options={chartModeOptions}
-                  value={chartMode}
-                  onValueChange={(value) => setChartMode(value as ChartMode)}
-                  aria-label="Chart style"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => downloadBacktestCard(activeRun, strategyName)}
-                >
-                  <DownloadIcon />
-                  Save as image
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground size-8"
-                  aria-label="Close results"
-                  onClick={() => setActiveRun(null)}
-                >
-                  <XIcon />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex flex-col gap-4 px-4 sm:px-5">
-            <div className="relative">
-              <StockChart
-                candles={runCandles}
-                indicators={runIndicatorsForChart}
-                signals={runSignals}
-                timeframe={activeRun.timeframe}
-                visibleStartMs={activeRun.start_ms}
-                visibleEndMs={activeRun.end_ms}
-                mode={chartMode}
-                tone={priceTone}
-                loading={runCandlesLoading}
-                onHoverCandleChange={handleHoverCandleChange}
-              />
-              <IndicatorLegend
-                className="absolute left-2 top-2 z-10 max-w-[75%]"
-                indicators={runIndicatorSpecs}
-                definitionsByKind={definitionsByKind}
-                series={runIndicatorSeries}
-                valueTimestampMs={legendTimestampMs}
-                onUpdateLineStyle={updateRunIndicatorLineStyle}
-              />
-            </div>
-
-            <Separator />
-
-            <section className="flex flex-col gap-3" aria-label="Backtest results">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="border-border rounded-md border p-3">
-                  <p className="text-muted-foreground text-[11px] font-medium uppercase">
-                    Total return
-                  </p>
-                  <p className={cn("mt-1 text-2xl font-semibold leading-none", returnTone)}>
-                    {formatPercent(metrics.total_return_pct)}
-                  </p>
-                </div>
-                <div className="border-border rounded-md border p-3">
-                  <p className="text-muted-foreground text-[11px] font-medium uppercase">
-                    Final equity
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold leading-none">
-                    {formatCurrency(metrics.final_equity)}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    from {formatCurrency(metrics.initial_capital)}
-                  </p>
-                </div>
-                <div className="border-border rounded-md border p-3">
-                  <p className="text-muted-foreground text-[11px] font-medium uppercase">Trades</p>
-                  <p className="mt-1 text-2xl font-semibold leading-none">{metrics.trade_count}</p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    {metrics.buy_count} buys · {metrics.sell_count} sells
-                  </p>
-                </div>
-                <div className="border-border rounded-md border p-3">
-                  <p className="text-muted-foreground text-[11px] font-medium uppercase">
-                    Win rate
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold leading-none">
-                    {metrics.win_rate_pct == null ? "—" : `${metrics.win_rate_pct.toFixed(0)}%`}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">of closing trades</p>
-                </div>
-              </div>
-
-              <EquityChart
-                points={activeRun.equity_curve}
-                trades={activeRun.trades}
-                initialCapital={activeRun.initial_capital}
-                timeframe={activeRun.timeframe}
-                overlays={equityOverlays}
-              />
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="PnL comparisons">
-                <span className="text-muted-foreground text-xs font-medium">Compare</span>
-
-                <label className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="checkbox"
-                    className="size-3.5 accent-[var(--primary)]"
-                    checked={holdSelfVisible}
-                    aria-label={`Show hold ${activeRun.ticker}`}
-                    onChange={(event) => setHoldSelfVisible(event.target.checked)}
-                  />
-                  <ColorPicker
-                    value={holdSelfStyle.color}
-                    ariaLabel={`Hold ${activeRun.ticker} color and line style`}
-                    lineStyle={{
-                      stroke: holdSelfStyle.stroke,
-                      width: holdSelfStyle.width,
-                      opacity: holdSelfStyle.opacity,
-                    }}
-                    onChange={(color) => setHoldSelfStyle((current) => ({ ...current, color }))}
-                    onLineStyleChange={(patch) =>
-                      setHoldSelfStyle((current) => ({ ...current, ...patch }))
-                    }
-                  />
-                  <span>Hold {activeRun.ticker}</span>
-                </label>
-
-                {comparisons.map((slot) => (
-                  <div key={slot.id} className="flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      className="size-3.5 accent-[var(--primary)]"
-                      checked={slot.visible}
-                      aria-label={`Show ${slot.ticker} comparison`}
-                      onChange={(event) => updateComparison(slot.id, { visible: event.target.checked })}
-                    />
-                    <ColorPicker
-                      value={slot.style.color}
-                      ariaLabel={`${slot.ticker} comparison color and line style`}
-                      lineStyle={{
-                        stroke: slot.style.stroke,
-                        width: slot.style.width,
-                        opacity: slot.style.opacity,
-                      }}
-                      onChange={(color) =>
-                        updateComparison(slot.id, { style: { ...slot.style, color } })
-                      }
-                      onLineStyleChange={(patch) =>
-                        updateComparison(slot.id, { style: { ...slot.style, ...patch } })
-                      }
-                    />
-                    <SymbolCombobox
-                      value={slot.ticker}
-                      tickers={tickerList}
-                      ariaLabel="Comparison symbol"
-                      className="w-28"
-                      onSelect={(nextTicker) => updateComparison(slot.id, { ticker: nextTicker })}
-                    />
-                    {slot.visible &&
-                    comparisonData[comparisonCacheKey(slot.ticker, activeRun)]?.length === 0 ? (
-                      <span className="text-muted-foreground text-xs">(no data)</span>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive size-7"
-                      aria-label={`Remove ${slot.ticker} comparison`}
-                      onClick={() =>
-                        setComparisons((current) => current.filter((item) => item.id !== slot.id))
-                      }
-                    >
-                      <XIcon className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-
-                {comparisons.length < maxComparisons && symbols.length > 0 ? (
-                  <Button type="button" variant="outline" size="sm" onClick={addComparison}>
-                    <PlusIcon />
-                    Add comparison
-                  </Button>
-                ) : null}
-              </div>
-
-              {activeRun.trades.length > 0 ? (
-                <div className="border-border max-h-64 overflow-auto rounded-md border">
-                  <table className="w-full min-w-[40rem] text-sm">
-                    <thead className="bg-muted/60 sticky top-0 backdrop-blur">
-                      <tr className="text-muted-foreground text-left text-xs">
-                        <th className="px-3 py-2 font-medium">Date</th>
-                        <th className="px-3 py-2 font-medium">Side</th>
-                        <th className="px-3 py-2 text-right font-medium">Price</th>
-                        <th className="px-3 py-2 text-right font-medium">Shares</th>
-                        <th className="px-3 py-2 text-right font-medium">Value</th>
-                        <th className="px-3 py-2 text-right font-medium">Realized P&L</th>
-                        <th className="px-3 py-2 text-right font-medium">Equity after</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeRun.trades.map((trade, index) => (
-                        <tr key={`${trade.timestamp_ms}-${index}`} className="border-border border-t">
-                          <td className="px-3 py-1.5 whitespace-nowrap">
-                            {formatDate(trade.timestamp_ms, activeRun.timeframe)}
-                          </td>
-                          <td className="px-3 py-1.5">
-                            <span
-                              className={
-                                trade.side === "buy"
-                                  ? "text-[var(--chart-up)]"
-                                  : "text-[var(--chart-down)]"
-                              }
-                            >
-                              {trade.side === "buy" ? "Buy" : "Sell"}
-                            </span>
-                          </td>
-                          <td className="px-3 py-1.5 text-right">{formatCurrency(trade.price)}</td>
-                          <td className="px-3 py-1.5 text-right">{trade.shares.toFixed(4)}</td>
-                          <td className="px-3 py-1.5 text-right">{formatCurrency(trade.value)}</td>
-                          <td
-                            className={cn(
-                              "px-3 py-1.5 text-right",
-                              trade.realized_pnl == null
-                                ? "text-muted-foreground"
-                                : trade.realized_pnl < 0
-                                  ? "text-[var(--chart-down)]"
-                                  : "text-[var(--chart-up)]",
-                            )}
-                          >
-                            {trade.realized_pnl == null ? "—" : formatCurrency(trade.realized_pnl)}
-                          </td>
-                          <td className="px-3 py-1.5 text-right">{formatCurrency(trade.equity_after)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  No trades executed — the entry condition never triggered in this range.
-                </p>
-              )}
-            </section>
-          </CardContent>
-        </Card>
+        <BacktestResultCard
+          activeRun={activeRun}
+          chartMode={chartMode}
+          comparisonData={comparisonData}
+          comparisons={comparisons}
+          definitionsByKind={definitionsByKind}
+          equityOverlays={equityOverlays}
+          holdSelfStyle={holdSelfStyle}
+          holdSelfVisible={holdSelfVisible}
+          legendTimestampMs={legendTimestampMs}
+          maxComparisons={maxComparisons}
+          metrics={metrics}
+          priceTone={priceTone}
+          runCandles={runCandles}
+          runCandlesLoading={runCandlesLoading}
+          runIndicatorsForChart={runIndicatorsForChart}
+          runIndicatorSeries={runIndicatorSeries}
+          runIndicatorSpecs={runIndicatorSpecs}
+          runSignals={runSignals}
+          strategyName={strategyName}
+          symbolsAvailable={symbols.length > 0}
+          tickerList={tickerList}
+          onAddComparison={addComparison}
+          onChartModeChange={setChartMode}
+          onClose={() => setActiveRun(null)}
+          onComparisonChange={updateComparison}
+          onHoldSelfStyleChange={(patch) =>
+            setHoldSelfStyle((current) => ({ ...current, ...patch }))
+          }
+          onHoldSelfVisibleChange={setHoldSelfVisible}
+          onHoverCandleChange={handleHoverCandleChange}
+          onRemoveComparison={(id) =>
+            setComparisons((current) => current.filter((item) => item.id !== id))
+          }
+          onUpdateRunIndicatorLineStyle={updateRunIndicatorLineStyle}
+        />
       ) : null}
     </div>
   );

@@ -27,3 +27,7 @@ How to apply:
 Using gpt-5.5 inside workflows and subagents (the model parameter only takes Claude models,
 so use a wrapper):
 - Spawn a thin Claude wrapper agent with `model: 'sonnet', effort: 'low'` whose prompt instructs it to write a self-contained codex prompt, run `codex exec` via Bash, and return
+
+# OTHER RULES
+
+- A file can't be more than 250 lines of code. We should break apart the logic into more digestible and readable chunks in that case.

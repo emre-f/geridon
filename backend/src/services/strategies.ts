@@ -4,6 +4,18 @@ import {
   isIndicatorKind,
   normalizeIndicatorParameters,
 } from "./indicators.ts";
+import {
+  comparisonOperators,
+  crossOperators,
+  groupOperators,
+  isRecord,
+  issue,
+  maxGroupDepth,
+  maxNameLength,
+  maxRules,
+  priceFields,
+  type ValidationContext,
+} from "./strategyValidationHelpers.ts";
 import type {
   ComparisonOperator,
   GroupOperator,
@@ -14,36 +26,7 @@ import type {
   StrategyValidationIssue,
 } from "../types.ts";
 
-export const comparisonOperators: ComparisonOperator[] = [
-  "gt",
-  "gte",
-  "lt",
-  "lte",
-  "cross_above",
-  "cross_below",
-];
-
-export const groupOperators: GroupOperator[] = ["and", "or", "not"];
-
-export const priceFields: PriceField[] = ["open", "high", "low", "close", "volume"];
-
-const crossOperators = new Set<ComparisonOperator>(["cross_above", "cross_below"]);
-const maxNameLength = 80;
-const maxGroupDepth = 6;
-const maxRules = 32;
-
-interface ValidationContext {
-  errors: StrategyValidationIssue[];
-  rules: number;
-}
-
-function issue(context: ValidationContext, path: string, message: string) {
-  context.errors.push({ path, message });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value != null && !Array.isArray(value);
-}
+export { comparisonOperators, groupOperators, priceFields } from "./strategyValidationHelpers.ts";
 
 function validateOperand(
   raw: unknown,
