@@ -91,6 +91,16 @@ export const markerRadius = 4.5;
 export const markerStrokeWidth = 2;
 export const signalMarkerSize = 6;
 export const chartFrameClass = "h-[clamp(500px,calc(100vh-16rem),720px)] w-full";
+export const priceSeriesHitTolerance = 12;
+// ± glyph with a white halo so it stays legible over both themes; falls back
+// to crosshair where SVG cursors are unsupported.
+const measureCursorSvg =
+  "<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'>" +
+  "<g fill='none' stroke-linecap='round'>" +
+  "<g stroke='white' stroke-width='4.5'><path d='M11 3v8M7 7h8M7 16h8'/></g>" +
+  "<g stroke='black' stroke-width='2'><path d='M11 3v8M7 7h8M7 16h8'/></g>" +
+  "</g></svg>";
+export const measureCursor = `url("data:image/svg+xml,${encodeURIComponent(measureCursorSvg)}") 11 11, crosshair`;
 export const chartMorphDurationMs = 320;
 export const indicatorPalette = [
   "var(--indicator-1)",

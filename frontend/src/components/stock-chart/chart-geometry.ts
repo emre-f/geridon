@@ -3,6 +3,8 @@ import {
   clamp,
   minVisibleCandles,
   minVolumeSlotWidth,
+  priceSeriesHitTolerance,
+  type ChartMode,
   type ChartPoint,
   type SparsePoint,
 } from "@/components/stock-chart/chart-types";
@@ -53,6 +55,14 @@ export function nearestIndex(x: number, points: ChartPoint[]) {
   const firstX = points[0].x;
   const step = points[1].x - firstX;
   return clamp(Math.round((x - firstX) / step), 0, points.length - 1);
+}
+
+/** Whether a pointer y sits on the price series (close line, or candle range in candle mode). */
+export function onPriceSeries(y: number, point: ChartPoint, mode: ChartMode) {
+  if (mode === "candle") {
+    return y >= point.highY - priceSeriesHitTolerance && y <= point.lowY + priceSeriesHitTolerance;
+  }
+  return Math.abs(y - point.closeY) <= priceSeriesHitTolerance;
 }
 
 export function priceTicks(min: number, max: number) {

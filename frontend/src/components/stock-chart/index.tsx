@@ -8,6 +8,7 @@ import {
   hoverTooltipHeightEstimate,
   hoverTooltipWidth,
   margin,
+  measureCursor,
   measurementTooltipHeightEstimate,
   measurementTooltipWidth,
   tooltipGap,
@@ -75,12 +76,14 @@ export function StockChart({
   const interaction = useChartInteraction({
     candles,
     timeframe,
+    mode,
     visibleStartMs,
     visibleEndMs,
     svgRef,
     layoutRef,
   });
-  const { visibleCandles, hoverIndex, dragStartIndex, dragEndIndex, isPanning } = interaction;
+  const { visibleCandles, hoverIndex, hoverOnLine, dragStartIndex, dragEndIndex, isPanning } =
+    interaction;
 
   const indicatorMaps = useMemo(() => indicatorValueMaps(indicators), [indicators]);
   const signalsByTimestamp = useMemo(() => {
@@ -208,7 +211,13 @@ export function StockChart({
         onPointerCancel={interaction.handlePointerCancel}
         onPointerLeave={interaction.handlePointerLeave}
         style={{
-          cursor: isPanning ? "grabbing" : interaction.canPan ? "grab" : "crosshair",
+          cursor: isPanning
+            ? "grabbing"
+            : isDragging || hoverOnLine
+              ? measureCursor
+              : interaction.canPan
+                ? "grab"
+                : "crosshair",
           display: measuredWidth === 0 ? "none" : undefined,
         }}
       >
