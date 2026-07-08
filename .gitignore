@@ -25,4 +25,14 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 
+# Agent tooling
 .agents/
+.claude/
+.codex/
+.skills/
+skills/
+skills-lock.json
+
+# Agent plans
+AGENTS.md
+CLAUDE.md
