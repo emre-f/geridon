@@ -107,9 +107,11 @@ export function timeframeForRange(
     return currentTimeframe;
   }
 
+  const available = new Set(nextTimeframes);
+
   if (
     !longRangeValues.has(range) &&
-    nextTimeframes.includes(currentTimeframe) &&
+    available.has(currentTimeframe) &&
     timeframeCoversRange(symbol, currentTimeframe, range)
   ) {
     return currentTimeframe;
@@ -119,8 +121,8 @@ export function timeframeForRange(
     ? ["1d", "4h", "1h"]
     : [currentTimeframe, "4h", "1h", "1d"];
   const coveredTimeframe = preferences.find(
-    (value) => nextTimeframes.includes(value) && timeframeCoversRange(symbol, value, range),
+    (value) => available.has(value) && timeframeCoversRange(symbol, value, range),
   );
 
-  return coveredTimeframe ?? (nextTimeframes.includes(currentTimeframe) ? currentTimeframe : nextTimeframes[0]);
+  return coveredTimeframe ?? (available.has(currentTimeframe) ? currentTimeframe : nextTimeframes[0]);
 }

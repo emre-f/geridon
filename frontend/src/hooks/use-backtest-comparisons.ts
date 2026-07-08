@@ -154,7 +154,7 @@ export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOption
           comparisonRequests.delete(key);
         });
     }
-  }, [activeRun, comparisons, comparisonData, holdSelfVisible]);
+  }, [activeRun, comparisons, comparisonData, holdSelfVisible, comparisonRequests]);
 
   const equityOverlays = useMemo<EquityOverlay[]>(() => {
     if (!activeRun) {

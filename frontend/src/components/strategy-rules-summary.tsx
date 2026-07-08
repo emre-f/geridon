@@ -59,8 +59,12 @@ function ConditionLines({
       <span className="text-muted-foreground font-medium uppercase">{condition.operator}</span>
       {disabled ? <span className="text-muted-foreground"> (off)</span> : null}
       <ul className="border-border ml-1.5 flex flex-col gap-0.5 border-l pl-3">
-        {condition.conditions.map((child, index) => (
-          <ConditionLines key={index} condition={child} definitionsByKind={definitionsByKind} />
+        {condition.conditions.map((child) => (
+          <ConditionLines
+            key={JSON.stringify(child)}
+            condition={child}
+            definitionsByKind={definitionsByKind}
+          />
         ))}
       </ul>
     </li>

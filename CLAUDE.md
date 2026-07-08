@@ -32,3 +32,4 @@ so use a wrapper):
 
 - A file can't be more than 250 lines of code. We should break apart the logic into more digestible and readable chunks in that case.
 - Whenever you are working on the frontend, at the end use the react-doctor skill (it is in the /frontend folder) to make sure you aren't write bad react code.
+- Do not write comments unless absolutely necessary (a commment describing something temporary, or complex logic), 99% of the time we should have code that is readable and understandable without comments

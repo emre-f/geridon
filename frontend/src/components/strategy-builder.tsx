@@ -225,8 +225,8 @@ export function StrategyBuilder({
                   Fix these issues before running the strategy:
                 </p>
                 <ul className="text-destructive mt-1.5 flex flex-col gap-1 text-sm">
-                  {validation.errors.map((issue, index) => (
-                    <li key={`${issue.path}-${index}`}>
+                  {validation.errors.map((issue) => (
+                    <li key={`${issue.path}-${issue.message}`}>
                       <span className="font-medium">{describeIssuePath(issue.path)}:</span>{" "}
                       {issue.message}
                     </li>

@@ -102,6 +102,8 @@ export function ChartPanelHeader({
   onRangeChange: (value: string) => void;
   onTimeframeChange: (value: string) => void;
 }) {
+  const enabledTimeframes = new Set(timeframes);
+
   return (
     <CardHeader className="flex flex-col gap-4 px-4 sm:px-5">
       <div className="flex items-start justify-between gap-3">
@@ -115,7 +117,7 @@ export function ChartPanelHeader({
           <SlashTabs
             options={timeframeOptions.map((option) => ({
               ...option,
-              disabled: !timeframes.includes(option.value),
+              disabled: !enabledTimeframes.has(option.value),
             }))}
             value={timeframe}
             onValueChange={onTimeframeChange}

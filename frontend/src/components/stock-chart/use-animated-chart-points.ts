@@ -72,40 +72,62 @@ function interpolatePoints(fromPoints: ChartPoint[], toPoints: ChartPoint[], amo
   });
 }
 
-/** Morphs the line chart between datasets instead of snapping (honors reduced motion). */
-export function useAnimatedChartPoints(targetPoints: ChartPoint[]) {
+/** Morphs the line chart only when `morphKey` changes (a new dataset); pan/zoom/hover snap. */
+export function useAnimatedChartPoints(targetPoints: ChartPoint[], morphKey: unknown) {
   const [animatedPoints, setAnimatedPoints] = useState(targetPoints);
-  const animatedPointsRef = useRef(targetPoints);
+  const animatingRef = useRef(false);
+  const morphKeyRef = useRef(morphKey);
+  const displayedRef = useRef(targetPoints);
   const frameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const reduceMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const keyChanged = !Object.is(morphKeyRef.current, morphKey);
+    morphKeyRef.current = morphKey;
 
-    if (frameRef.current != null) {
-      cancelAnimationFrame(frameRef.current);
+    const stopAnimation = () => {
+      if (frameRef.current != null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+
+    if (!keyChanged) {
+      if (animatingRef.current) {
+        stopAnimation();
+        animatingRef.current = false;
+        setAnimatedPoints(targetPoints);
+      }
+      displayedRef.current = targetPoints;
+      return;
     }
 
-    if (reduceMotion || animatedPointsRef.current.length === 0 || targetPoints.length === 0) {
-      animatedPointsRef.current = targetPoints;
+    stopAnimation();
+
+    const reduceMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion || displayedRef.current.length === 0 || targetPoints.length === 0) {
+      animatingRef.current = false;
+      displayedRef.current = targetPoints;
       setAnimatedPoints(targetPoints);
       return;
     }
 
-    const fromPoints = resamplePoints(animatedPointsRef.current, targetPoints);
+    const fromPoints = resamplePoints(displayedRef.current, targetPoints);
     const startTime = performance.now();
+    animatingRef.current = true;
 
     function animate(now: number) {
       const elapsed = now - startTime;
       const progress = easeOutCubic(clamp(elapsed / chartMorphDurationMs, 0, 1));
       const nextPoints = interpolatePoints(fromPoints, targetPoints, progress);
 
-      animatedPointsRef.current = nextPoints;
+      displayedRef.current = nextPoints;
       setAnimatedPoints(nextPoints);
 
       if (elapsed < chartMorphDurationMs) {
         frameRef.current = requestAnimationFrame(animate);
       } else {
-        animatedPointsRef.current = targetPoints;
+        animatingRef.current = false;
+        displayedRef.current = targetPoints;
         setAnimatedPoints(targetPoints);
         frameRef.current = null;
       }
@@ -119,7 +141,7 @@ export function useAnimatedChartPoints(targetPoints: ChartPoint[]) {
         frameRef.current = null;
       }
     };
-  }, [targetPoints]);
+  }, [targetPoints, morphKey]);
 
-  return animatedPoints;
+  return animatingRef.current ? animatedPoints : targetPoints;
 }

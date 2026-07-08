@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Candle, IndicatorSeries, StrategySignal } from "@/lib/api";
 import { useElementSize } from "@/hooks/use-element-size";
@@ -50,7 +50,7 @@ interface StockChartProps {
   onHoverCandleChange?: (candle: Candle | null) => void;
 }
 
-export function StockChart({
+function StockChartImpl({
   candles,
   indicators = noIndicators,
   signals = noSignals,
@@ -112,7 +112,7 @@ export function StockChart({
   // Latest-layout ref for the interaction hook's event handlers.
   layoutRef.current = chart;
 
-  const animatedPoints = useAnimatedChartPoints(chart.points);
+  const animatedPoints = useAnimatedChartPoints(chart.points, candles);
   const isDragging = dragStartIndex != null && dragEndIndex != null;
   const activeIndex = isDragging ? dragEndIndex : hoverIndex;
   const activePoint = activeIndex == null ? null : chart.points[activeIndex];
@@ -270,3 +270,5 @@ export function StockChart({
     </div>
   );
 }
+
+export const StockChart = memo(StockChartImpl);

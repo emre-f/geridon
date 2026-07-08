@@ -4,7 +4,7 @@ import { fetchChartStates, putChartState } from "@/lib/api";
 import { isHexColor } from "@/lib/color-palette";
 import { defaultLineStyle, sanitizeLineStyle } from "@/lib/indicator-style";
 
-const chartStateStorageKey = "geridon-chart-state";
+const chartStateStorageKey = "geridon-chart-state:v1";
 const lastTickerStorageKey = "geridon-last-ticker";
 const lastStrategyStorageKey = "geridon-last-strategy";
 const serverSaveDelayMs = 600;

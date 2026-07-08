@@ -30,20 +30,28 @@ function IndicatorPickerDialog({
   onClose,
 }: Omit<IndicatorPickerProps, "open">) {
   const [query, setQuery] = useState("");
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const atLimit = activeCount >= maxCount;
 
   useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) {
+      return;
+    }
+    if (!dialog.open) {
+      dialog.showModal();
+    }
     inputRef.current?.focus();
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+    function closeOnBackdropClick(event: MouseEvent) {
+      if (event.target === dialog) {
         onClose();
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    dialog.addEventListener("click", closeOnBackdropClick);
+    return () => dialog.removeEventListener("click", closeOnBackdropClick);
   }, [onClose]);
 
   const filteredCatalog = useMemo(() => {
@@ -65,17 +73,13 @@ function IndicatorPickerDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[12vh]"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
       aria-label="Add indicator"
-      onPointerDown={onClose}
+      className="border-border bg-popover text-popover-foreground fixed left-1/2 top-[12vh] m-0 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg border p-0 shadow-xl backdrop:bg-black/50"
+      onCancel={onClose}
     >
-      <div
-        className="border-border bg-popover text-popover-foreground flex w-full max-w-md flex-col rounded-lg border shadow-xl"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
+      <div className="flex flex-col">
         <div className="p-3 pb-2">
           <div className="relative">
             <SearchIcon className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
@@ -128,6 +132,6 @@ function IndicatorPickerDialog({
           </p>
         ) : null}
       </div>
-    </div>
+    </dialog>
   );
 }

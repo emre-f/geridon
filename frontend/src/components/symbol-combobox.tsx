@@ -53,10 +53,6 @@ export function SymbolCombobox({
   }, [query, tickers]);
 
   useEffect(() => {
-    setHighlightIndex(0);
-  }, [query]);
-
-  useEffect(() => {
     if (!open) {
       return;
     }
@@ -106,6 +102,7 @@ export function SymbolCombobox({
         onChange={(event) => {
           setOpen(true);
           setQuery(event.target.value.toUpperCase());
+          setHighlightIndex(0);
         }}
         onKeyDown={(event) => {
           if (!open && (event.key === "ArrowDown" || event.key === "Enter")) {

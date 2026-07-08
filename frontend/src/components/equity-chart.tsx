@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 export type { EquityOverlay };
 
+const EMPTY_OVERLAYS: EquityOverlay[] = [];
+
 interface EquityChartProps {
   points: BacktestEquityPoint[];
   trades: BacktestTrade[];
@@ -25,7 +27,7 @@ export function EquityChart({
   trades,
   initialCapital,
   timeframe,
-  overlays = [],
+  overlays = EMPTY_OVERLAYS,
   height = 300,
   className,
 }: EquityChartProps) {

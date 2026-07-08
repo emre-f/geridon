@@ -26,8 +26,11 @@ export function BacktestTradesTable({ activeRun }: { activeRun: BacktestRunRecor
           </tr>
         </thead>
         <tbody>
-          {activeRun.trades.map((trade, index) => (
-            <tr key={`${trade.timestamp_ms}-${index}`} className="border-border border-t">
+          {activeRun.trades.map((trade) => (
+            <tr
+              key={`${trade.timestamp_ms}-${trade.side}-${trade.equity_after}`}
+              className="border-border border-t"
+            >
               <td className="px-3 py-1.5 whitespace-nowrap">
                 {formatDate(trade.timestamp_ms, activeRun.timeframe)}
               </td>

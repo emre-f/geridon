@@ -55,7 +55,8 @@ export function SlashTabs({
   "aria-label": ariaLabel,
 }: SlashTabsProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const buttonRefs = useRef<Map<string, HTMLButtonElement> | null>(null);
+  buttonRefs.current ??= new Map();
   const [underline, setUnderline] = useState<UnderlinePosition | null>(null);
   const underlineRef = useRef<UnderlinePosition | null>(null);
   const optionsKey = useMemo(
@@ -82,7 +83,7 @@ export function SlashTabs({
     }
 
     function measure(animate: boolean) {
-      const button = buttonRefs.current.get(value);
+      const button = buttonRefs.current!.get(value);
       if (!container || !button) {
         updateUnderline(null);
         return;
@@ -128,9 +129,9 @@ export function SlashTabs({
             <button
               ref={(node) => {
                 if (node) {
-                  buttonRefs.current.set(option.value, node);
+                  buttonRefs.current!.set(option.value, node);
                 } else {
-                  buttonRefs.current.delete(option.value);
+                  buttonRefs.current!.delete(option.value);
                 }
               }}
               type="button"

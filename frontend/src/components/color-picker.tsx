@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckIcon, PencilIcon } from "lucide-react";
 
-import { maxPaletteColors, usePaletteColors } from "@/lib/color-palette";
+import { maxPaletteColors, minPaletteColors, usePaletteColors } from "@/lib/color-palette";
 import { strokeDashArray } from "@/lib/indicator-style";
 import { cn } from "@/lib/utils";
 import {
   AddPaletteSwatch,
   EditablePaletteSwatch,
-  minPaletteColors,
 } from "@/components/color-picker/palette-swatches";
 import {
   LineStyleControls,
@@ -130,14 +129,14 @@ export function ColorPicker({
             {paletteColors.map((color, index) =>
               editing ? (
                 <EditablePaletteSwatch
-                  key={index}
+                  key={color}
                   index={index}
                   color={color}
                   canDelete={paletteColors.length > minPaletteColors}
                 />
               ) : (
                 <button
-                  key={index}
+                  key={color}
                   type="button"
                   className={cn(
                     swatchControlClass,

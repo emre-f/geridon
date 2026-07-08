@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-const paletteStorageKey = "geridon-color-palette";
+const paletteStorageKey = "geridon-color-palette:v1";
 
 export const minPaletteColors = 6;
 export const maxPaletteColors = 24;

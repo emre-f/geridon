@@ -4,7 +4,6 @@ import { PlusIcon, XIcon } from "lucide-react";
 import {
   addPaletteColor,
   isHexColor,
-  minPaletteColors,
   removePaletteColor,
   updatePaletteColor,
 } from "@/lib/color-palette";
@@ -118,5 +117,3 @@ export function AddPaletteSwatch({
     </label>
   );
 }
-
-export { minPaletteColors };
