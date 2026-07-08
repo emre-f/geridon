@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch } from "react";
+import { useEffect, useRef, type Dispatch } from "react";
 
 import { listCandles, listIndicators, type IndicatorSpec } from "@/lib/api";
 import type { TimeWindow } from "@/hooks/chart-display";
@@ -8,6 +8,7 @@ interface ChartDataLoadingOptions {
   selectedTicker: string;
   timeframe: string;
   range: string;
+  candleWindow: TimeWindow | undefined;
   candleRequestWindow: TimeWindow | undefined;
   /** Serialized request specs; changes only when an indicator's identity or parameters change. */
   indicatorRequestKey: string;
@@ -21,12 +22,16 @@ export function useChartDataLoading({
   selectedTicker,
   timeframe,
   range,
+  candleWindow,
   candleRequestWindow,
   indicatorRequestKey,
   indicatorRequestSpecs,
   dispatch,
   onError,
 }: ChartDataLoadingOptions) {
+  const candleWindowRef = useRef(candleWindow);
+  candleWindowRef.current = candleWindow;
+
   useEffect(() => {
     if (!selectedTicker || !candleRequestWindow) {
       dispatch({ type: "candlesUnavailable" });
@@ -60,6 +65,7 @@ export function useChartDataLoading({
               endMs: requestWindow.endMs,
               candles: nextCandles,
             },
+            visibleWindow: candleWindowRef.current,
           });
         }
       } catch (loadError) {
@@ -123,9 +129,12 @@ export function useChartDataLoading({
     onError,
   ]);
 
-  // A new ticker, timeframe, or range invalidates whatever window the chart
-  // last reported as visible.
   useEffect(() => {
-    dispatch({ type: "visibleCandlesReset" });
-  }, [range, selectedTicker, timeframe, dispatch]);
+    dispatch({
+      type: "visibleCandlesReset",
+      selectedTicker,
+      timeframe,
+      visibleWindow: candleWindow,
+    });
+  }, [candleWindow, range, selectedTicker, timeframe, dispatch]);
 }

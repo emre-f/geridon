@@ -8,8 +8,18 @@ import type {
 import type { ChartState } from "@/lib/chart-state";
 import { defaultLineStyle, definitionValueSlots, normalizeLineStyles } from "@/lib/indicator-style";
 import type { ChartMode } from "@/components/stock-chart";
+import {
+  sameCandleSlice,
+  sliceViewport,
+  viewportForWindow,
+} from "@/components/stock-chart/chart-geometry";
 
 export const maxActiveIndicators = 6;
+
+interface VisibleWindow {
+  startMs: number;
+  endMs: number;
+}
 
 export interface CandleData {
   ticker: string;
@@ -35,9 +45,27 @@ export interface ChartWorkspaceState {
 
 export type ChartWorkspaceAction =
   | { type: "modeChanged"; mode: ChartMode }
-  | { type: "timeframeChanged"; timeframe: string; range: string }
-  | { type: "rangeChanged"; timeframe: string; range: string }
-  | { type: "chartStateRestored"; stored: ChartState | null; timeframeAllowed: boolean }
+  | {
+      type: "timeframeChanged";
+      timeframe: string;
+      range: string;
+      selectedTicker?: string;
+      visibleWindow?: VisibleWindow;
+    }
+  | {
+      type: "rangeChanged";
+      timeframe: string;
+      range: string;
+      selectedTicker?: string;
+      visibleWindow?: VisibleWindow;
+    }
+  | {
+      type: "chartStateRestored";
+      stored: ChartState | null;
+      timeframeAllowed: boolean;
+      selectedTicker?: string;
+      visibleWindow?: VisibleWindow;
+    }
   | { type: "pickerToggled"; open: boolean }
   | { type: "indicatorAdded"; id: string; definition: IndicatorDefinition }
   | { type: "indicatorRemoved"; id: string }
@@ -50,7 +78,7 @@ export type ChartWorkspaceAction =
       patch: Partial<IndicatorLineStyle>;
     }
   | { type: "candlesRequested" }
-  | { type: "candlesLoaded"; data: CandleData }
+  | { type: "candlesLoaded"; data: CandleData; visibleWindow?: VisibleWindow }
   | { type: "candlesFailed" }
   | { type: "candlesUnavailable" }
   | { type: "candleDataCleared" }
@@ -59,7 +87,12 @@ export type ChartWorkspaceAction =
   | { type: "indicatorsFailed" }
   | { type: "indicatorsCleared" }
   | { type: "visibleCandlesChanged"; candles: Candle[] }
-  | { type: "visibleCandlesReset" }
+  | {
+      type: "visibleCandlesReset";
+      selectedTicker: string;
+      timeframe: string;
+      visibleWindow?: VisibleWindow;
+    }
   | { type: "hoverChanged"; candle: Candle | null };
 
 export function initialChartWorkspaceState(timeframe: string, range: string): ChartWorkspaceState {
@@ -122,6 +155,46 @@ function withPatchedStyle(
   });
 }
 
+function visibleCandlesForWindow(candles: Candle[], visibleWindow: VisibleWindow | undefined) {
+  return sliceViewport(candles, viewportForWindow(candles, visibleWindow?.startMs, visibleWindow?.endMs));
+}
+
+function visibleCandlesForCurrentData(
+  state: ChartWorkspaceState,
+  selectedTicker: string | undefined,
+  timeframe: string,
+  visibleWindow: VisibleWindow | undefined,
+) {
+  if (
+    !selectedTicker ||
+    !state.candleData ||
+    state.candleData.ticker !== selectedTicker ||
+    state.candleData.timeframe !== timeframe
+  ) {
+    return [];
+  }
+
+  return visibleCandlesForWindow(state.candleData.candles, visibleWindow);
+}
+
+function withVisibleWindow(
+  state: ChartWorkspaceState,
+  selectedTicker: string | undefined,
+  timeframe: string,
+  visibleWindow: VisibleWindow | undefined,
+) {
+  const visibleCandles = visibleCandlesForCurrentData(
+    state,
+    selectedTicker,
+    timeframe,
+    visibleWindow,
+  );
+
+  return sameCandleSlice(state.visibleCandles, visibleCandles) && state.hoverCandle == null
+    ? state
+    : { ...state, visibleCandles, hoverCandle: null };
+}
+
 export function chartWorkspaceReducer(
   state: ChartWorkspaceState,
   action: ChartWorkspaceAction,
@@ -131,19 +204,22 @@ export function chartWorkspaceReducer(
       return { ...state, chartMode: action.mode };
     case "timeframeChanged":
     case "rangeChanged":
-      return { ...state, timeframe: action.timeframe, range: action.range };
+      return withVisibleWindow(
+        { ...state, timeframe: action.timeframe, range: action.range },
+        action.selectedTicker,
+        action.timeframe,
+        action.visibleWindow,
+      );
     case "chartStateRestored": {
       const next = { ...state, activeIndicators: action.stored?.indicators ?? [] };
-      if (!action.stored) {
-        return next;
+      if (action.stored) {
+        next.chartMode = action.stored.chartMode;
+        if (action.timeframeAllowed) {
+          next.timeframe = action.stored.timeframe;
+          next.range = action.stored.range;
+        }
       }
-
-      next.chartMode = action.stored.chartMode;
-      if (action.timeframeAllowed) {
-        next.timeframe = action.stored.timeframe;
-        next.range = action.stored.range;
-      }
-      return next;
+      return withVisibleWindow(next, action.selectedTicker, next.timeframe, action.visibleWindow);
     }
     case "pickerToggled":
       return { ...state, indicatorPickerOpen: action.open };
@@ -192,13 +268,31 @@ export function chartWorkspaceReducer(
     case "candlesRequested":
       return { ...state, candlesLoading: true };
     case "candlesLoaded":
-      return { ...state, candleData: action.data, visibleCandles: [], candlesLoading: false };
+      return {
+        ...state,
+        candleData: action.data,
+        visibleCandles: visibleCandlesForWindow(action.data.candles, action.visibleWindow),
+        candlesLoading: false,
+        hoverCandle: null,
+      };
     case "candlesFailed":
-      return { ...state, candleData: null, visibleCandles: [], candlesLoading: false };
+      return {
+        ...state,
+        candleData: null,
+        visibleCandles: [],
+        candlesLoading: false,
+        hoverCandle: null,
+      };
     case "candlesUnavailable":
-      return { ...state, candleData: null, visibleCandles: [], indicatorSeries: [] };
+      return {
+        ...state,
+        candleData: null,
+        visibleCandles: [],
+        indicatorSeries: [],
+        hoverCandle: null,
+      };
     case "candleDataCleared":
-      return { ...state, candleData: null };
+      return { ...state, candleData: null, visibleCandles: [], hoverCandle: null };
     case "indicatorsRequested":
       return { ...state, indicatorsLoading: true };
     case "indicatorSeriesLoaded":
@@ -208,14 +302,12 @@ export function chartWorkspaceReducer(
     case "indicatorsCleared":
       return { ...state, indicatorSeries: [], indicatorsLoading: false };
     case "visibleCandlesChanged":
-      // Keep the empty-state identity stable so the chart's notify effect can't
-      // ping-pong renders with this component.
-      return state.visibleCandles.length === 0 && action.candles.length === 0
+      return sameCandleSlice(state.visibleCandles, action.candles)
         ? state
         : { ...state, visibleCandles: action.candles };
     case "visibleCandlesReset":
-      return state.visibleCandles.length === 0 ? state : { ...state, visibleCandles: [] };
+      return withVisibleWindow(state, action.selectedTicker, action.timeframe, action.visibleWindow);
     case "hoverChanged":
-      return { ...state, hoverCandle: action.candle };
+      return state.hoverCandle === action.candle ? state : { ...state, hoverCandle: action.candle };
   }
 }

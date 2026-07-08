@@ -7,6 +7,7 @@ import {
   type ChartMode,
   type ChartPoint,
   type SparsePoint,
+  type Viewport,
 } from "@/components/stock-chart/chart-types";
 
 export function viewportMinimum(totalCandles: number) {
@@ -45,6 +46,23 @@ export function viewportForWindow(
     start: firstIndex,
     size: lastIndexFromEnd - firstIndex + 1,
   };
+}
+
+export function sliceViewport(candles: Candle[], viewport: Viewport) {
+  return candles.slice(viewport.start, viewport.start + viewport.size);
+}
+
+export function sameCandleSlice(
+  left: Candle[] | null | undefined,
+  right: Candle[] | null | undefined,
+) {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right || left.length !== right.length) {
+    return false;
+  }
+  return left.length === 0 || (left[0] === right[0] && left.at(-1) === right.at(-1));
 }
 
 export function nearestIndex(x: number, points: ChartPoint[]) {

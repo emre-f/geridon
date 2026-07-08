@@ -13,7 +13,7 @@ export type InteractionAction =
   | { type: "reset"; viewport: Viewport }
   | { type: "panned"; start: number }
   | { type: "panDragged"; start: number }
-  | { type: "zoomed"; deltaY: number; pointerRatio: number; totalCandles: number; minimumSize: number }
+  | { type: "zoomed"; viewport: Viewport }
   | { type: "hovered"; index: number; onLine: boolean }
   | { type: "hoverCleared" }
   | { type: "panStarted" }
@@ -27,6 +27,30 @@ export const idleInteraction = {
   dragEndIndex: null,
   isPanning: false,
 };
+
+export function zoomViewport(
+  viewport: Viewport,
+  deltaY: number,
+  pointerRatio: number,
+  totalCandles: number,
+  minimumSize: number,
+) {
+  const currentSize = clamp(viewport.size || totalCandles, minimumSize, totalCandles);
+  const currentStart = clamp(viewport.start, 0, Math.max(totalCandles - currentSize, 0));
+  const nextSize = clamp(
+    Math.round(currentSize * Math.exp(deltaY * wheelZoomSensitivity)),
+    minimumSize,
+    totalCandles,
+  );
+  const anchor = currentStart + pointerRatio * currentSize;
+  const nextStart = clamp(
+    Math.round(anchor - pointerRatio * nextSize),
+    0,
+    Math.max(totalCandles - nextSize, 0),
+  );
+
+  return { start: nextStart, size: nextSize };
+}
 
 export function interactionReducer(
   state: InteractionState,
@@ -48,31 +72,8 @@ export function interactionReducer(
             ? state.viewport
             : { ...state.viewport, start: action.start },
       };
-    case "zoomed": {
-      const currentSize = clamp(
-        state.viewport.size || action.totalCandles,
-        action.minimumSize,
-        action.totalCandles,
-      );
-      const currentStart = clamp(
-        state.viewport.start,
-        0,
-        Math.max(action.totalCandles - currentSize, 0),
-      );
-      const nextSize = clamp(
-        Math.round(currentSize * Math.exp(action.deltaY * wheelZoomSensitivity)),
-        action.minimumSize,
-        action.totalCandles,
-      );
-      const anchor = currentStart + action.pointerRatio * currentSize;
-      const nextStart = clamp(
-        Math.round(anchor - action.pointerRatio * nextSize),
-        0,
-        Math.max(action.totalCandles - nextSize, 0),
-      );
-
-      return { viewport: { start: nextStart, size: nextSize }, ...idleInteraction };
-    }
+    case "zoomed":
+      return { viewport: action.viewport, ...idleInteraction };
     case "hovered":
       return {
         ...state,

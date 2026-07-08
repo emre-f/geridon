@@ -125,12 +125,15 @@ export function useChartWorkspace({
     }
 
     const nextTimeframe = timeframes.includes("1d") ? "1d" : timeframes[0];
+    const nextRange = defaultRangeForTimeframe(nextTimeframe);
     dispatch({
       type: "timeframeChanged",
       timeframe: nextTimeframe,
-      range: defaultRangeForTimeframe(nextTimeframe),
+      range: nextRange,
+      selectedTicker,
+      visibleWindow: queryWindow(selectedSymbol, nextTimeframe, nextRange),
     });
-  }, [selectedSymbol, timeframe, timeframes]);
+  }, [selectedSymbol, selectedTicker, timeframe, timeframes]);
 
   // Remember the last fully-loaded window so timeframe switches can keep the
   // previous candles on screen while the next window loads.
@@ -151,6 +154,7 @@ export function useChartWorkspace({
     selectedTicker,
     timeframe,
     range,
+    candleWindow,
     candleRequestWindow,
     indicatorRequestKey,
     indicatorRequestSpecs,
@@ -166,22 +170,30 @@ export function useChartWorkspace({
    */
   const restoreChartState = useCallback((symbol: SymbolSummary) => {
     const stored = loadChartState(symbol.ticker);
+    const timeframeAllowed = stored != null && availableTimeframes(symbol).includes(stored.timeframe);
+    const nextTimeframe = timeframeAllowed ? stored.timeframe : timeframe;
+    const nextRange = timeframeAllowed ? stored.range : range;
     dispatch({
       type: "chartStateRestored",
       stored,
-      timeframeAllowed: stored != null && availableTimeframes(symbol).includes(stored.timeframe),
+      timeframeAllowed,
+      selectedTicker: symbol.ticker,
+      visibleWindow: queryWindow(symbol, nextTimeframe, nextRange),
     });
-  }, []);
+  }, [range, timeframe]);
 
   /** Defaults the timeframe/range for a newly selected symbol, then restores its stored state. */
   const prepareForSymbol = useCallback(
     (symbol: SymbolSummary) => {
       const nextTimeframes = availableTimeframes(symbol);
       const nextTimeframe = nextTimeframes.includes("1d") ? "1d" : nextTimeframes[0] ?? "1d";
+      const nextRange = defaultRangeForTimeframe(nextTimeframe);
       dispatch({
         type: "timeframeChanged",
         timeframe: nextTimeframe,
-        range: defaultRangeForTimeframe(nextTimeframe),
+        range: nextRange,
+        selectedTicker: symbol.ticker,
+        visibleWindow: queryWindow(symbol, nextTimeframe, nextRange),
       });
       restoreChartState(symbol);
     },
@@ -195,7 +207,14 @@ export function useChartWorkspace({
       return;
     }
 
-    dispatch({ type: "timeframeChanged", timeframe: value, range: defaultRangeForTimeframe(value) });
+    const nextRange = defaultRangeForTimeframe(value);
+    dispatch({
+      type: "timeframeChanged",
+      timeframe: value,
+      range: nextRange,
+      selectedTicker,
+      visibleWindow: queryWindow(selectedSymbol, value, nextRange),
+    });
   }
 
   function handleRangeChange(value: string) {
@@ -203,10 +222,13 @@ export function useChartWorkspace({
       return;
     }
 
+    const nextTimeframe = timeframeForRange(selectedSymbol, value, timeframe, timeframes);
     dispatch({
       type: "rangeChanged",
-      timeframe: timeframeForRange(selectedSymbol, value, timeframe, timeframes),
+      timeframe: nextTimeframe,
       range: value,
+      selectedTicker,
+      visibleWindow: queryWindow(selectedSymbol, nextTimeframe, value),
     });
   }
 

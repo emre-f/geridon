@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Candle, IndicatorSeries, StrategySignal } from "@/lib/api";
 import { useElementSize } from "@/hooks/use-element-size";
@@ -81,6 +81,8 @@ function StockChartImpl({
     visibleEndMs,
     svgRef,
     layoutRef,
+    onVisibleCandlesChange,
+    onHoverCandleChange,
   });
   const { visibleCandles, hoverIndex, hoverOnLine, dragStartIndex, dragEndIndex, isPanning } =
     interaction;
@@ -163,14 +165,6 @@ function StockChartImpl({
     (measurement ? measurementTooltipHeightEstimate : hoverTooltipHeightEstimate);
   const tooltipY = Math.max(8, margin.top - tooltipHeight - tooltipGap);
   const activeCandle = activePoint?.candle ?? null;
-
-  useEffect(() => {
-    onHoverCandleChange?.(activeCandle);
-  }, [activeCandle, onHoverCandleChange]);
-
-  useEffect(() => {
-    onVisibleCandlesChange?.(visibleCandles);
-  }, [onVisibleCandlesChange, visibleCandles]);
 
   useLayoutEffect(() => {
     const nextHeight = Math.ceil(tooltipRef.current?.getBoundingClientRect().height ?? 0);

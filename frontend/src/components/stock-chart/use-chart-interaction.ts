@@ -5,13 +5,20 @@ import { clamp, margin, type ChartMode, type PanDrag } from "@/components/stock-
 import {
   nearestIndex,
   onPriceSeries,
+  sliceViewport,
   viewportForWindow,
   viewportMinimum,
 } from "@/components/stock-chart/chart-geometry";
 import {
   idleInteraction,
   interactionReducer,
+  zoomViewport,
 } from "@/components/stock-chart/chart-interaction-reducer";
+import {
+  activeCandleForVisibleCandles,
+  emitHoverCandle,
+  emitVisibleCandles,
+} from "@/components/stock-chart/chart-interaction-emissions";
 import type { ChartLayout } from "@/components/stock-chart/build-chart-layout";
 
 interface ChartInteractionOptions {
@@ -23,6 +30,8 @@ interface ChartInteractionOptions {
   svgRef: RefObject<SVGSVGElement | null>;
   /** Latest layout, set during render; only read inside event handlers. */
   layoutRef: RefObject<ChartLayout | null>;
+  onVisibleCandlesChange?: (candles: Candle[]) => void;
+  onHoverCandleChange?: (candle: Candle | null) => void;
 }
 
 /** Viewport zoom/pan plus hover and drag-to-measure state for the chart SVG. */
@@ -34,6 +43,8 @@ export function useChartInteraction({
   visibleEndMs,
   svgRef,
   layoutRef,
+  onVisibleCandlesChange,
+  onHoverCandleChange,
 }: ChartInteractionOptions) {
   const [state, dispatch] = useReducer(interactionReducer, {
     viewport: { start: 0, size: 0 },
@@ -41,6 +52,8 @@ export function useChartInteraction({
   });
   const panDragRef = useRef<PanDrag | null>(null);
   const wheelHandlerRef = useRef<(event: WheelEvent) => void>(() => {});
+  const lastHoverCandleRef = useRef<Candle | null | undefined>(undefined);
+  const lastVisibleCandlesRef = useRef<Candle[] | null>(null);
 
   const minimumViewportSize = viewportMinimum(candles.length);
   const viewportSize =
@@ -49,7 +62,7 @@ export function useChartInteraction({
       : clamp(state.viewport.size || candles.length, minimumViewportSize, candles.length);
   const viewportStart = clamp(state.viewport.start, 0, Math.max(candles.length - viewportSize, 0));
   const visibleCandles = useMemo(
-    () => candles.slice(viewportStart, viewportStart + viewportSize),
+    () => sliceViewport(candles, { start: viewportStart, size: viewportSize }),
     [candles, viewportSize, viewportStart],
   );
   const canPan = viewportSize > 0 && viewportSize < candles.length;
@@ -58,6 +71,8 @@ export function useChartInteraction({
 
   useEffect(() => {
     panDragRef.current = null;
+    lastHoverCandleRef.current = undefined;
+    lastVisibleCandlesRef.current = null;
     dispatch({ type: "reset", viewport: viewportForWindow(candles, visibleStartMs, visibleEndMs) });
   }, [candles, timeframe, visibleEndMs, visibleStartMs]);
 
@@ -74,10 +89,21 @@ export function useChartInteraction({
     const horizontalPan = Math.abs(event.deltaX) > Math.abs(event.deltaY);
     if (horizontalPan && canPan) {
       const candleDelta = Math.round(event.deltaX / Math.max(layout.step, 1));
-      dispatch({
-        type: "panned",
-        start: clamp(viewportStart + candleDelta, 0, Math.max(candles.length - viewportSize, 0)),
-      });
+      const nextStart = clamp(viewportStart + candleDelta, 0, Math.max(candles.length - viewportSize, 0));
+      if (nextStart !== viewportStart) {
+        dispatch({ type: "panned", start: nextStart });
+        const nextVisibleCandles = emitVisibleCandles(
+          lastVisibleCandlesRef,
+          onVisibleCandlesChange,
+          candles,
+          { start: nextStart, size: viewportSize },
+        );
+        emitHoverCandle(
+          lastHoverCandleRef,
+          onHoverCandleChange,
+          activeCandleForVisibleCandles(state, nextVisibleCandles),
+        );
+      }
       return;
     }
 
@@ -96,13 +122,18 @@ export function useChartInteraction({
     const pointerRatio = clamp((pointerX - margin.left) / layout.plotWidth, 0, 1);
 
     panDragRef.current = null;
-    dispatch({
-      type: "zoomed",
-      deltaY: event.deltaY,
+    const nextViewport = zoomViewport(
+      { start: viewportStart, size: viewportSize },
+      event.deltaY,
       pointerRatio,
-      totalCandles: candles.length,
-      minimumSize: minimumViewportSize,
-    });
+      candles.length,
+      minimumViewportSize,
+    );
+    dispatch({ type: "zoomed", viewport: nextViewport });
+    emitHoverCandle(lastHoverCandleRef, onHoverCandleChange, null);
+    if (nextViewport.start !== viewportStart || nextViewport.size !== viewportSize) {
+      emitVisibleCandles(lastVisibleCandlesRef, onVisibleCandlesChange, candles, nextViewport);
+    }
   }
 
   wheelHandlerRef.current = handleWheel;
@@ -142,15 +173,21 @@ export function useChartInteraction({
     const panDrag = panDragRef.current;
     if (panDrag && canPan) {
       const candleDelta = Math.round((panDrag.clientX - event.clientX) / Math.max(layout.step, 1));
-      dispatch({
-        type: "panDragged",
-        start: clamp(panDrag.start + candleDelta, 0, Math.max(candles.length - viewportSize, 0)),
-      });
+      const nextStart = clamp(panDrag.start + candleDelta, 0, Math.max(candles.length - viewportSize, 0));
+      dispatch({ type: "panDragged", start: nextStart });
+      emitHoverCandle(lastHoverCandleRef, onHoverCandleChange, null);
+      if (nextStart !== viewportStart) {
+        emitVisibleCandles(lastVisibleCandlesRef, onVisibleCandlesChange, candles, {
+          start: nextStart,
+          size: viewportSize,
+        });
+      }
       return;
     }
 
     const { index, onLine } = pointerTarget(event, layout);
     dispatch({ type: "hovered", index, onLine });
+    emitHoverCandle(lastHoverCandleRef, onHoverCandleChange, layout.points[index]?.candle ?? null);
   }
 
   function handlePointerDown(event: React.PointerEvent<SVGSVGElement>) {
@@ -171,10 +208,12 @@ export function useChartInteraction({
         start: viewportStart,
       };
       dispatch({ type: "panStarted" });
+      emitHoverCandle(lastHoverCandleRef, onHoverCandleChange, null);
       return;
     }
 
     dispatch({ type: "selectionStarted", index });
+    emitHoverCandle(lastHoverCandleRef, onHoverCandleChange, layout.points[index]?.candle ?? null);
   }
 
   function handlePointerUp(event: React.PointerEvent<SVGSVGElement>) {
@@ -201,6 +240,11 @@ export function useChartInteraction({
     handlePointerDown,
     handlePointerUp,
     handlePointerCancel: handlePointerUp,
-    handlePointerLeave: () => dispatch({ type: "hoverCleared" }),
+    handlePointerLeave: () => {
+      dispatch({ type: "hoverCleared" });
+      if (state.dragStartIndex == null || state.dragEndIndex == null) {
+        emitHoverCandle(lastHoverCandleRef, onHoverCandleChange, null);
+      }
+    },
   };
 }
