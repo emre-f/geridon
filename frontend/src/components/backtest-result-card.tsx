@@ -16,6 +16,7 @@ import { chartModeOptions } from "@/lib/chart-options";
 import { downloadBacktestCard } from "@/lib/share-card";
 import type { ComparisonSlot } from "@/components/backtest-types";
 import { BacktestComparisons } from "@/components/backtest-comparisons";
+import { BenchmarkMetrics } from "@/components/benchmark-metrics";
 import { BacktestSection } from "@/components/backtest-section";
 import { BacktestStrategyDetails } from "@/components/backtest-strategy-details";
 import { BacktestSummary } from "@/components/backtest-summary";
@@ -196,6 +197,8 @@ export function BacktestResultCard({
             timeframe={activeRun.timeframe}
             overlays={equityOverlays}
           />
+
+          <BenchmarkMetrics activeRun={activeRun} metrics={metrics} overlays={equityOverlays} />
 
           <BacktestComparisons
             activeRun={activeRun}

@@ -64,3 +64,33 @@ export function holdCurve(points: ComparisonPoint[], initialCapital: number) {
     value: (initialCapital * point.close) / first.close,
   }));
 }
+
+export interface SeriesMetrics {
+  totalReturnPct: number;
+  maxDrawdownPct: number;
+  finalValue: number;
+}
+
+/** Total return and worst peak-to-trough drawdown of an equity value series. */
+export function seriesMetrics(values: number[], initialCapital: number): SeriesMetrics | null {
+  if (values.length === 0) {
+    return null;
+  }
+  let peak = values[0];
+  let maxDrawdownPct = 0;
+  for (const value of values) {
+    if (value > peak) {
+      peak = value;
+    }
+    const drawdownPct = (value / peak - 1) * 100;
+    if (drawdownPct < maxDrawdownPct) {
+      maxDrawdownPct = drawdownPct;
+    }
+  }
+  const finalValue = values[values.length - 1];
+  return {
+    totalReturnPct: (finalValue / initialCapital - 1) * 100,
+    maxDrawdownPct,
+    finalValue,
+  };
+}

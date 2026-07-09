@@ -56,7 +56,7 @@
 - [X] Generate equity curve
 
 ## 9. Benchmark Comparison
-- [ ] Compare against Buy & Hold
-- [ ] Compare against SPY
-- [ ] Display comparison chart
-- [ ] Display benchmark metrics
+- [X] Compare against Buy & Hold
+- [X] Compare against SPY
+- [X] Display comparison chart
+- [X] Display benchmark metrics
