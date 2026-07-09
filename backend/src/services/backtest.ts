@@ -1,7 +1,7 @@
+import { computeMetrics } from "./backtestMetrics.ts";
 import { evaluateSignals } from "./signals.ts";
 import type {
   BacktestEquityPoint,
-  BacktestMetrics,
   BacktestPositionMode,
   BacktestResult,
   BacktestTrade,
@@ -214,23 +214,14 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   }
 
   const finalEquity = equityCurve.at(-1)?.equity ?? initialCapital;
-  const sellCount = trades.filter((trade) => trade.side === "sell").length;
-  const closingTrades = trades.filter((trade) => trade.realized_pnl != null);
-  const wins = closingTrades.filter((trade) => (trade.realized_pnl ?? 0) > 0);
-  const metrics: BacktestMetrics = {
-    initial_capital: initialCapital,
-    final_equity: finalEquity,
-    total_return_pct: (finalEquity / initialCapital - 1) * 100,
-    trade_count: trades.length,
-    buy_count: trades.length - sellCount,
-    sell_count: sellCount,
-    win_rate_pct:
-      closingTrades.length > 0 ? (wins.length / closingTrades.length) * 100 : null,
-    realized_pnl: realizedPnl,
-    candle_count: candles.length,
-    first_candle_ms: candles.at(0)?.timestamp_ms ?? null,
-    last_candle_ms: candles.at(-1)?.timestamp_ms ?? null,
-  };
+  const metrics = computeMetrics({
+    initialCapital,
+    finalEquity,
+    realizedPnl,
+    trades,
+    equityCurve,
+    candles,
+  });
 
   return { metrics, equity_curve: equityCurve, trades };
 }

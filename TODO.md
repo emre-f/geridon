@@ -46,14 +46,14 @@
 - [X] Shareable result image (PNG export)
 
 ## 8. Results
-- [ ] Calculate total return
-- [ ] Calculate annualized return
-- [ ] Calculate max drawdown
-- [ ] Calculate win rate
-- [ ] Calculate average trade
-- [ ] Calculate profit factor
-- [ ] Calculate Sharpe ratio (optional)
-- [ ] Generate equity curve
+- [X] Calculate total return
+- [X] Calculate annualized return
+- [X] Calculate max drawdown
+- [X] Calculate win rate
+- [X] Calculate average trade
+- [X] Calculate profit factor
+- [X] Calculate Sharpe ratio (optional)
+- [X] Generate equity curve
 
 ## 9. Benchmark Comparison
 - [ ] Compare against Buy & Hold

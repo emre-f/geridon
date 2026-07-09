@@ -1,5 +1,3 @@
-import { ChevronRightIcon } from "lucide-react";
-
 import type {
   IndicatorDefinition,
   IndicatorKind,
@@ -83,23 +81,17 @@ export function StrategyRulesSummary({
   definitionsByKind: DefinitionsByKind;
 }) {
   return (
-    <details className="group text-xs">
-      <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer select-none items-center gap-1 [&::-webkit-details-marker]:hidden">
-        <ChevronRightIcon className="size-3.5 transition-transform group-open:rotate-90" />
-        Rules used in this run
-      </summary>
-      <div className="mt-2 grid gap-3 pl-4.5 sm:grid-cols-2">
-        {(["entry", "exit"] as const).map((side) => (
-          <div key={side} className="flex flex-col gap-1">
-            <span className="text-muted-foreground font-medium">
-              {side === "entry" ? "Entry" : "Exit"}
-            </span>
-            <ul className="flex flex-col gap-0.5">
-              <ConditionLines condition={snapshot[side]} definitionsByKind={definitionsByKind} />
-            </ul>
-          </div>
-        ))}
-      </div>
-    </details>
+    <div className="grid gap-3 text-xs sm:grid-cols-2">
+      {(["entry", "exit"] as const).map((side) => (
+        <div key={side} className="flex flex-col gap-1">
+          <span className="text-muted-foreground font-medium">
+            {side === "entry" ? "Entry" : "Exit"}
+          </span>
+          <ul className="flex flex-col gap-0.5">
+            <ConditionLines condition={snapshot[side]} definitionsByKind={definitionsByKind} />
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }

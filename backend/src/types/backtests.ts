@@ -31,11 +31,21 @@ export interface BacktestMetrics {
   initial_capital: number;
   final_equity: number;
   total_return_pct: number;
+  /** Geometric return scaled to a year; null when the span is under a candle. */
+  annualized_return_pct: number | null;
   trade_count: number;
   buy_count: number;
   sell_count: number;
   /** Share of sells realizing a profit; null before the first sell. */
   win_rate_pct: number | null;
+  /** Deepest peak-to-trough equity decline as a non-positive percent. */
+  max_drawdown_pct: number;
+  /** Mean realized profit per closed trade; null before the first sell. */
+  avg_trade_pnl: number | null;
+  /** Gross profit over gross loss; null with no losing trades. */
+  profit_factor: number | null;
+  /** Annualized Sharpe of per-bar returns; null when returns don't vary. */
+  sharpe_ratio: number | null;
   realized_pnl: number;
   candle_count: number;
   first_candle_ms: number | null;

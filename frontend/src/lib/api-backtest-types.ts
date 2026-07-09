@@ -26,10 +26,15 @@ export interface BacktestMetrics {
   initial_capital: number;
   final_equity: number;
   total_return_pct: number;
+  annualized_return_pct: number | null;
   trade_count: number;
   buy_count: number;
   sell_count: number;
   win_rate_pct: number | null;
+  max_drawdown_pct: number;
+  avg_trade_pnl: number | null;
+  profit_factor: number | null;
+  sharpe_ratio: number | null;
   realized_pnl: number;
   candle_count: number;
   first_candle_ms: number | null;
