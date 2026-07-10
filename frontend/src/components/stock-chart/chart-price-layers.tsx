@@ -1,3 +1,4 @@
+import { signalSideFill } from "@/lib/signal-markers";
 import type { ChartMode, ChartPoint } from "@/components/stock-chart/chart-types";
 import type { ChartLayout } from "@/components/stock-chart/build-chart-layout";
 
@@ -115,7 +116,7 @@ export function ChartPriceLayers({
             <polygon
               key={marker.key}
               points={marker.points}
-              fill={marker.side === "buy" ? "var(--chart-up)" : "var(--chart-down)"}
+              fill={signalSideFill[marker.side]}
               stroke="var(--card)"
               strokeWidth="1.5"
               strokeLinejoin="round"

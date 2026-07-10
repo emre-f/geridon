@@ -52,9 +52,14 @@ function ConditionLines({
     );
   }
 
+  const operatorLabel =
+    condition.operator === "at_least"
+      ? `at least ${condition.count ?? condition.conditions.length}`
+      : condition.operator;
+
   return (
     <li className={cn(disabled && "opacity-50")}>
-      <span className="text-muted-foreground font-medium uppercase">{condition.operator}</span>
+      <span className="text-muted-foreground font-medium uppercase">{operatorLabel}</span>
       {disabled ? <span className="text-muted-foreground"> (off)</span> : null}
       <ul className="border-border ml-1.5 flex flex-col gap-0.5 border-l pl-3">
         {condition.conditions.map((child) => (
@@ -80,18 +85,30 @@ export function StrategyRulesSummary({
   snapshot: StrategySnapshot;
   definitionsByKind: DefinitionsByKind;
 }) {
+  const sides: Array<{ key: "entry" | "exit" | "cash"; label: string }> = [
+    { key: "entry", label: "Entry" },
+    { key: "exit", label: "Exit" },
+  ];
+  if (snapshot.cash) {
+    sides.push({ key: "cash", label: "Cash" });
+  }
+
   return (
-    <div className="grid gap-3 text-xs sm:grid-cols-2">
-      {(["entry", "exit"] as const).map((side) => (
-        <div key={side} className="flex flex-col gap-1">
-          <span className="text-muted-foreground font-medium">
-            {side === "entry" ? "Entry" : "Exit"}
-          </span>
-          <ul className="flex flex-col gap-0.5">
-            <ConditionLines condition={snapshot[side]} definitionsByKind={definitionsByKind} />
-          </ul>
-        </div>
-      ))}
+    <div className={cn("grid gap-3 text-xs", snapshot.cash ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+      {sides.map(({ key, label }) => {
+        const condition = snapshot[key];
+        if (!condition) {
+          return null;
+        }
+        return (
+          <div key={key} className="flex flex-col gap-1">
+            <span className="text-muted-foreground font-medium">{label}</span>
+            <ul className="flex flex-col gap-0.5">
+              <ConditionLines condition={condition} definitionsByKind={definitionsByKind} />
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

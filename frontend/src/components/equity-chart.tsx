@@ -2,9 +2,12 @@ import { useMemo, useState } from "react";
 
 import type { BacktestEquityPoint, BacktestTrade } from "@/lib/api";
 import type { EquityOverlay } from "@/components/equity-chart-types";
-import { formatCompactCurrency, formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { EquityChartTooltip } from "@/components/equity-chart-tooltip";
+import { tradeDisplaySide } from "@/lib/backtest-utils";
+import { formatCompactCurrency, formatCurrency } from "@/lib/format";
 import { buildEquityChartPlot, equityChartMargin as margin } from "@/lib/equity-chart-plot";
 import { strokeDashArray } from "@/lib/indicator-style";
+import { signalSideFill, signalSideLabel } from "@/lib/signal-markers";
 import { useElementSize } from "@/hooks/use-element-size";
 import { cn } from "@/lib/utils";
 
@@ -130,23 +133,26 @@ export function EquityChart({
 
             <path d={plot.linePath} fill="none" stroke={tone} strokeWidth={2} strokeLinejoin="round" />
 
-            {plot.markers.map(({ trade, x, y }, index) => (
-              <path
-                key={`${trade.timestamp_ms}-${index}`}
-                d={
-                  trade.side === "buy"
-                    ? `M${x},${y - 10}l4.5,7h-9Z`
-                    : `M${x},${y + 10}l4.5,-7h-9Z`
-                }
-                fill={trade.side === "buy" ? "var(--chart-up)" : "var(--chart-down)"}
-                stroke="var(--background)"
-                strokeWidth={1}
-              >
-                <title>
-                  {`${trade.side === "buy" ? "Buy" : "Sell"} ${formatCurrency(trade.value)} @ ${formatCurrency(trade.price)}`}
-                </title>
-              </path>
-            ))}
+            {plot.markers.map(({ trade, x, y }, index) => {
+              const displaySide = tradeDisplaySide(trade);
+              return (
+                <path
+                  key={`${trade.timestamp_ms}-${index}`}
+                  d={
+                    trade.side === "buy"
+                      ? `M${x},${y - 10}l4.5,7h-9Z`
+                      : `M${x},${y + 10}l4.5,-7h-9Z`
+                  }
+                  fill={signalSideFill[displaySide]}
+                  stroke="var(--background)"
+                  strokeWidth={1}
+                >
+                  <title>
+                    {`${signalSideLabel[displaySide]} ${formatCurrency(trade.value)} @ ${formatCurrency(trade.price)}`}
+                  </title>
+                </path>
+              );
+            })}
 
             {plot.xTicks.map((tick, index) => (
               <text
@@ -187,63 +193,15 @@ export function EquityChart({
       </svg>
 
       {plot && hoverPoint && hoverIndex != null ? (
-        <div
-          className="border-border bg-popover text-popover-foreground pointer-events-none absolute z-10 w-56 rounded-md border p-2.5 text-xs shadow-md"
-          style={{
-            top: 8,
-            left: Math.min(Math.max(plot.xAt(hoverIndex) - 112, 0), Math.max(width - 224, 0)),
-          }}
-        >
-          <div className="text-muted-foreground">{formatDate(hoverPoint.timestamp_ms, timeframe)}</div>
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 font-medium">
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: tone }}
-                aria-hidden="true"
-              />
-              Strategy
-            </span>
-            <span className="tabular-nums">
-              {formatCompactCurrency(hoverPoint.equity)}{" "}
-              <span style={{ color: hoverPoint.equity < initialCapital ? "var(--chart-down)" : "var(--chart-up)" }}>
-                {formatPercent((hoverPoint.equity / initialCapital - 1) * 100)}
-              </span>
-            </span>
-          </div>
-          {plot.overlayPaths.map(({ overlay, valueByIndex }) => {
-            const value = valueByIndex.get(hoverIndex);
-            if (value == null) {
-              return null;
-            }
-            return (
-              <div key={overlay.id} className="mt-1 flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: overlay.style.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="truncate">{overlay.label}</span>
-                </span>
-                <span className="tabular-nums whitespace-nowrap">
-                  {formatCompactCurrency(value)}{" "}
-                  <span className="text-muted-foreground">
-                    {formatPercent((value / initialCapital - 1) * 100)}
-                  </span>
-                </span>
-              </div>
-            );
-          })}
-          <div className="text-muted-foreground mt-1 flex items-center justify-between gap-2">
-            <span>Cash {formatCompactCurrency(hoverPoint.cash)}</span>
-            <span>
-              {hoverPoint.position_value < 0
-                ? `Short ${formatCompactCurrency(-hoverPoint.position_value)}`
-                : `Invested ${formatCompactCurrency(hoverPoint.position_value)}`}
-            </span>
-          </div>
-        </div>
+        <EquityChartTooltip
+          plot={plot}
+          hoverPoint={hoverPoint}
+          hoverIndex={hoverIndex}
+          width={width}
+          timeframe={timeframe}
+          initialCapital={initialCapital}
+          tone={tone}
+        />
       ) : null}
     </div>
   );

@@ -14,7 +14,7 @@ export const comparisonOperators: ComparisonOperator[] = [
   "cross_below",
 ];
 
-export const groupOperators: GroupOperator[] = ["and", "or", "not"];
+export const groupOperators: GroupOperator[] = ["and", "or", "not", "at_least"];
 
 export const priceFields: PriceField[] = ["open", "high", "low", "close", "volume"];
 

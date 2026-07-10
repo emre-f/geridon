@@ -8,7 +8,7 @@ export type ComparisonOperator =
   | "cross_above"
   | "cross_below";
 
-export type GroupOperator = "and" | "or" | "not";
+export type GroupOperator = "and" | "or" | "not" | "at_least";
 
 export type PriceField = "open" | "high" | "low" | "close" | "volume";
 
@@ -47,6 +47,8 @@ export interface StrategyGroup {
   type: "group";
   operator: GroupOperator;
   conditions: StrategyCondition[];
+  /** Required for the "at_least" operator: how many conditions must hold. */
+  count?: number;
   /** Absent means enabled; false means the whole group is skipped during evaluation. */
   enabled?: boolean;
 }
@@ -57,6 +59,8 @@ export interface StrategyDraft {
   name: string;
   entry: StrategyCondition;
   exit: StrategyCondition;
+  /** Go-to-cash tree used only by the three_state position mode (long/short/cash). */
+  cash?: StrategyCondition;
 }
 
 export interface StrategyRecord extends StrategyDraft {
@@ -77,7 +81,7 @@ export interface StrategyValidationResult {
 
 export interface StrategySignal {
   timestamp_ms: number;
-  side: "buy" | "sell";
+  side: "buy" | "sell" | "cash";
 }
 
 // Stored strategy snapshots come back without the client-side node ids that
@@ -94,6 +98,7 @@ export interface SnapshotGroup {
   type: "group";
   operator: GroupOperator;
   conditions: SnapshotCondition[];
+  count?: number;
   enabled?: boolean;
 }
 
@@ -103,4 +108,5 @@ export interface StrategySnapshot {
   name: string;
   entry: SnapshotCondition;
   exit: SnapshotCondition;
+  cash?: SnapshotCondition;
 }

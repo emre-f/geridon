@@ -13,6 +13,7 @@ import {
   computeSma,
   type IndicatorCandle,
 } from "./indicatorCalculations.ts";
+import { computeBbp, computeCci, computeMomentum } from "./oscillatorCalculations.ts";
 
 /**
  * A catalog entry plus its runtime behavior. Adding an indicator means
@@ -166,6 +167,42 @@ export const indicatorImplementations: IndicatorImplementation[] = [
     parameters: [{ key: "period", label: "Period", default_value: 14, min: 1, max: 500, step: 1 }],
     values: [{ key: "atr", label: "ATR", style: "line" }],
     compute: (candles, parameters) => computeAtr(candles, parameters.period),
+  },
+  {
+    kind: "momentum",
+    label: "MOM",
+    full_name: "Momentum",
+    description:
+      "Percentage change in close over the last N bars. Positive when price is higher than N bars ago, negative when lower.",
+    placement: "pane",
+    parameters: [{ key: "period", label: "Period", default_value: 10, min: 1, max: 500, step: 1 }],
+    values: [{ key: "momentum", label: "MOM", style: "line" }],
+    compute: (candles, parameters) => computeMomentum(candles, parameters.period),
+  },
+  {
+    kind: "cci",
+    label: "CCI",
+    full_name: "Commodity Channel Index",
+    description:
+      "Measures how far the typical price sits from its moving average, scaled by mean deviation. Readings above +100 suggest a stretch up, below -100 a stretch down.",
+    placement: "pane",
+    parameters: [{ key: "period", label: "Period", default_value: 20, min: 1, max: 500, step: 1 }],
+    values: [{ key: "cci", label: "CCI", style: "line" }],
+    compute: (candles, parameters) => computeCci(candles, parameters.period),
+  },
+  {
+    kind: "bbp",
+    label: "%B",
+    full_name: "Bollinger Band %B",
+    description:
+      "Where price sits within its Bollinger Bands: 0 is the lower band, 1 is the upper band. Below 0 or above 1 means price has pierced a band.",
+    placement: "pane",
+    parameters: [
+      { key: "period", label: "Period", default_value: 20, min: 1, max: 500, step: 1 },
+      { key: "stdDev", label: "Std dev", default_value: 2, min: 0.1, max: 10, step: 0.1 },
+    ],
+    values: [{ key: "bbp", label: "%B", style: "line" }],
+    compute: (candles, parameters) => computeBbp(candles, parameters.period, parameters.stdDev),
   },
 ];
 

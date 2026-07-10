@@ -15,13 +15,19 @@ import { cn } from "@/lib/utils";
 import { RuleEditor } from "@/components/strategy-rule-editor";
 import { VisibilityToggle } from "@/components/strategy-visibility-toggle";
 import { Button } from "@/components/ui/button";
+import { NumberInput } from "@/components/ui/number-input";
 import { SlashTabs } from "@/components/ui/slash-tabs";
 
 const groupOperatorHints: Record<GroupOperator, string> = {
   and: "every condition must be true",
   or: "any condition may be true",
   not: "the condition must be false",
+  at_least: "at least N conditions must be true",
 };
+
+function countActive(conditions: Array<StrategyGroup | StrategyRule>) {
+  return conditions.filter((condition) => condition.enabled !== false).length;
+}
 
 export function ConditionGroupEditor({
   group,
@@ -39,21 +45,35 @@ export function ConditionGroupEditor({
   // NOT wraps a single condition, so block adding once it has one.
   const canAdd = group.operator !== "not" || group.conditions.length < 1;
   const hidden = group.enabled === false;
+  const activeConditions = countActive(group.conditions);
+
+  // Disabled conditions are pruned at evaluation, so "at least N" is always
+  // clamped to the active children — disabling behaves like deleting.
+  function atLeastCount(conditions: Array<StrategyGroup | StrategyRule>, fallback: number) {
+    return Math.max(1, Math.min(group.count ?? fallback, Math.max(1, countActive(conditions))));
+  }
 
   function replaceAt(index: number, condition: StrategyGroup | StrategyRule) {
-    onChange({
-      ...group,
-      conditions: group.conditions.map((current, currentIndex) =>
-        currentIndex === index ? condition : current,
-      ),
-    });
+    const conditions = group.conditions.map((current, currentIndex) =>
+      currentIndex === index ? condition : current,
+    );
+    const count = group.operator === "at_least" ? atLeastCount(conditions, 1) : group.count;
+    onChange({ ...group, conditions, count });
   }
 
   function removeAt(index: number) {
-    onChange({
-      ...group,
-      conditions: group.conditions.filter((_, currentIndex) => currentIndex !== index),
-    });
+    const conditions = group.conditions.filter((_, currentIndex) => currentIndex !== index);
+    const count = group.operator === "at_least" ? atLeastCount(conditions, 1) : group.count;
+    onChange({ ...group, conditions, count });
+  }
+
+  function changeOperator(value: GroupOperator) {
+    if (value === "at_least") {
+      onChange({ ...group, operator: value, count: atLeastCount(group.conditions, 2) });
+      return;
+    }
+    const { count: _dropped, ...rest } = group;
+    onChange({ ...rest, operator: value });
   }
 
   function append(condition: StrategyGroup | StrategyRule) {
@@ -74,11 +94,29 @@ export function ConditionGroupEditor({
             options={groupOperatorOptions}
             value={group.operator}
             aria-label="Group operator"
-            onValueChange={(value) => onChange({ ...group, operator: value as GroupOperator })}
+            onValueChange={(value) => changeOperator(value as GroupOperator)}
           />
-          <span className="text-muted-foreground hidden text-xs sm:inline">
-            {groupOperatorHints[group.operator]}
-          </span>
+          {group.operator === "at_least" ? (
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <NumberInput
+                className="h-8 w-14"
+                aria-label="Minimum conditions that must be true"
+                value={group.count ?? 1}
+                min={1}
+                max={Math.max(1, activeConditions)}
+                step={1}
+                onValueChange={(value) => onChange({ ...group, count: value })}
+              />
+              <span>
+                of {activeConditions}
+                {activeConditions === group.conditions.length ? "" : " enabled"} must be true
+              </span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground hidden text-xs sm:inline">
+              {groupOperatorHints[group.operator]}
+            </span>
+          )}
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">

@@ -88,6 +88,13 @@ export function useBacktestForm({
         ? defaultTicker
         : symbols[0].ticker
       : form.ticker;
+  // three_state needs a go-to-cash tree, so fall back when the selected
+  // strategy doesn't define one.
+  const positionMode =
+    form.positionMode === "three_state" &&
+    strategies.find((strategy) => strategy.id === strategyId)?.cash == null
+      ? "long_only"
+      : form.positionMode;
 
   const selectedSymbol = useMemo(
     () => symbols.find((symbol) => symbol.ticker === ticker) ?? symbols[0],
@@ -119,6 +126,7 @@ export function useBacktestForm({
     ...form,
     strategyId,
     ticker,
+    positionMode,
     timeframe,
     startDate,
     endDate,

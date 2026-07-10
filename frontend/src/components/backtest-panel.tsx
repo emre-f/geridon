@@ -146,13 +146,12 @@ export function BacktestPanel({
       {runs.activeRun && metrics ? (
         <BacktestResultCard
           activeRun={runs.activeRun}
+          benchmarks={comparisons.benchmarks}
           chartMode={runChart.chartMode}
           comparisonData={comparisons.comparisonData}
           comparisons={comparisons.comparisons}
           definitionsByKind={definitionsByKind}
           equityOverlays={comparisons.equityOverlays}
-          holdSelfStyle={comparisons.holdSelfStyle}
-          holdSelfVisible={comparisons.holdSelfVisible}
           legendTimestampMs={runChart.legendTimestampMs}
           maxComparisons={maxComparisons}
           metrics={metrics}
@@ -167,11 +166,11 @@ export function BacktestPanel({
           symbolsAvailable={symbols.length > 0}
           tickerList={form.tickerList}
           onAddComparison={comparisons.addComparison}
+          onBenchmarkStyleChange={comparisons.patchBenchmarkStyle}
+          onBenchmarkVisibleChange={comparisons.setBenchmarkVisible}
           onChartModeChange={runChart.setChartMode}
           onClose={runs.closeRun}
           onComparisonChange={comparisons.updateComparison}
-          onHoldSelfStyleChange={comparisons.patchHoldSelfStyle}
-          onHoldSelfVisibleChange={comparisons.setHoldSelfVisible}
           onHoverCandleChange={runChart.handleHoverCandleChange}
           onRemoveComparison={comparisons.removeComparison}
           onUpdateRunIndicatorLineStyle={runChart.updateRunIndicatorLineStyle}

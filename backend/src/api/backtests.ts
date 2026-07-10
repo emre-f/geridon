@@ -95,15 +95,18 @@ export function handleRunBacktest(db: Database, body: unknown) {
   }
 
   const positionMode = (raw.position_mode ?? "long_only") as BacktestPositionMode;
-  if (positionMode !== "long_only" && positionMode !== "always_in") {
-    return badRequest("position_mode must be long_only or always_in.");
+  if (
+    positionMode !== "long_only" &&
+    positionMode !== "always_in" &&
+    positionMode !== "three_state"
+  ) {
+    return badRequest("position_mode must be long_only, always_in, or three_state.");
   }
 
-  // Always-in mode is stop-and-reverse: every fill flips the whole account, so partial sizing does not apply.
-  const buyPercent =
-    positionMode === "always_in" ? 100 : raw.buy_percent == null ? 100 : Number(raw.buy_percent);
-  const sellPercent =
-    positionMode === "always_in" ? 100 : raw.sell_percent == null ? 100 : Number(raw.sell_percent);
+  // always_in and three_state flip the whole account per fill, so partial sizing does not apply.
+  const fullSize = positionMode !== "long_only";
+  const buyPercent = fullSize ? 100 : raw.buy_percent == null ? 100 : Number(raw.buy_percent);
+  const sellPercent = fullSize ? 100 : raw.sell_percent == null ? 100 : Number(raw.sell_percent);
   const initialCapital = raw.initial_capital == null ? 10_000 : Number(raw.initial_capital);
   if (!Number.isFinite(buyPercent) || buyPercent <= 0 || buyPercent > 100) {
     return badRequest("buy_percent must be greater than 0 and at most 100.");
@@ -116,6 +119,9 @@ export function handleRunBacktest(db: Database, body: unknown) {
   }
 
   const strategy = JSON.parse(String(strategyRow.definition)) as Strategy;
+  if (positionMode === "three_state" && strategy.cash == null) {
+    return badRequest("three_state needs a strategy that defines a go-to-cash tree.");
+  }
   const timeframe = parseTimeframe(raw.timeframe);
   const candles = candlesForTimeframe(db, {
     ticker,

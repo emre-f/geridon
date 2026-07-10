@@ -11,6 +11,7 @@ import {
   type IndicatorSeries,
   type IndicatorSpec,
 } from "@/lib/api";
+import { tradeDisplaySide } from "@/lib/backtest-utils";
 import { normalizeLineStyles } from "@/lib/indicator-style";
 import { strategyIndicatorSpecs } from "@/lib/strategy";
 import type { ChartMode, ChartTone } from "@/components/stock-chart";
@@ -162,10 +163,12 @@ export function useBacktestRunChart({ activeRun, definitionsByKind, onError }: R
 
   const runSignals = useMemo(
     () =>
-      (activeRun?.trades ?? []).map((trade) => ({
-        timestamp_ms: trade.timestamp_ms,
-        side: trade.side,
-      })),
+      activeRun == null
+        ? []
+        : activeRun.trades.map((trade) => ({
+            timestamp_ms: trade.timestamp_ms,
+            side: tradeDisplaySide(trade),
+          })),
     [activeRun],
   );
 

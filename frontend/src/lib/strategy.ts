@@ -27,6 +27,7 @@ export const groupOperatorOptions: Array<{ value: GroupOperator; label: string }
   { value: "and", label: "AND" },
   { value: "or", label: "OR" },
   { value: "not", label: "NOT" },
+  { value: "at_least", label: "N OF" },
 ];
 
 export const priceFieldOptions: Array<{ value: PriceField; label: string }> = [
@@ -70,6 +71,10 @@ export function createRuleNode(
 
 export function createGroupNode(conditions: StrategyCondition[] = []): StrategyGroup {
   return { id: createNodeId(), type: "group", operator: "and", conditions };
+}
+
+export function createCashGroup(catalog: IndicatorDefinition[]): StrategyGroup {
+  return createGroupNode([createRuleNode(catalog, "lt")]);
 }
 
 export function createStrategyDraft(catalog: IndicatorDefinition[]): StrategyDraft {
@@ -130,7 +135,9 @@ function collectIndicatorOperands(
  * snapshots alike.
  */
 export function strategyIndicatorSpecs(
-  strategy: { entry: SnapshotCondition; exit: SnapshotCondition } | null,
+  strategy:
+    | { entry: SnapshotCondition; exit: SnapshotCondition; cash?: SnapshotCondition }
+    | null,
   definitionsByKind: Map<IndicatorKind, IndicatorDefinition>,
 ): IndicatorSpec[] {
   if (!strategy) {
@@ -141,6 +148,7 @@ export function strategyIndicatorSpecs(
   const operands = [
     ...collectIndicatorOperands(strategy.entry),
     ...collectIndicatorOperands(strategy.exit),
+    ...(strategy.cash ? collectIndicatorOperands(strategy.cash) : []),
   ].filter((operand): operand is Extract<StrategyOperand, { type: "indicator" }> => operand.type === "indicator");
 
   return operands.flatMap((operand, index) => {
@@ -173,6 +181,7 @@ export function describeIssuePath(path: string) {
   return path
     .replace(/^entry/, "Entry")
     .replace(/^exit/, "Exit")
+    .replace(/^cash/, "Cash")
     .replace(/^name$/, "Name")
     .replace(/\.conditions\[(\d+)\]/g, (_, index) => ` › condition ${Number(index) + 1}`)
     .replace(/\.left$/, " › left side")

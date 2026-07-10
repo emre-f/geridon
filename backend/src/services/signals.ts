@@ -1,7 +1,6 @@
 import { computeIndicatorValueSeries } from "./indicators.ts";
 import type {
   Candle,
-  PriceField,
   Strategy,
   StrategyCondition,
   StrategyOperand,
@@ -25,12 +24,24 @@ function hasValue(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(value);
 }
 
-function priceSeries(candles: Candle[], field: PriceField): NumericSeries {
-  return candles.map((candle) => candle[field]);
+function operandKey(operand: StrategyOperand) {
+  if (operand.type === "price") {
+    return `price:${operand.field}`;
+  }
+  if (operand.type === "value") {
+    return `value:${operand.value}`;
+  }
+  return `indicator:${indicatorKey(operand)}`;
 }
 
-function valueSeries(candles: Candle[], value: number): NumericSeries {
-  return Array(candles.length).fill(value);
+function buildOperandSeries(operand: StrategyOperand, candles: Candle[]): NumericSeries {
+  if (operand.type === "price") {
+    return candles.map((candle) => candle[operand.field]);
+  }
+  if (operand.type === "value") {
+    return Array(candles.length).fill(operand.value);
+  }
+  return computeIndicatorValueSeries(candles, operand.kind, operand.parameters, operand.output);
 }
 
 function operandSeries(
@@ -38,25 +49,13 @@ function operandSeries(
   candles: Candle[],
   cache: Map<string, NumericSeries>,
 ): NumericSeries {
-  if (operand.type === "price") {
-    return priceSeries(candles, operand.field);
-  }
-  if (operand.type === "value") {
-    return valueSeries(candles, operand.value);
-  }
-
-  const key = indicatorKey(operand);
+  const key = operandKey(operand);
   const cached = cache.get(key);
   if (cached) {
     return cached;
   }
 
-  const series = computeIndicatorValueSeries(
-    candles,
-    operand.kind,
-    operand.parameters,
-    operand.output,
-  );
+  const series = buildOperandSeries(operand, candles);
   cache.set(key, series);
   return series;
 }
@@ -130,6 +129,16 @@ function evaluateCondition(
   if (condition.operator === "or") {
     return condition.conditions.some((child) => evaluateCondition(child, candles, index, cache));
   }
+  if (condition.operator === "at_least") {
+    const required = condition.count ?? condition.conditions.length;
+    let hits = 0;
+    for (const child of condition.conditions) {
+      if (evaluateCondition(child, candles, index, cache) && (hits += 1) >= required) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   return !evaluateCondition(condition.conditions[0], candles, index, cache);
 }
@@ -154,6 +163,11 @@ export function pruneDisabledConditions(condition: StrategyCondition): StrategyC
     return null;
   }
 
+  // Clamp so disabling children of an "at least N" group behaves like
+  // deleting them instead of leaving the group unsatisfiable.
+  if (condition.operator === "at_least" && condition.count != null) {
+    return { ...condition, conditions, count: Math.min(condition.count, conditions.length) };
+  }
   return { ...condition, conditions };
 }
 
@@ -163,6 +177,7 @@ export function evaluateSignals(strategy: Strategy, candles: Candle[]): Strategy
   // A side with every condition disabled simply never fires.
   const entry = pruneDisabledConditions(strategy.entry);
   const exit = pruneDisabledConditions(strategy.exit);
+  const cash = strategy.cash ? pruneDisabledConditions(strategy.cash) : null;
 
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
@@ -172,6 +187,9 @@ export function evaluateSignals(strategy: Strategy, candles: Candle[]): Strategy
     }
     if (exit && evaluateCondition(exit, candles, index, cache)) {
       signals.push({ timestamp_ms: candle.timestamp_ms, side: "sell" });
+    }
+    if (cash && evaluateCondition(cash, candles, index, cache)) {
+      signals.push({ timestamp_ms: candle.timestamp_ms, side: "cash" });
     }
   }
 

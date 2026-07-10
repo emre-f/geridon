@@ -6,102 +6,29 @@ import {
   type IndicatorLineStyle,
   type SymbolSummary,
 } from "@/lib/api";
-import {
-  comparisonCacheKey,
-  createComparisonId,
-  holdCurve,
-  type ComparisonPoint,
-} from "@/lib/backtest-utils";
-import { defaultLineStyle } from "@/lib/indicator-style";
-import type { ComparisonSlot } from "@/components/backtest-types";
+import { comparisonCacheKey, createComparisonId, holdCurve } from "@/lib/backtest-utils";
+import type { BenchmarkId, BenchmarkView, ComparisonSlot } from "@/components/backtest-types";
 import type { EquityOverlay } from "@/components/equity-chart";
+import {
+  benchmarkDefinitions,
+  comparisonsReducer,
+  initialComparisonsState,
+} from "@/hooks/backtest-comparisons-state";
 
-export const maxComparisons = 3;
-const preferredComparisonTickers = ["SPY", "QQQ"];
-
-interface ComparisonsState {
-  /** Whether the "hold the backtested stock" benchmark line is shown. */
-  holdSelfVisible: boolean;
-  holdSelfStyle: IndicatorLineStyle;
-  comparisons: ComparisonSlot[];
-  /** Buy-and-hold close series per comparison cache key; [] caches a coverage miss. */
-  comparisonData: Record<string, ComparisonPoint[]>;
-}
-
-type ComparisonsAction =
-  | { type: "holdSelfVisibleChanged"; visible: boolean }
-  | { type: "holdSelfStylePatched"; patch: Partial<IndicatorLineStyle> }
-  | { type: "comparisonAdded"; id: string; tickers: string[]; activeTicker: string | undefined }
-  | { type: "comparisonChanged"; id: string; patch: Partial<ComparisonSlot> }
-  | { type: "comparisonRemoved"; id: string }
-  | { type: "comparisonDataLoaded"; key: string; points: ComparisonPoint[] };
-
-function comparisonsReducer(state: ComparisonsState, action: ComparisonsAction): ComparisonsState {
-  switch (action.type) {
-    case "holdSelfVisibleChanged":
-      return { ...state, holdSelfVisible: action.visible };
-    case "holdSelfStylePatched":
-      return { ...state, holdSelfStyle: { ...state.holdSelfStyle, ...action.patch } };
-    case "comparisonAdded": {
-      if (state.comparisons.length >= maxComparisons) {
-        return state;
-      }
-
-      const used = new Set([action.activeTicker, ...state.comparisons.map((slot) => slot.ticker)]);
-      const nextTicker =
-        preferredComparisonTickers.find(
-          (candidate) => !used.has(candidate) && action.tickers.includes(candidate),
-        ) ??
-        action.tickers.find((ticker) => !used.has(ticker)) ??
-        action.tickers[0];
-      if (!nextTicker) {
-        return state;
-      }
-
-      return {
-        ...state,
-        comparisons: [
-          ...state.comparisons,
-          {
-            id: action.id,
-            ticker: nextTicker,
-            visible: true,
-            style: defaultLineStyle(state.comparisons.length + 1),
-          },
-        ],
-      };
-    }
-    case "comparisonChanged":
-      return {
-        ...state,
-        comparisons: state.comparisons.map((slot) =>
-          slot.id === action.id ? { ...slot, ...action.patch } : slot,
-        ),
-      };
-    case "comparisonRemoved":
-      return {
-        ...state,
-        comparisons: state.comparisons.filter((slot) => slot.id !== action.id),
-      };
-    case "comparisonDataLoaded":
-      return { ...state, comparisonData: { ...state.comparisonData, [action.key]: action.points } };
-  }
-}
+export { maxComparisons } from "@/hooks/backtest-comparisons-state";
 
 interface ComparisonsOptions {
   activeRun: BacktestRunRecord | null;
   symbols: SymbolSummary[];
 }
 
-/** PnL comparison overlays: "hold the backtested stock" plus custom tickers. */
+/** PnL comparison overlays: built-in benchmarks plus custom tickers. */
 export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOptions) {
-  const [state, dispatch] = useReducer(comparisonsReducer, undefined, () => ({
-    holdSelfVisible: true,
-    holdSelfStyle: { ...defaultLineStyle(0), stroke: "dashed" as const },
-    comparisons: [],
-    comparisonData: {},
-  }));
-  const { holdSelfVisible, holdSelfStyle, comparisons, comparisonData } = state;
+  const [state, dispatch] = useReducer(comparisonsReducer, undefined, initialComparisonsState);
+  const { benchmarks, comparisons, comparisonData } = state;
+  const anyBenchmarkVisible = benchmarkDefinitions.some(
+    (definition) => benchmarks[definition.id].visible,
+  );
   // Lazy init: `useRef(new Set())` would allocate and discard a Set per render.
   const comparisonRequestsRef = useRef<Set<string> | null>(null);
   comparisonRequestsRef.current ??= new Set();
@@ -114,7 +41,7 @@ export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOption
     }
 
     const wantedTickers = new Set<string>();
-    if (holdSelfVisible) {
+    if (anyBenchmarkVisible) {
       wantedTickers.add(activeRun.ticker);
     }
     for (const slot of comparisons) {
@@ -154,7 +81,21 @@ export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOption
           comparisonRequests.delete(key);
         });
     }
-  }, [activeRun, comparisons, comparisonData, holdSelfVisible, comparisonRequests]);
+  }, [activeRun, comparisons, comparisonData, anyBenchmarkVisible, comparisonRequests]);
+
+  const benchmarkViews = useMemo<BenchmarkView[]>(
+    () =>
+      activeRun == null
+        ? []
+        : benchmarkDefinitions.map((definition) => ({
+            id: definition.id,
+            label: definition.label(activeRun),
+            title: definition.title,
+            visible: benchmarks[definition.id].visible,
+            style: benchmarks[definition.id].style,
+          })),
+    [activeRun, benchmarks],
+  );
 
   const equityOverlays = useMemo<EquityOverlay[]>(() => {
     if (!activeRun) {
@@ -162,15 +103,18 @@ export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOption
     }
 
     const overlays: EquityOverlay[] = [];
-    if (holdSelfVisible) {
-      const data = comparisonData[comparisonCacheKey(activeRun.ticker, activeRun)];
-      if (data && data.length > 0) {
-        overlays.push({
-          id: "hold-self",
-          label: `Hold ${activeRun.ticker}`,
-          style: holdSelfStyle,
-          points: holdCurve(data, activeRun.initial_capital),
-        });
+    const selfData = comparisonData[comparisonCacheKey(activeRun.ticker, activeRun)];
+    if (selfData && selfData.length > 0) {
+      for (const definition of benchmarkDefinitions) {
+        const slot = benchmarks[definition.id];
+        if (slot.visible) {
+          overlays.push({
+            id: definition.id,
+            label: definition.label(activeRun),
+            style: slot.style,
+            points: definition.curve(selfData, activeRun.initial_capital),
+          });
+        }
       }
     }
     for (const slot of comparisons) {
@@ -188,11 +132,10 @@ export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOption
       }
     }
     return overlays;
-  }, [activeRun, comparisonData, comparisons, holdSelfStyle, holdSelfVisible]);
+  }, [activeRun, benchmarks, comparisonData, comparisons]);
 
   return {
-    holdSelfVisible,
-    holdSelfStyle,
+    benchmarks: benchmarkViews,
     comparisons,
     comparisonData,
     equityOverlays,
@@ -206,8 +149,9 @@ export function useBacktestComparisons({ activeRun, symbols }: ComparisonsOption
     updateComparison: (id: string, patch: Partial<ComparisonSlot>) =>
       dispatch({ type: "comparisonChanged", id, patch }),
     removeComparison: (id: string) => dispatch({ type: "comparisonRemoved", id }),
-    setHoldSelfVisible: (visible: boolean) => dispatch({ type: "holdSelfVisibleChanged", visible }),
-    patchHoldSelfStyle: (patch: Partial<IndicatorLineStyle>) =>
-      dispatch({ type: "holdSelfStylePatched", patch }),
+    setBenchmarkVisible: (id: BenchmarkId, visible: boolean) =>
+      dispatch({ type: "benchmarkVisibleChanged", id, visible }),
+    patchBenchmarkStyle: (id: BenchmarkId, patch: Partial<IndicatorLineStyle>) =>
+      dispatch({ type: "benchmarkStylePatched", id, patch }),
   };
 }

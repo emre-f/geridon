@@ -6,6 +6,7 @@ export function draftFromRecord(record: StrategyRecord): StrategyDraft {
     name: record.name,
     entry: asRootGroup(record.entry),
     exit: asRootGroup(record.exit),
+    ...(record.cash ? { cash: asRootGroup(record.cash) } : {}),
   };
 }
 
@@ -18,6 +19,7 @@ function stripConditionIds(condition: StrategyCondition): unknown {
     return {
       type: condition.type,
       operator: condition.operator,
+      ...(condition.operator === "at_least" ? { count: condition.count } : {}),
       conditions: condition.conditions.map(stripConditionIds),
       ...enabled,
     };
@@ -37,6 +39,7 @@ function serializableDraft(draft: StrategyDraft) {
     name: draft.name,
     entry: stripConditionIds(draft.entry),
     exit: stripConditionIds(draft.exit),
+    ...(draft.cash ? { cash: stripConditionIds(draft.cash) } : {}),
   };
 }
 

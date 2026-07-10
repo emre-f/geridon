@@ -1,9 +1,4 @@
-import {
-  indicatorCatalog,
-  indicatorDefinition,
-  isIndicatorKind,
-  normalizeIndicatorParameters,
-} from "./indicators.ts";
+import { validateEnabled, validateOperand } from "./strategyOperandValidation.ts";
 import {
   comparisonOperators,
   crossOperators,
@@ -13,98 +8,17 @@ import {
   maxGroupDepth,
   maxNameLength,
   maxRules,
-  priceFields,
   type ValidationContext,
 } from "./strategyValidationHelpers.ts";
 import type {
   ComparisonOperator,
   GroupOperator,
-  PriceField,
   Strategy,
   StrategyCondition,
-  StrategyOperand,
   StrategyValidationIssue,
 } from "../types.ts";
 
 export { comparisonOperators, groupOperators, priceFields } from "./strategyValidationHelpers.ts";
-
-function validateOperand(
-  raw: unknown,
-  path: string,
-  context: ValidationContext,
-): StrategyOperand | null {
-  if (!isRecord(raw)) {
-    issue(context, path, "Operand must be an object.");
-    return null;
-  }
-
-  if (raw.type === "indicator") {
-    if (typeof raw.kind !== "string" || !isIndicatorKind(raw.kind)) {
-      const supported = indicatorCatalog.map((definition) => definition.kind).join(", ");
-      issue(context, path, `Unsupported indicator kind. Use one of: ${supported}.`);
-      return null;
-    }
-
-    const definition = indicatorDefinition(raw.kind);
-    const outputKeys = definition.values.map((value) => value.key);
-    const output = raw.output == null ? outputKeys[0] : raw.output;
-    if (typeof output !== "string" || !outputKeys.includes(output)) {
-      issue(
-        context,
-        path,
-        `Unknown ${definition.kind} output. Use one of: ${outputKeys.join(", ")}.`,
-      );
-      return null;
-    }
-
-    try {
-      const parameters = normalizeIndicatorParameters(
-        definition.kind,
-        isRecord(raw.parameters) ? raw.parameters : {},
-      );
-      return { type: "indicator", kind: definition.kind, parameters, output };
-    } catch (error) {
-      issue(context, path, error instanceof Error ? error.message : "Invalid indicator parameters.");
-      return null;
-    }
-  }
-
-  if (raw.type === "price") {
-    if (typeof raw.field !== "string" || !priceFields.includes(raw.field as PriceField)) {
-      issue(context, path, `Price field must be one of: ${priceFields.join(", ")}.`);
-      return null;
-    }
-    return { type: "price", field: raw.field as PriceField };
-  }
-
-  if (raw.type === "value") {
-    const value = Number(raw.value);
-    if (typeof raw.value !== "number" || !Number.isFinite(value)) {
-      issue(context, path, "Value must be a finite number.");
-      return null;
-    }
-    return { type: "value", value };
-  }
-
-  issue(context, path, 'Operand type must be "indicator", "price", or "value".');
-  return null;
-}
-
-/**
- * Parses the optional per-condition enabled flag. Only `false` is stored so
- * existing strategies (which predate the flag) keep their exact shape.
- */
-function validateEnabled(
-  raw: Record<string, unknown>,
-  path: string,
-  context: ValidationContext,
-): { enabled: false } | Record<string, never> | null {
-  if (raw.enabled != null && typeof raw.enabled !== "boolean") {
-    issue(context, path, "Condition enabled flag must be a boolean.");
-    return null;
-  }
-  return raw.enabled === false ? { enabled: false } : {};
-}
 
 function validateCondition(
   raw: unknown,
@@ -141,6 +55,27 @@ function validateCondition(
       return null;
     }
 
+    let count: number | undefined;
+    if (raw.operator === "at_least") {
+      const rawCount = Number(raw.count);
+      // Disabled conditions are pruned before evaluation, so a count above the
+      // enabled total could never be satisfied.
+      const enabledTotal = raw.conditions.filter(
+        (condition) => !isRecord(condition) || condition.enabled !== false,
+      ).length;
+      const limit = enabledTotal > 0 ? enabledTotal : raw.conditions.length;
+      if (!Number.isInteger(rawCount) || rawCount < 1 || rawCount > limit) {
+        const qualifier = limit < raw.conditions.length ? " (disabled conditions don't count)" : "";
+        issue(
+          context,
+          path,
+          `"at least" count must be a whole number between 1 and ${limit}${qualifier}.`,
+        );
+        return null;
+      }
+      count = rawCount;
+    }
+
     const conditions = raw.conditions.map((condition, index) =>
       validateCondition(condition, `${path}.conditions[${index}]`, depth + 1, context),
     );
@@ -153,6 +88,7 @@ function validateCondition(
       type: "group",
       operator: raw.operator as GroupOperator,
       conditions: conditions as StrategyCondition[],
+      ...(count == null ? {} : { count }),
       ...enabled,
     };
   }
@@ -227,12 +163,14 @@ export function validateStrategy(raw: unknown): {
   const exit = raw.exit == null
     ? (issue(context, "exit", "Exit condition is required."), null)
     : validateCondition(raw.exit, "exit", 1, context);
+  const cash = raw.cash == null ? undefined : validateCondition(raw.cash, "cash", 1, context);
+  const cashInvalid = raw.cash != null && cash == null;
 
-  if (name == null || entry == null || exit == null || context.errors.length > 0) {
+  if (name == null || entry == null || exit == null || cashInvalid || context.errors.length > 0) {
     return { strategy: null, errors: context.errors };
   }
 
-  return { strategy: { name, entry, exit }, errors: [] };
+  return { strategy: { name, entry, exit, ...(cash ? { cash } : {}) }, errors: [] };
 }
 
 export function normalizeStrategy(raw: unknown): Strategy {

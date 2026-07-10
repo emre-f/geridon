@@ -215,3 +215,20 @@ test("normalizeStrategy throws on the first issue", () => {
   assert.throws(() => normalizeStrategy({ name: "" }), /Strategy name is required/);
   assert.ok(normalizeStrategy(goldenCross()));
 });
+
+test("validateStrategy bounds at_least count by the enabled conditions", () => {
+  const vote = goldenCross();
+  vote.entry.operator = "at_least";
+  vote.entry.count = 2;
+  vote.entry.conditions.push({ ...vote.entry.conditions[0], enabled: false });
+
+  const rejected = validateStrategy(vote);
+  assert.equal(rejected.strategy, null);
+  assert.equal(rejected.errors[0].path, "entry");
+  assert.match(rejected.errors[0].message, /between 1 and 1 \(disabled conditions don't count\)/);
+
+  vote.entry.count = 1;
+  const accepted = validateStrategy(vote);
+  assert.deepEqual(accepted.errors, []);
+  assert.ok(accepted.strategy);
+});

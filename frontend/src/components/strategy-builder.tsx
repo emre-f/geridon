@@ -1,11 +1,5 @@
 import { useMemo } from "react";
-import {
-  CheckIcon,
-  CopyIcon,
-  RefreshCwIcon,
-  SaveIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { CopyIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import {
   type IndicatorDefinition,
@@ -13,8 +7,9 @@ import {
   type StrategyRecord,
   type StrategyValidationResult,
 } from "@/lib/api";
-import { asRootGroup, describeIssuePath } from "@/lib/strategy";
-import { ConditionGroupEditor } from "@/components/strategy-condition-group-editor";
+import { asRootGroup, createCashGroup } from "@/lib/strategy";
+import { StrategyBuilderActions } from "@/components/strategy-builder-actions";
+import { StrategyTreeSection } from "@/components/strategy-tree-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,6 +72,10 @@ export function StrategyBuilder({
     [draft],
   );
   const exitGroup = useMemo(() => (draft ? asRootGroup(draft.exit) : null), [draft]);
+  const cashGroup = useMemo(
+    () => (draft?.cash ? asRootGroup(draft.cash) : null),
+    [draft],
+  );
 
   function editDraft(update: (draft: StrategyDraft) => StrategyDraft) {
     if (!draft) {
@@ -161,81 +160,64 @@ export function StrategyBuilder({
               ) : null}
             </div>
 
-            <section className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <Badge className="border-transparent bg-[var(--chart-up-muted)] text-[var(--chart-up)]">
-                  Entry
-                </Badge>
-                <span className="text-muted-foreground text-xs">
-                  Buy when these conditions are met
-                </span>
-              </div>
-              <ConditionGroupEditor
-                group={entryGroup}
-                catalog={catalog}
-                depth={0}
-                onChange={(next) => editDraft((current) => ({ ...current, entry: next }))}
-              />
-            </section>
+            <StrategyTreeSection
+              label="Entry"
+              badgeClassName="border-transparent bg-[var(--chart-up-muted)] text-[var(--chart-up)]"
+              hint="Go long when these conditions are met"
+              group={entryGroup}
+              catalog={catalog}
+              onChange={(next) => editDraft((current) => ({ ...current, entry: next }))}
+            />
 
             <Separator />
 
-            <section className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <Badge className="border-transparent bg-[var(--chart-down-muted)] text-[var(--chart-down)]">
-                  Exit
-                </Badge>
-                <span className="text-muted-foreground text-xs">
-                  Sell when these conditions are met
-                </span>
-              </div>
-              <ConditionGroupEditor
-                group={exitGroup}
-                catalog={catalog}
-                depth={0}
-                onChange={(next) => editDraft((current) => ({ ...current, exit: next }))}
-              />
-            </section>
+            <StrategyTreeSection
+              label="Exit"
+              badgeClassName="border-transparent bg-[var(--chart-down-muted)] text-[var(--chart-down)]"
+              hint="Sell — or, in three-state mode, go short — when these conditions are met"
+              group={exitGroup}
+              catalog={catalog}
+              onChange={(next) => editDraft((current) => ({ ...current, exit: next }))}
+            />
 
-            <div className="flex flex-wrap items-center gap-3">
+            <Separator />
+
+            {cashGroup ? (
+              <StrategyTreeSection
+                label="Cash"
+                badgeClassName="border-transparent bg-muted text-muted-foreground"
+                hint="Three-state mode only: return to cash when these conditions are met"
+                group={cashGroup}
+                catalog={catalog}
+                onChange={(next) => editDraft((current) => ({ ...current, cash: next }))}
+                onRemove={() =>
+                  editDraft(({ cash: _dropped, ...rest }) => rest)
+                }
+              />
+            ) : (
               <Button
                 type="button"
                 variant="outline"
-                onClick={onValidate}
-                disabled={validating || saving}
+                size="sm"
+                className="self-start"
+                onClick={() =>
+                  editDraft((current) => ({ ...current, cash: createCashGroup(catalog) }))
+                }
               >
-                {validating ? <RefreshCwIcon className="animate-spin" /> : <CheckIcon />}
-                Validate
+                <PlusIcon />
+                Add cash rules (three-state)
               </Button>
-              <Button type="button" onClick={onSave} disabled={saving || validating}>
-                {saving ? <RefreshCwIcon className="animate-spin" /> : <SaveIcon />}
-                {selectedId == null ? "Save strategy" : "Save changes"}
-              </Button>
-              {validation?.valid ? (
-                <span className="flex items-center gap-1.5 text-sm text-[var(--chart-up)]">
-                  <CheckIcon className="size-4" />
-                  Strategy is valid and ready to run.
-                </span>
-              ) : null}
-            </div>
+            )}
 
-            {validation && !validation.valid ? (
-              <div className="border-destructive/40 bg-destructive/5 rounded-md border p-3">
-                <p className="text-destructive text-sm font-medium">
-                  Fix these issues before running the strategy:
-                </p>
-                <ul className="text-destructive mt-1.5 flex flex-col gap-1 text-sm">
-                  {validation.errors.map((issue) => (
-                    <li key={`${issue.path}-${issue.message}`}>
-                      <span className="font-medium">{describeIssuePath(issue.path)}:</span>{" "}
-                      {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
+            <StrategyBuilderActions
+              selectedId={selectedId}
+              saving={saving}
+              validating={validating}
+              validation={validation}
+              error={error}
+              onValidate={onValidate}
+              onSave={onSave}
+            />
           </>
         )}
       </CardContent>

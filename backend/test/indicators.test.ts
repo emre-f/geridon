@@ -62,6 +62,24 @@ test("computeIndicators calculates RSI, Bollinger Bands, ATR, and MACD", () => {
   assert.equal(seriesValue(macd, "histogram").at(-1) == null, false);
 });
 
+test("computeIndicators calculates momentum, CCI and %B", () => {
+  const candles = [1, 2, 3, 4, 5].map((close, index) => candle(index, close));
+  const specs = normalizeIndicatorSpecs([
+    { kind: "momentum", parameters: { period: 2 } },
+    { kind: "cci", parameters: { period: 2 } },
+    { kind: "bbp", parameters: { period: 2, stdDev: 2 } },
+  ]);
+
+  const [momentum, cci, bbp] = computeIndicators(candles, specs);
+
+  // close/close[t-2] - 1
+  assert.deepEqual(seriesValue(momentum, "momentum"), [null, null, 2, 1, 0.666667]);
+  // typical price equals close here (high/low are symmetric), so CCI is constant.
+  assert.deepEqual(seriesValue(cci, "cci"), [null, 66.666667, 66.666667, 66.666667, 66.666667]);
+  // close sits three-quarters up its 2-sigma band each bar.
+  assert.deepEqual(seriesValue(bbp, "bbp"), [null, 0.75, 0.75, 0.75, 0.75]);
+});
+
 test("computeIndicators calculates RVOL against the prior-bar volume average", () => {
   const volumes = [100, 100, 200, 300, 0];
   const candles = volumes.map((volume, index) => candle(index, 10, 11, 9, volume));

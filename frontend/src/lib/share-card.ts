@@ -169,7 +169,9 @@ function renderBacktestCard(run: BacktestRunRecord, strategyName: string) {
   const sizingLabel =
     run.position_mode === "always_in"
       ? "always in market · flips 100% long/short"
-      : `buy ${run.buy_percent}% of equity · sell ${run.sell_percent}% of position`;
+      : run.position_mode === "three_state"
+        ? "three-state · 100% long / short / cash"
+        : `buy ${run.buy_percent}% of equity · sell ${run.sell_percent}% of position`;
   context.fillText(
     `${run.ticker} · ${run.timeframe.toUpperCase()} · ${sizingLabel}`,
     padding,

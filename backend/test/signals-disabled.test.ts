@@ -120,3 +120,26 @@ test("evaluateSignals skips disabled groups entirely", () => {
     { timestamp_ms: candles[1].timestamp_ms, side: "buy" },
   ]);
 });
+
+test("evaluateSignals clamps at_least count when children are disabled", () => {
+  const candles = [1, 3].map((close, index) => candle(index, close));
+  const closeAbove = (value: number, enabled?: false): StrategyCondition => ({
+    type: "rule",
+    left: { type: "price", field: "close" },
+    operator: "gt",
+    right: { type: "value", value },
+    ...(enabled === false ? { enabled } : {}),
+  });
+  const entry: StrategyCondition = {
+    type: "group",
+    operator: "at_least",
+    count: 2,
+    conditions: [closeAbove(2), closeAbove(100, false), closeAbove(200, false)],
+  };
+
+  // A literal 2-of-1 could never fire; disabling must act like deleting,
+  // so the group evaluates as 1-of-1.
+  assert.deepEqual(evaluateSignals(strategy(entry, neverCondition), candles), [
+    { timestamp_ms: candles[1].timestamp_ms, side: "buy" },
+  ]);
+});

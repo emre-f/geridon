@@ -1,4 +1,4 @@
-import type { BacktestRunRecord, BacktestRunSummary } from "@/lib/api";
+import type { BacktestRunRecord, BacktestRunSummary, BacktestTrade } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 
 export interface ComparisonPoint {
@@ -18,14 +18,26 @@ export function dayEndMs(value: string) {
   return Date.parse(`${value}T23:59:59.999Z`);
 }
 
+/**
+ * Fills targeting cash (the three_state go-to-cash tree) show as a neutral
+ * "cash" event rather than the buy/sell direction of the underlying fill.
+ */
+export function tradeDisplaySide(trade: BacktestTrade): "buy" | "sell" | "cash" {
+  return trade.target === "cash" ? "cash" : trade.side;
+}
+
 export function formatRunRange(run: BacktestRunSummary) {
   return `${formatDate(run.start_ms, "1d")} – ${formatDate(run.end_ms, "1d")}`;
 }
 
 export function formatRunSizing(run: BacktestRunSummary) {
-  return run.position_mode === "always_in"
-    ? "always in market (100% flips)"
-    : `buy ${run.buy_percent}% / sell ${run.sell_percent}%`;
+  if (run.position_mode === "always_in") {
+    return "always in market (100% flips)";
+  }
+  if (run.position_mode === "three_state") {
+    return "three-state (100% long / short / cash)";
+  }
+  return `buy ${run.buy_percent}% / sell ${run.sell_percent}%`;
 }
 
 // Hoisted: Intl constructors are expensive to rebuild per call.
@@ -63,6 +75,27 @@ export function holdCurve(points: ComparisonPoint[], initialCapital: number) {
     timestamp_ms: point.timestamp_ms,
     value: (initialCapital * point.close) / first.close,
   }));
+}
+
+/**
+ * Theoretically optimal curve: perfect foresight holding a fixed number of
+ * shares (sized to the starting capital) long or short to capture every bar's
+ * move. It is the upper bound a fixed-size strategy could reach, so it only
+ * ever rises.
+ */
+export function optimalCurve(points: ComparisonPoint[], initialCapital: number) {
+  const first = points.find((point) => point.close > 0);
+  if (!first) {
+    return [];
+  }
+  const shares = initialCapital / first.close;
+  let equity = initialCapital;
+  return points.map((point, index) => {
+    if (index > 0) {
+      equity += shares * Math.abs(point.close - points[index - 1].close);
+    }
+    return { timestamp_ms: point.timestamp_ms, value: equity };
+  });
 }
 
 export interface SeriesMetrics {

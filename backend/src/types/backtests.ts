@@ -3,12 +3,15 @@ import type { Strategy } from "./strategies.ts";
 /**
  * long_only: sells reduce/close the position; sells while flat are ignored.
  * always_in: stop-and-reverse - every fill flips to 100% long or 100% short.
+ * three_state: long / short / cash targets from the entry / exit / cash trees.
  */
-export type BacktestPositionMode = "long_only" | "always_in";
+export type BacktestPositionMode = "long_only" | "always_in" | "three_state";
 
 export interface BacktestTrade {
   timestamp_ms: number;
   side: "buy" | "sell";
+  /** Position the fill aimed for; only set by the account-flipping modes. */
+  target?: "long" | "short" | "cash";
   price: number;
   shares: number;
   value: number;

@@ -10,6 +10,7 @@ function strategyRowToResponse(row: Record<string, unknown>): StrategyRecord {
     name: String(row.name),
     entry: definition.entry,
     exit: definition.exit,
+    ...(definition.cash ? { cash: definition.cash } : {}),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };

@@ -108,10 +108,14 @@ export function buildChartLayout({
               margin.top + signalMarkerSize,
               margin.top + plotHeight - signalMarkerSize,
             );
+      // Buy: upward triangle below the bar. Sell: downward triangle above.
+      // Cash: diamond above, so a flatten never reads as a short/sell.
       const markerPoints =
         signal.side === "buy"
           ? `${point.x},${y - signalMarkerSize} ${point.x - signalMarkerSize},${y + signalMarkerSize} ${point.x + signalMarkerSize},${y + signalMarkerSize}`
-          : `${point.x},${y + signalMarkerSize} ${point.x - signalMarkerSize},${y - signalMarkerSize} ${point.x + signalMarkerSize},${y - signalMarkerSize}`;
+          : signal.side === "sell"
+            ? `${point.x},${y + signalMarkerSize} ${point.x - signalMarkerSize},${y - signalMarkerSize} ${point.x + signalMarkerSize},${y - signalMarkerSize}`
+            : `${point.x},${y - signalMarkerSize} ${point.x + signalMarkerSize},${y} ${point.x},${y + signalMarkerSize} ${point.x - signalMarkerSize},${y}`;
 
       return {
         key: `${signal.side}-${point.candle.timestamp_ms}-${signalIndex}`,

@@ -14,7 +14,7 @@ import type {
 import { type ComparisonPoint } from "@/lib/backtest-utils";
 import { chartModeOptions } from "@/lib/chart-options";
 import { downloadBacktestCard } from "@/lib/share-card";
-import type { ComparisonSlot } from "@/components/backtest-types";
+import type { BenchmarkId, BenchmarkView, ComparisonSlot } from "@/components/backtest-types";
 import { BacktestComparisons } from "@/components/backtest-comparisons";
 import { BenchmarkMetrics } from "@/components/benchmark-metrics";
 import { BacktestSection } from "@/components/backtest-section";
@@ -32,13 +32,12 @@ import { SlashTabs } from "@/components/ui/slash-tabs";
 
 export function BacktestResultCard({
   activeRun,
+  benchmarks,
   chartMode,
   comparisonData,
   comparisons,
   definitionsByKind,
   equityOverlays,
-  holdSelfStyle,
-  holdSelfVisible,
   legendTimestampMs,
   maxComparisons,
   metrics,
@@ -53,23 +52,22 @@ export function BacktestResultCard({
   symbolsAvailable,
   tickerList,
   onAddComparison,
+  onBenchmarkStyleChange,
+  onBenchmarkVisibleChange,
   onChartModeChange,
   onClose,
   onComparisonChange,
-  onHoldSelfStyleChange,
-  onHoldSelfVisibleChange,
   onHoverCandleChange,
   onRemoveComparison,
   onUpdateRunIndicatorLineStyle,
 }: {
   activeRun: BacktestRunRecord;
+  benchmarks: BenchmarkView[];
   chartMode: ChartMode;
   comparisonData: Record<string, ComparisonPoint[]>;
   comparisons: ComparisonSlot[];
   definitionsByKind: Map<IndicatorKind, IndicatorDefinition>;
   equityOverlays: EquityOverlay[];
-  holdSelfStyle: IndicatorLineStyle;
-  holdSelfVisible: boolean;
   legendTimestampMs: number | null;
   maxComparisons: number;
   metrics: BacktestMetrics;
@@ -84,11 +82,11 @@ export function BacktestResultCard({
   symbolsAvailable: boolean;
   tickerList: string[];
   onAddComparison: () => void;
+  onBenchmarkStyleChange: (id: BenchmarkId, patch: Partial<IndicatorLineStyle>) => void;
+  onBenchmarkVisibleChange: (id: BenchmarkId, visible: boolean) => void;
   onChartModeChange: (mode: ChartMode) => void;
   onClose: () => void;
   onComparisonChange: (id: string, patch: Partial<ComparisonSlot>) => void;
-  onHoldSelfStyleChange: (patch: Partial<IndicatorLineStyle>) => void;
-  onHoldSelfVisibleChange: (visible: boolean) => void;
   onHoverCandleChange: (candle: Candle | null) => void;
   onRemoveComparison: (id: string) => void;
   onUpdateRunIndicatorLineStyle: (
@@ -202,17 +200,16 @@ export function BacktestResultCard({
 
           <BacktestComparisons
             activeRun={activeRun}
+            benchmarks={benchmarks}
             comparisonData={comparisonData}
             comparisons={comparisons}
-            holdSelfStyle={holdSelfStyle}
-            holdSelfVisible={holdSelfVisible}
             maxComparisons={maxComparisons}
             symbolsAvailable={symbolsAvailable}
             tickerList={tickerList}
             onAddComparison={onAddComparison}
+            onBenchmarkStyleChange={onBenchmarkStyleChange}
+            onBenchmarkVisibleChange={onBenchmarkVisibleChange}
             onComparisonChange={onComparisonChange}
-            onHoldSelfStyleChange={onHoldSelfStyleChange}
-            onHoldSelfVisibleChange={onHoldSelfVisibleChange}
             onRemoveComparison={onRemoveComparison}
           />
         </BacktestSection>

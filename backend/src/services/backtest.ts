@@ -1,10 +1,10 @@
 import { computeMetrics } from "./backtestMetrics.ts";
 import { evaluateSignals } from "./signals.ts";
+import { BacktestAccount, positionEpsilon } from "./backtestAccount.ts";
 import type {
   BacktestEquityPoint,
   BacktestPositionMode,
   BacktestResult,
-  BacktestTrade,
   Candle,
   Strategy,
 } from "../types.ts";
@@ -17,6 +17,8 @@ export interface BacktestOptions {
    * liquidate sellPercent of the position.
    * always_in: stop-and-reverse — sizing percents are ignored and every fill
    * flips the account to 100% long or a cash-secured 100% short.
+   * three_state: long / short / cash targets from the strategy's entry
+   * (long), exit (short) and cash trees; percents are ignored.
    */
   positionMode: BacktestPositionMode;
   buyPercent: number;
@@ -24,15 +26,22 @@ export interface BacktestOptions {
   initialCapital: number;
 }
 
-// Ignore float dust so a 100% sell really flattens the position and a
-// cash-exhausted account stops producing microscopic buys.
-const shareEpsilon = 1e-9;
-const minimumTradeValue = 0.01;
+type ThreeStateTarget = "long" | "short" | "cash";
 
 function validatePercent(value: number, label: string) {
   if (!Number.isFinite(value) || value <= 0 || value > 100) {
     throw new Error(`${label} must be greater than 0 and at most 100.`);
   }
+}
+
+function positionState(shares: number): ThreeStateTarget {
+  if (shares > positionEpsilon) {
+    return "long";
+  }
+  if (shares < -positionEpsilon) {
+    return "short";
+  }
+  return "cash";
 }
 
 export function runBacktest(options: BacktestOptions): BacktestResult {
@@ -43,172 +52,77 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     throw new Error("initial_capital must be a positive number.");
   }
 
-  const signalsByTimestamp = new Map<number, { buy: boolean; sell: boolean }>();
+  const signalsByTimestamp = new Map<number, { buy: boolean; sell: boolean; cash: boolean }>();
   for (const signal of evaluateSignals(strategy, candles)) {
-    const entry = signalsByTimestamp.get(signal.timestamp_ms) ?? { buy: false, sell: false };
+    const entry = signalsByTimestamp.get(signal.timestamp_ms) ?? {
+      buy: false,
+      sell: false,
+      cash: false,
+    };
     entry[signal.side] = true;
     signalsByTimestamp.set(signal.timestamp_ms, entry);
   }
 
-  let cash = initialCapital;
-  // Negative shares represent a short position in always_in mode.
-  let shares = 0;
-  let averageCost = 0;
-  let realizedPnl = 0;
+  const account = new BacktestAccount(initialCapital, buyPercent, sellPercent);
+  const equityCurve: BacktestEquityPoint[] = [];
+
   // Signals fire on a bar's close and fill on the next bar's open, so the
   // simulation never trades on information the bar has not produced yet.
   let pendingOrder: "buy" | "sell" | null = null;
-
-  const trades: BacktestTrade[] = [];
-  const equityCurve: BacktestEquityPoint[] = [];
-
-  function recordTrade(
-    side: "buy" | "sell",
-    timestampMs: number,
-    price: number,
-    tradedShares: number,
-    tradePnl: number | null,
-  ) {
-    trades.push({
-      timestamp_ms: timestampMs,
-      side,
-      price,
-      shares: tradedShares,
-      value: tradedShares * price,
-      cash_after: cash,
-      shares_after: shares,
-      equity_after: cash + shares * price,
-      realized_pnl: tradePnl,
-    });
-  }
-
-  function fillLongOnlyBuy(candle: Candle) {
-    const price = candle.open;
-    const equity = cash + shares * price;
-    const spend = Math.min(cash, (buyPercent / 100) * equity);
-    if (price <= 0 || spend < minimumTradeValue) {
-      return;
-    }
-    const boughtShares = spend / price;
-    averageCost = (averageCost * shares + spend) / (shares + boughtShares);
-    shares += boughtShares;
-    cash -= spend;
-    recordTrade("buy", candle.timestamp_ms, price, boughtShares, null);
-  }
-
-  function fillLongOnlySell(candle: Candle) {
-    const price = candle.open;
-    if (shares <= shareEpsilon || price <= 0) {
-      return;
-    }
-    const soldShares = (sellPercent / 100) * shares;
-    const tradePnl = (price - averageCost) * soldShares;
-    shares -= soldShares;
-    if (shares <= shareEpsilon) {
-      shares = 0;
-      averageCost = 0;
-    }
-    cash += soldShares * price;
-    realizedPnl += tradePnl;
-    recordTrade("sell", candle.timestamp_ms, price, soldShares, tradePnl);
-  }
-
-  // Flip to 100% long: cover any short at the open, then spend all cash.
-  function fillAlwaysInBuy(candle: Candle) {
-    const price = candle.open;
-    if (price <= 0) {
-      return;
-    }
-    let tradePnl: number | null = null;
-    let tradedShares = 0;
-    if (shares < -shareEpsilon) {
-      const coveredShares = -shares;
-      tradePnl = (averageCost - price) * coveredShares;
-      realizedPnl += tradePnl;
-      cash -= coveredShares * price;
-      tradedShares += coveredShares;
-      shares = 0;
-    }
-    // A short that moved against the account past its equity leaves negative
-    // cash; the account is bust and stays flat.
-    if (cash >= minimumTradeValue) {
-      const boughtShares = cash / price;
-      shares = boughtShares;
-      averageCost = price;
-      tradedShares += boughtShares;
-      cash = 0;
-    }
-    if (tradedShares > shareEpsilon) {
-      recordTrade("buy", candle.timestamp_ms, price, tradedShares, tradePnl);
-    }
-  }
-
-  // Flip to 100% short: close any long at the open, then short the account's
-  // full equity (cash-secured — proceeds sit as collateral, no leverage).
-  function fillAlwaysInSell(candle: Candle) {
-    const price = candle.open;
-    if (price <= 0 || shares < -shareEpsilon) {
-      return;
-    }
-    let tradePnl: number | null = null;
-    let tradedShares = 0;
-    if (shares > shareEpsilon) {
-      tradePnl = (price - averageCost) * shares;
-      realizedPnl += tradePnl;
-      cash += shares * price;
-      tradedShares += shares;
-      shares = 0;
-    }
-    if (cash >= minimumTradeValue) {
-      const shortedShares = cash / price;
-      shares = -shortedShares;
-      averageCost = price;
-      tradedShares += shortedShares;
-      cash += shortedShares * price;
-    }
-    if (tradedShares > shareEpsilon) {
-      recordTrade("sell", candle.timestamp_ms, price, tradedShares, tradePnl);
-    }
-  }
+  let pendingTarget: ThreeStateTarget | null = null;
 
   for (const candle of candles) {
-    if (pendingOrder === "buy") {
-      if (positionMode === "always_in") {
-        fillAlwaysInBuy(candle);
-      } else {
-        fillLongOnlyBuy(candle);
+    if (positionMode === "three_state") {
+      if (pendingTarget === "long") {
+        account.alwaysInBuy(candle);
+      } else if (pendingTarget === "short") {
+        account.alwaysInSell(candle);
+      } else if (pendingTarget === "cash") {
+        account.flatten(candle);
       }
+      pendingTarget = null;
+    } else if (pendingOrder === "buy") {
+      positionMode === "always_in" ? account.alwaysInBuy(candle) : account.longOnlyBuy(candle);
+      pendingOrder = null;
     } else if (pendingOrder === "sell") {
-      if (positionMode === "always_in") {
-        fillAlwaysInSell(candle);
-      } else {
-        fillLongOnlySell(candle);
-      }
+      positionMode === "always_in" ? account.alwaysInSell(candle) : account.longOnlySell(candle);
+      pendingOrder = null;
     }
-    pendingOrder = null;
 
     const signal = signalsByTimestamp.get(candle.timestamp_ms);
-    if (positionMode === "always_in") {
+    if (positionMode === "three_state") {
+      // Precedence LONG > SHORT > CASH; no matching tree keeps the position.
+      const current = positionState(account.shares);
+      let desired = current;
+      if (signal?.buy) {
+        desired = "long";
+      } else if (signal?.sell) {
+        desired = "short";
+      } else if (signal?.cash) {
+        desired = "cash";
+      }
+      pendingTarget = desired === current ? null : desired;
+    } else if (positionMode === "always_in") {
       // Only queue fills that change the position: sells while flat/long,
       // buys while flat/short. Sell wins a simultaneous signal, matching the
       // long-only exit priority.
-      if (signal?.sell && shares > -shareEpsilon) {
+      if (signal?.sell && account.shares > -positionEpsilon) {
         pendingOrder = "sell";
-      } else if (signal?.buy && shares < shareEpsilon) {
+      } else if (signal?.buy && account.shares < positionEpsilon) {
         pendingOrder = "buy";
       }
-    } else if (signal?.sell && shares > shareEpsilon) {
+    } else if (signal?.sell && account.shares > positionEpsilon) {
       pendingOrder = "sell";
     } else if (signal?.buy) {
       pendingOrder = "buy";
     }
 
-    const positionValue = shares * candle.close;
+    const positionValue = account.shares * candle.close;
     equityCurve.push({
       timestamp_ms: candle.timestamp_ms,
-      equity: cash + positionValue,
-      cash,
-      shares,
+      equity: account.cash + positionValue,
+      cash: account.cash,
+      shares: account.shares,
       position_value: positionValue,
     });
   }
@@ -217,11 +131,11 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   const metrics = computeMetrics({
     initialCapital,
     finalEquity,
-    realizedPnl,
-    trades,
+    realizedPnl: account.realizedPnl,
+    trades: account.trades,
     equityCurve,
     candles,
   });
 
-  return { metrics, equity_curve: equityCurve, trades };
+  return { metrics, equity_curve: equityCurve, trades: account.trades };
 }

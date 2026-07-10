@@ -34,6 +34,14 @@ function PositionModeHelp() {
           every signal flips the whole account 100% long or 100% short (cash-secured, no leverage or borrow costs).
         </span>
       </span>
+      <span className="mt-1 block leading-snug">
+        <span className="font-medium">Three-state</span>
+        {": "}
+        <span className="text-muted-foreground">
+          the entry / exit / cash trees target 100% long, 100% short, or cash; with no matching
+          signal the position is held. Needs a strategy that defines a cash tree.
+        </span>
+      </span>
     </HelpTip>
   );
 }
@@ -89,10 +97,12 @@ export function BacktestRunForm({
   onTickerChange: (value: string) => void;
   onTimeframeChange: (value: string) => void;
 }) {
-  const alwaysInMarket = positionMode === "always_in";
-  const sizingTitle = alwaysInMarket
-    ? "Always in market flips the whole account, so sizing is fixed at 100%."
+  const fixedSizing = positionMode !== "long_only";
+  const sizingTitle = fixedSizing
+    ? "This mode flips the whole account, so sizing is fixed at 100%."
     : undefined;
+  const selectedStrategy = strategies.find((strategy) => strategy.id === strategyId);
+  const threeStateAvailable = selectedStrategy?.cash != null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -178,6 +188,10 @@ export function BacktestRunForm({
             >
               <option value="long_only">Long only</option>
               <option value="always_in">Always in market</option>
+              <option value="three_state" disabled={!threeStateAvailable}>
+                Three-state (long / short / cash)
+                {threeStateAvailable ? "" : " — needs a cash tree"}
+              </option>
             </Select>
           </Field>
           <div className="flex items-end gap-3">
@@ -185,11 +199,11 @@ export function BacktestRunForm({
               <NumberInput
                 className="w-24"
                 aria-label="Buy percent of equity"
-                value={alwaysInMarket ? 100 : buyPercent}
+                value={fixedSizing ? 100 : buyPercent}
                 min={1}
                 max={100}
                 step={1}
-                disabled={alwaysInMarket}
+                disabled={fixedSizing}
                 title={sizingTitle}
                 onValueChange={onBuyPercentChange}
               />
@@ -198,11 +212,11 @@ export function BacktestRunForm({
               <NumberInput
                 className="w-24"
                 aria-label="Sell percent of position"
-                value={alwaysInMarket ? 100 : sellPercent}
+                value={fixedSizing ? 100 : sellPercent}
                 min={1}
                 max={100}
                 step={1}
-                disabled={alwaysInMarket}
+                disabled={fixedSizing}
                 title={sizingTitle}
                 onValueChange={onSellPercentChange}
               />

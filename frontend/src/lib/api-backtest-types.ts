@@ -1,10 +1,12 @@
 import type { StrategySnapshot } from "@/lib/api-strategy-types";
 
-export type BacktestPositionMode = "long_only" | "always_in";
+export type BacktestPositionMode = "long_only" | "always_in" | "three_state";
 
 export interface BacktestTrade {
   timestamp_ms: number;
   side: "buy" | "sell";
+  /** Position the fill aimed for; only set by the account-flipping modes. */
+  target?: "long" | "short" | "cash";
   price: number;
   shares: number;
   value: number;

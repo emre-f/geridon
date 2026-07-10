@@ -164,7 +164,6 @@ function StockChartImpl({
     measuredTooltipHeight ||
     (measurement ? measurementTooltipHeightEstimate : hoverTooltipHeightEstimate);
   const tooltipY = Math.max(8, margin.top - tooltipHeight - tooltipGap);
-  const activeCandle = activePoint?.candle ?? null;
 
   useLayoutEffect(() => {
     const nextHeight = Math.ceil(tooltipRef.current?.getBoundingClientRect().height ?? 0);
