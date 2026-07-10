@@ -24,6 +24,11 @@ export interface BacktestOptions {
   buyPercent: number;
   sellPercent: number;
   initialCapital: number;
+  /**
+   * First candle index where trading may happen; earlier candles only warm
+   * indicators and are excluded from the equity curve and metrics.
+   */
+  simulationStartIndex?: number;
 }
 
 type ThreeStateTarget = "long" | "short" | "cash";
@@ -51,6 +56,10 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   if (!Number.isFinite(initialCapital) || initialCapital <= 0) {
     throw new Error("initial_capital must be a positive number.");
   }
+  const startIndex = options.simulationStartIndex ?? 0;
+  if (!Number.isInteger(startIndex) || startIndex < 0) {
+    throw new Error("simulation_start_index must be a non-negative integer.");
+  }
 
   const signalsByTimestamp = new Map<number, { buy: boolean; sell: boolean; cash: boolean }>();
   for (const signal of evaluateSignals(strategy, candles)) {
@@ -71,7 +80,8 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   let pendingOrder: "buy" | "sell" | null = null;
   let pendingTarget: ThreeStateTarget | null = null;
 
-  for (const candle of candles) {
+  for (let index = startIndex; index < candles.length; index += 1) {
+    const candle = candles[index];
     if (positionMode === "three_state") {
       if (pendingTarget === "long") {
         account.alwaysInBuy(candle);
@@ -134,7 +144,7 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     realizedPnl: account.realizedPnl,
     trades: account.trades,
     equityCurve,
-    candles,
+    candles: startIndex > 0 ? candles.slice(startIndex) : candles,
   });
 
   return { metrics, equity_curve: equityCurve, trades: account.trades };
