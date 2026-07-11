@@ -341,9 +341,11 @@ The frontend must be a client of the same API; no optimization logic should exis
 
 ## 7. Frontend — fourth tab
 
-- [ ] Extend `AppTab` and the header with `optimize`; keep completed/running experiment state across tab
+- [x] Extend `AppTab` and the header with `optimize`; keep completed/running experiment state across tab
       switches as Backtest does for loaded runs.
-- [ ] Build an Optimize landing page with experiment history and a **New experiment** action.
+- [x] Build an Optimize landing page with experiment history and a **New experiment** action. (the
+      experiment history list with cancel/resume/delete and progress polling is done; the "new
+      experiment" action is a single flat form rather than the guided multi-step wizard below)
 - [ ] Build a guided experiment form:
   1. choose a saved baseline strategy;
   2. choose Mode A, B, or advanced C;
@@ -398,7 +400,8 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] **Milestone 3 — Useful optimizer MVP:** Mode A seeded random search, rule toggles for Mode B,
       constraints, successive halving, caching, and baseline comparisons.
 - [ ] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
-      save-as-strategy, and open-in-backtest.
+      save-as-strategy, and open-in-backtest. (setup/history/progress with cancel/resume/delete is done;
+      leaderboard, candidate detail, save-as-strategy, and open-in-backtest are still open)
 - [ ] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
       explicit sealed-holdout workflow.
 - [ ] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
@@ -409,8 +412,9 @@ The frontend must be a client of the same API; no optimization logic should exis
 ## 10. MVP completion criteria
 
 - [x] From either the backend API or Optimize tab, a user can tune a saved strategy's selected numeric
-      parameters and optional existing rules under a finite compute budget. (works via the backend API;
-      the Optimize tab does not exist yet)
+      parameters and optional existing rules under a finite compute budget. (works via the backend API
+      and the Optimize tab's new-experiment form, which searches all tunable parameters by default;
+      per-parameter/per-rule Mode A/B controls are still backend-only, see Section 7)
 - [ ] The experiment is reproducible, cancellable/resumable, does not block normal API requests, and
       survives a backend restart without losing completed trials. (all true except the last clause:
       trials are only persisted when a run finishes or is cancelled, so a restart mid-run recomputes

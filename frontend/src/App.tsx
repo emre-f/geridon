@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/app-header";
 import { BacktestPanel } from "@/components/backtest-panel";
 import { ChartPanel } from "@/components/chart-panel";
 import { IndicatorPicker } from "@/components/indicator-picker";
+import { OptimizePanel } from "@/components/optimize-panel";
 import { StrategyBuilder } from "@/components/strategy-builder";
 import { SymbolContextMenu as SymbolContextMenuView } from "@/components/symbol-context-menu";
 import { SymbolSidebar } from "@/components/symbol-sidebar";
@@ -89,7 +90,7 @@ export default function App() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-4">
-            {activeTab !== "backtest" ? (
+            {activeTab !== "backtest" && activeTab !== "optimize" ? (
               <ChartPanel
                 activeIndicators={chart.activeIndicators}
                 activeTab={activeTab}
@@ -167,6 +168,16 @@ export default function App() {
                 symbols={symbolManager.symbols}
                 defaultTicker={symbolManager.selectedTicker}
                 definitionsByKind={definitionsByKind}
+              />
+            </div>
+
+            {/* Kept mounted so experiment progress polling survives tab switches. */}
+            <div className={activeTab === "optimize" ? "contents" : "hidden"}>
+              <OptimizePanel
+                strategies={strategy.strategies}
+                initialStrategyId={strategy.selectedId}
+                symbols={symbolManager.symbols}
+                defaultTicker={symbolManager.selectedTicker}
               />
             </div>
           </div>
