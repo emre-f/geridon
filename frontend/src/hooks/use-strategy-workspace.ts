@@ -451,6 +451,8 @@ export function useStrategyWorkspace({
     indicatorsForChart,
     handleSelect,
     handleDuplicate,
+    registerSavedStrategy: (record: StrategyRecord) =>
+      dispatch({ type: "recordRegistered", record }),
     handleDraftChange: (nextDraft: StrategyDraft) =>
       dispatch({ type: "draftChanged", draft: nextDraft }),
     handleValidate,

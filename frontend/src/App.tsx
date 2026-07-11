@@ -26,6 +26,9 @@ export default function App() {
   const { setTheme, isDark } = useThemeMode();
   const [activeTab, setActiveTab] = useState<AppTab>("charts");
   const [error, setError] = useState<string | null>(null);
+  const [backtestStrategyRequest, setBacktestStrategyRequest] = useState<{
+    strategyId: number;
+  } | null>(null);
   const { catalog, definitionsByKind } = useIndicatorCatalog(setError);
 
   // The symbol hook reacts to selection changes by calling into the chart
@@ -69,6 +72,11 @@ export default function App() {
       chart.closeIndicatorPicker();
     }
     setActiveTab(value as AppTab);
+  }
+
+  function handleOpenInBacktest(strategyId: number) {
+    setBacktestStrategyRequest({ strategyId });
+    handleTabChange("backtest");
   }
 
   return (
@@ -168,6 +176,7 @@ export default function App() {
                 symbols={symbolManager.symbols}
                 defaultTicker={symbolManager.selectedTicker}
                 definitionsByKind={definitionsByKind}
+                requestedStrategy={backtestStrategyRequest}
               />
             </div>
 
@@ -178,6 +187,8 @@ export default function App() {
                 initialStrategyId={strategy.selectedId}
                 symbols={symbolManager.symbols}
                 defaultTicker={symbolManager.selectedTicker}
+                onStrategySaved={strategy.registerSavedStrategy}
+                onOpenInBacktest={handleOpenInBacktest}
               />
             </div>
           </div>

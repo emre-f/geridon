@@ -2,6 +2,7 @@ import { RefreshCwIcon, RotateCcwIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import type { OptimizationExperimentListItem } from "@/lib/api";
 import { canCancel, canResume, formatExperimentCreatedAt, methodLabels, statusBadgeVariant, statusLabels } from "@/lib/optimize-utils";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OptimizeExperimentProgress } from "@/components/optimize-experiment-progress";
@@ -10,35 +11,66 @@ import { OptimizeExperimentProgress } from "@/components/optimize-experiment-pro
 export const experimentsRowGrid =
   "grid min-w-0 flex-1 grid-cols-[6.5rem_minmax(8rem,1fr)_5rem_5rem_7rem_10.5rem] items-center gap-x-3";
 
+function RowCells({ experiment }: { experiment: OptimizationExperimentListItem }) {
+  return (
+    <>
+      <span className="text-muted-foreground text-xs">
+        {formatExperimentCreatedAt(experiment.created_at)}
+      </span>
+      <span className="truncate font-medium" title={experiment.strategy_name}>
+        {experiment.strategy_name}
+      </span>
+      <span className="text-muted-foreground truncate text-xs">
+        {experiment.tickers.join(", ")}
+      </span>
+      <span className="text-muted-foreground text-xs">{experiment.timeframe.toUpperCase()}</span>
+      <span className="text-muted-foreground text-xs">{methodLabels[experiment.method]}</span>
+      <OptimizeExperimentProgress experiment={experiment} />
+    </>
+  );
+}
+
 export function OptimizeExperimentRow({
   experiment,
   actioning,
+  selected,
+  onSelect,
   onCancel,
   onResume,
   onDelete,
 }: {
   experiment: OptimizationExperimentListItem;
   actioning: boolean;
+  selected: boolean;
+  onSelect: (experiment: OptimizationExperimentListItem) => void;
   onCancel: (experiment: OptimizationExperimentListItem) => void;
   onResume: (experiment: OptimizationExperimentListItem) => void;
   onDelete: (experiment: OptimizationExperimentListItem) => void;
 }) {
+  const selectable = !canCancel(experiment.status);
+
   return (
-    <div className="hover:bg-muted/50 group flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors">
-      <div className={experimentsRowGrid}>
-        <span className="text-muted-foreground text-xs">
-          {formatExperimentCreatedAt(experiment.created_at)}
-        </span>
-        <span className="truncate font-medium" title={experiment.strategy_name}>
-          {experiment.strategy_name}
-        </span>
-        <span className="text-muted-foreground truncate text-xs">
-          {experiment.tickers.join(", ")}
-        </span>
-        <span className="text-muted-foreground text-xs">{experiment.timeframe.toUpperCase()}</span>
-        <span className="text-muted-foreground text-xs">{methodLabels[experiment.method]}</span>
-        <OptimizeExperimentProgress experiment={experiment} />
-      </div>
+    <div
+      className={cn(
+        "hover:bg-muted/50 group flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors",
+        selected && "bg-muted/60",
+      )}
+    >
+      {selectable ? (
+        <button
+          type="button"
+          className={cn(experimentsRowGrid, "text-left")}
+          aria-expanded={selected}
+          title={selected ? "Hide results" : "Show results"}
+          onClick={() => onSelect(experiment)}
+        >
+          <RowCells experiment={experiment} />
+        </button>
+      ) : (
+        <div className={experimentsRowGrid}>
+          <RowCells experiment={experiment} />
+        </div>
+      )}
 
       <div className="flex w-20 shrink-0 items-center">
         <Badge variant={statusBadgeVariant[experiment.status]}>

@@ -5,6 +5,7 @@ import { dayEndMs, dayStartMs } from "@/lib/backtest-utils";
 import { useOptimizeExperimentForm } from "@/hooks/use-optimize-experiment-form";
 import { useOptimizeExperiments } from "@/hooks/use-optimize-experiments";
 import { OptimizeExperimentForm } from "@/components/optimize-experiment-form";
+import { OptimizeExperimentResultCard } from "@/components/optimize-experiment-result-card";
 import { OptimizeExperimentsList } from "@/components/optimize-experiments-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,8 @@ interface OptimizePanelProps {
   initialStrategyId: number | null;
   symbols: SymbolSummary[];
   defaultTicker: string;
+  onStrategySaved: (record: StrategyRecord) => void;
+  onOpenInBacktest: (strategyId: number) => void;
 }
 
 /**
@@ -25,6 +28,8 @@ export function OptimizePanel({
   initialStrategyId,
   symbols,
   defaultTicker,
+  onStrategySaved,
+  onOpenInBacktest,
 }: OptimizePanelProps) {
   const form = useOptimizeExperimentForm({ strategies, initialStrategyId, symbols, defaultTicker });
   const experiments = useOptimizeExperiments();
@@ -116,6 +121,8 @@ export function OptimizePanel({
                   experiments={experiments.experiments}
                   loading={experiments.loading}
                   actioningId={experiments.actioningId}
+                  selectedId={experiments.selectedId}
+                  onSelect={experiments.handleSelect}
                   onCancel={experiments.handleCancel}
                   onResume={experiments.handleResume}
                   onDelete={experiments.handleDelete}
@@ -125,6 +132,15 @@ export function OptimizePanel({
           )}
         </CardContent>
       </Card>
+
+      {experiments.selectedExperiment ? (
+        <OptimizeExperimentResultCard
+          experiment={experiments.selectedExperiment}
+          onClose={experiments.closeSelected}
+          onStrategySaved={onStrategySaved}
+          onOpenInBacktest={onOpenInBacktest}
+        />
+      ) : null}
     </div>
   );
 }

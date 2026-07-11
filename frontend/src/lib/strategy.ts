@@ -53,19 +53,25 @@ export function defaultIndicatorOperand(definition: IndicatorDefinition): Strate
   };
 }
 
+export function unselectedIndicatorOperand(): StrategyOperand {
+  return {
+    type: "indicator",
+    kind: "",
+    parameters: {},
+    output: "",
+  };
+}
+
 export function createRuleNode(
-  catalog: IndicatorDefinition[],
+  _catalog: IndicatorDefinition[],
   operator: ComparisonOperator = "cross_above",
 ): StrategyRule {
-  const definition = catalog[0];
   return {
     id: createNodeId(),
     type: "rule",
     left: { type: "price", field: "close" },
     operator,
-    right: definition
-      ? defaultIndicatorOperand(definition)
-      : { type: "value", value: 0 },
+    right: unselectedIndicatorOperand(),
   };
 }
 

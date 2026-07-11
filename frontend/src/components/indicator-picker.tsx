@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 interface IndicatorPickerProps {
   open: boolean;
   catalog: IndicatorDefinition[];
-  activeCount: number;
-  maxCount: number;
+  activeCount?: number;
+  maxCount?: number;
   onAdd: (definition: IndicatorDefinition) => void;
   onClose: () => void;
 }
@@ -32,7 +32,8 @@ function IndicatorPickerDialog({
   const [query, setQuery] = useState("");
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const atLimit = activeCount >= maxCount;
+  const atLimit =
+    activeCount != null && maxCount != null && activeCount >= maxCount;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -126,7 +127,7 @@ function IndicatorPickerDialog({
           )}
         </div>
 
-        {atLimit ? (
+        {atLimit && maxCount != null ? (
           <p className="border-border text-muted-foreground border-t px-4 py-2.5 text-xs">
             Limit of {maxCount} indicators reached. Remove one from the chart to add another.
           </p>

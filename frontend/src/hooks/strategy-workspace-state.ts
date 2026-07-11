@@ -75,6 +75,7 @@ export type StrategyWorkspaceAction =
       validation: StrategyValidationResult;
     }
   | { type: "saveFinished" }
+  | { type: "recordRegistered"; record: StrategyRecord }
   | { type: "deleted"; id: number }
   | { type: "leftStrategiesTab"; draft: StrategyDraft | null }
   | { type: "signalsCleared" }
@@ -107,6 +108,13 @@ function carryOverPreviewStyles(previous: IndicatorSpec[], next: IndicatorSpec[]
 
     return match?.styles ? { ...spec, styles: match.styles } : spec;
   });
+}
+
+function withUpsertedRecord(strategies: StrategyRecord[], record: StrategyRecord) {
+  const others = strategies.filter((strategy) => strategy.id !== record.id);
+  return [...others, record].sort(
+    (left, right) => left.name.localeCompare(right.name) || left.id - right.id,
+  );
 }
 
 function withOpenedStrategy(
@@ -173,19 +181,18 @@ export function strategyWorkspaceReducer(
       return { ...state, validating: false };
     case "saveStarted":
       return { ...state, saving: true, error: null };
-    case "saved": {
-      const others = state.strategies.filter((strategy) => strategy.id !== action.record.id);
-      const strategies = [...others, action.record].sort(
-        (left, right) => left.name.localeCompare(right.name) || left.id - right.id,
-      );
-
+    case "saved":
       return {
-        ...withOpenedStrategy({ ...state, strategies }, action.opened),
+        ...withOpenedStrategy(
+          { ...state, strategies: withUpsertedRecord(state.strategies, action.record) },
+          action.opened,
+        ),
         validation: action.validation,
       };
-    }
     case "saveFinished":
       return { ...state, saving: false };
+    case "recordRegistered":
+      return { ...state, strategies: withUpsertedRecord(state.strategies, action.record) };
     case "deleted":
       return {
         ...state,

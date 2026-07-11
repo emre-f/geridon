@@ -5,6 +5,8 @@ export function OptimizeExperimentsList({
   experiments,
   loading,
   actioningId,
+  selectedId,
+  onSelect,
   onCancel,
   onResume,
   onDelete,
@@ -12,6 +14,8 @@ export function OptimizeExperimentsList({
   experiments: OptimizationExperimentListItem[];
   loading: boolean;
   actioningId: number | null;
+  selectedId: number | null;
+  onSelect: (experiment: OptimizationExperimentListItem) => void;
   onCancel: (experiment: OptimizationExperimentListItem) => void;
   onResume: (experiment: OptimizationExperimentListItem) => void;
   onDelete: (experiment: OptimizationExperimentListItem) => void;
@@ -45,6 +49,8 @@ export function OptimizeExperimentsList({
             key={experiment.id}
             experiment={experiment}
             actioning={actioningId === experiment.id}
+            selected={selectedId === experiment.id}
+            onSelect={onSelect}
             onCancel={onCancel}
             onResume={onResume}
             onDelete={onDelete}

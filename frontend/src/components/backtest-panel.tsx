@@ -26,6 +26,8 @@ interface BacktestPanelProps {
   symbols: SymbolSummary[];
   defaultTicker: string;
   definitionsByKind: Map<IndicatorKind, IndicatorDefinition>;
+  /** Set when another tab (Optimize) asks to open a strategy here. */
+  requestedStrategy: { strategyId: number } | null;
 }
 
 /**
@@ -40,8 +42,15 @@ export function BacktestPanel({
   symbols,
   defaultTicker,
   definitionsByKind,
+  requestedStrategy,
 }: BacktestPanelProps) {
-  const form = useBacktestForm({ strategies, initialStrategyId, symbols, defaultTicker });
+  const form = useBacktestForm({
+    strategies,
+    initialStrategyId,
+    symbols,
+    defaultTicker,
+    requestedStrategy,
+  });
   // Reload past runs when the strategy definition is saved too, so the
   // "older rules" flags on them stay accurate.
   const strategyUpdatedAt =

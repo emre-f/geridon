@@ -25,12 +25,16 @@ export function RuleEditor({
   onRemove: () => void;
 }) {
   const hidden = rule.enabled === false;
+  const awaitingIndicator = [rule.left, rule.right].some(
+    (operand) => operand.type === "indicator" && !operand.kind,
+  );
 
   return (
     <div
       className={cn(
         "border-border bg-background flex flex-wrap items-end gap-x-3 gap-y-2 rounded-md border p-2.5",
         hidden && "border-dashed",
+        awaitingIndicator && "bg-muted/20 border-dashed",
       )}
     >
       <div
@@ -49,6 +53,8 @@ export function RuleEditor({
           <Select
             value={rule.operator}
             aria-label="Comparison operator"
+            disabled={awaitingIndicator}
+            title={awaitingIndicator ? "Select an indicator to configure this condition" : undefined}
             className="w-36"
             onChange={(event) =>
               onChange({ ...rule, operator: event.target.value as ComparisonOperator })

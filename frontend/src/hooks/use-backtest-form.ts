@@ -1,4 +1,4 @@
-import { useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 
 import type { BacktestPositionMode, StrategyRecord, SymbolSummary } from "@/lib/api";
 import { toDateInputValue } from "@/lib/backtest-utils";
@@ -48,6 +48,8 @@ interface BacktestFormOptions {
   initialStrategyId: number | null;
   symbols: SymbolSummary[];
   defaultTicker: string;
+  /** External request (e.g. Optimize's "Open in Backtest") to select a strategy. */
+  requestedStrategy?: { strategyId: number } | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export function useBacktestForm({
   initialStrategyId,
   symbols,
   defaultTicker,
+  requestedStrategy,
 }: BacktestFormOptions) {
   const [form, dispatch] = useReducer(backtestFormReducer, {
     strategyId: initialStrategyId,
@@ -72,6 +75,12 @@ export function useBacktestForm({
     initialCapital: 10_000,
     dates: null,
   });
+
+  useEffect(() => {
+    if (requestedStrategy) {
+      dispatch({ type: "fieldChanged", patch: { strategyId: requestedStrategy.strategyId } });
+    }
+  }, [requestedStrategy]);
 
   const strategyId =
     strategies.length === 0

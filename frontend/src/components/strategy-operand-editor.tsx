@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type {
   IndicatorDefinition,
   PriceField,
@@ -6,8 +8,11 @@ import type {
 import {
   defaultIndicatorOperand,
   priceFieldOptions,
+  unselectedIndicatorOperand,
 } from "@/lib/strategy";
+import { IndicatorPicker } from "@/components/indicator-picker";
 import { OutputHelp } from "@/components/strategy-output-help";
+import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
@@ -23,6 +28,7 @@ export function OperandEditor({
   catalog: IndicatorDefinition[];
   onChange: (operand: StrategyOperand) => void;
 }) {
+  const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const definition =
     operand.type === "indicator"
       ? catalog.find((entry) => entry.kind === operand.kind)
@@ -32,8 +38,8 @@ export function OperandEditor({
     if (type === operand.type) {
       return;
     }
-    if (type === "indicator" && catalog.length > 0) {
-      onChange(defaultIndicatorOperand(catalog[0]));
+    if (type === "indicator") {
+      onChange(unselectedIndicatorOperand());
     } else if (type === "price") {
       onChange({ type: "price", field: "close" });
     } else if (type === "value") {
@@ -59,23 +65,20 @@ export function OperandEditor({
       {operand.type === "indicator" ? (
         <>
           <Field label="Indicator">
-            <Select
-              value={operand.kind}
-              aria-label={`${label} indicator`}
-              className="w-28"
-              onChange={(event) => {
-                const nextDefinition = catalog.find((entry) => entry.kind === event.target.value);
-                if (nextDefinition) {
-                  onChange(defaultIndicatorOperand(nextDefinition));
-                }
-              }}
+            <Button
+              type="button"
+              variant="outline"
+              aria-label={
+                definition
+                  ? `${label} indicator, current ${definition.full_name}`
+                  : `${label} add indicator`
+              }
+              title={definition ? `Select indicator (current: ${definition.full_name})` : undefined}
+              className="border-input bg-background h-9 w-24 justify-start rounded-md border px-3 text-sm font-normal shadow-xs hover:bg-accent focus-visible:border-border focus-visible:shadow-[var(--input-focus-shadow)]"
+              onClick={() => setIndicatorPickerOpen(true)}
             >
-              {catalog.map((entry) => (
-                <option key={entry.kind} value={entry.kind}>
-                  {entry.label}
-                </option>
-              ))}
-            </Select>
+              <span className="truncate">{definition?.label ?? "Add indicator"}</span>
+            </Button>
           </Field>
           {definition && definition.values.length > 1 ? (
             <Field label="Output" labelExtra={<OutputHelp values={definition.values} />}>
@@ -142,6 +145,13 @@ export function OperandEditor({
           />
         </Field>
       ) : null}
+
+      <IndicatorPicker
+        open={indicatorPickerOpen}
+        catalog={catalog}
+        onAdd={(nextDefinition) => onChange(defaultIndicatorOperand(nextDefinition))}
+        onClose={() => setIndicatorPickerOpen(false)}
+      />
     </div>
   );
 }

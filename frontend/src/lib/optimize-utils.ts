@@ -1,4 +1,9 @@
-import type { OptimizationExperimentListItem, OptimizationExperimentStatus, OptimizationMethod } from "@/lib/api";
+import type {
+  OptimizationExperimentListItem,
+  OptimizationExperimentStatus,
+  OptimizationMethod,
+  OptimizationTrialRecord,
+} from "@/lib/api";
 
 export const statusLabels: Record<OptimizationExperimentStatus, string> = {
   queued: "Queued",
@@ -49,6 +54,36 @@ const ranAtFormat = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
 });
+
+interface TrialBadge {
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
+  title?: string;
+}
+
+export function trialStatusBadge(trial: OptimizationTrialRecord): TrialBadge {
+  if (trial.status === "rejected") {
+    return { label: "Rejected", variant: "secondary", title: trial.rejection_reason ?? undefined };
+  }
+  if (trial.status === "pruned") {
+    return {
+      label: "Pruned",
+      variant: "secondary",
+      title: `Dropped by successive halving after stage ${trial.stage_reached}`,
+    };
+  }
+  if (trial.status === "pending") {
+    return { label: "Pending", variant: "secondary" };
+  }
+  if (trial.score?.eligible) {
+    return { label: "Eligible", variant: "outline" };
+  }
+  return {
+    label: "Ineligible",
+    variant: "secondary",
+    title: trial.score?.ineligibilityReasons.join("; "),
+  };
+}
 
 export function formatExperimentCreatedAt(createdAt: string) {
   const ms = Date.parse(createdAt.includes("Z") ? createdAt : `${createdAt}Z`);

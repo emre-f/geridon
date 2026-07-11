@@ -249,6 +249,12 @@ For an optimization experiment, the data roles should be:
   (implemented exactly this shape as `scoringVersion = "1"` in `scoring.ts`; weights are still the
   initial guesses, not fixture-tuned)
 
+- [ ] Calibrate the scoring penalty weights on deterministic fixtures. The instability penalty
+      (`0.5 × IQR of fold objectives`) especially can push every candidate negative when folds span
+      different regimes, and the drawdown weight (0.02/pct) costs 0.6 for a 30% drawdown — verify on
+      fixtures with known good/bad strategies that good ones stay positive. Bump `scoringVersion`
+      when weights change so old experiments remain interpretable.
+
 - [x] Apply hard eligibility constraints before ranking, for example minimum trades, maximum drawdown,
       positive results in a minimum fraction of folds, and complete data coverage. (first three done;
       data coverage is not checked)
@@ -330,6 +336,9 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
 - [ ] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
       evaluation with an audit timestamp.
+- [ ] `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — on-demand recompute of a
+      candidate's (and the baseline's) per-fold validation equity curves from the immutable snapshot;
+      persists nothing. (serves the Section 7.1 equity chart)
 - [x] `POST /api/v1/optimization-experiments/:id/trials/:trialId/strategies` — clone a candidate into the
       normal Strategies collection; never overwrite the source strategy.
 - [x] Decide between short polling and server-sent events for progress. Start with polling unless profiling
@@ -356,20 +365,79 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [ ] Visualize the search-space size/risk before starting, including which choices multiply the space.
 - [ ] Build an experiment progress view with status, elapsed time, completed/promoted/rejected trial counts,
       current stage, remaining budget, stop/resume controls, and baseline score.
-- [ ] Build a leaderboard showing robust validation score, return, drawdown, trade count, turnover,
-      complexity, worst fold, and improvement over baseline.
+- [x] Build a leaderboard showing robust validation score, return, drawdown, trade count, turnover,
+      complexity, worst fold, and improvement over baseline. (first shipped as an expand-a-row
+      dropdown in the history list; Section 7.1 replaces that with the experiment result card)
 - [ ] Add filters for eligible/ineligible/promoted candidates and a Pareto view when supported.
-- [ ] Build a candidate detail view:
-  - readable diff from the baseline strategy;
-  - per-fold and per-symbol metrics;
-  - parameter-sensitivity/neighborhood view;
-  - rule inclusion/ablation results;
-  - equity/drawdown charts only for retained or recomputed candidates;
-  - prominent separation of training, validation, and sealed-holdout results.
-- [ ] Add **Save as strategy** and **Open in Backtest** actions. Saving always creates a named copy with
-      experiment/trial provenance.
+      (eligible/ineligible/promoted leaderboard filters are done; the Pareto view is not)
+- [x] Add **Save as strategy** and **Open in Backtest** actions. Saving always creates a named copy with
+      experiment/trial provenance. (both live on each leaderboard row; Open in Backtest saves the
+      candidate first, then switches tabs with it preselected in the run form)
 - [ ] Make warnings visible when the sample is small, costs are zero, too few trades occurred, results are
       unstable, or the sealed holdout has already been inspected.
+
+### 7.1 Experiment result view — selection + charts (replaces the expand-row dropdown)
+
+Design intent (informational, not a data dump):
+
+- Selecting an experiment row shows a result card **below** the Strategy Lab card, exactly like
+  opening a run in Backtest — no chevron/dropdown toggle.
+- Progressive disclosure: stat tiles first, then charts, then the leaderboard table, then a
+  candidate detail section for one selected trial. Every chart answers one question; never render
+  raw JSON.
+- Almost all data already exists: each trial row carries the score with its penalty breakdown,
+  sampled values, complexity, and metrics; the experiment summary carries baseline and buy-&-hold
+  fold results, ablation entries, Pareto fronts, and the compiled search space. `max_trials` is
+  capped at 500 and the trials endpoint accepts `limit=500`, so one request fetches every trial
+  for charting. Only the equity chart needs new backend work.
+- Sealed-holdout presentation stays with Milestone 5's holdout workflow; this view is about
+  search + validation evidence.
+
+Tasks, in order:
+
+- [x] Replace the expand-row leaderboard with row selection: clicking a finished/cancelled/interrupted
+      experiment row selects it (highlight the row), render an `OptimizeExperimentResultCard` below
+      the Strategy Lab card, and let a close button deselect. Keep the selection across tab switches
+      like Backtest's active run. Move `OptimizeTrialsLeaderboard` into the card unchanged for now.
+      (selection lives in `use-optimize-experiments` and clears on delete or resume; verified in the
+      browser — select, close, and tab-switch persistence all work)
+- [x] Add a `use-optimize-experiment-detail` hook: load the experiment record plus all trials in one
+      `limit=500` request, derive chart series (trial-index order) and leaderboard order (rank) from
+      the same response, and track the selected trial. Unit-test the pure derivation helpers.
+      (derivations live in `lib/optimize-detail-utils.ts` with node:test coverage via `npm test`;
+      the hook replaced `use-optimize-trials`, the leaderboard consumes it and filters client-side)
+- [ ] Build the result-card header and stat tiles: strategy / ticker / timeframe / date range /
+      method / seed summary, plus tiles for baseline score, best score, Δ vs baseline, buy & hold
+      median objective, scored/pruned/rejected counts, and elapsed time. Use the dataviz skill for
+      the tiles and every chart below.
+- [ ] **Optimization trace chart** — “what did we try and did it improve”: score vs trial index for
+      every scored trial (colored eligible vs not, pruned marked), a best-so-far step line, and a
+      horizontal baseline-score reference line. Tooltip shows the trial's sampled values.
+- [ ] **Score decomposition chart** — “why is the score small or negative”: for the baseline and the
+      top ~8 eligible trials, show the median objective with the drawdown / instability / turnover /
+      complexity penalties subtracted from it, so the net score is legible at a glance.
+- [ ] **Fold robustness chart** — “does it survive regimes”: per-fold objective for the selected
+      trial vs baseline vs buy & hold, grouped per fold (and per symbol when several). Render the
+      baseline alone while no trial is selected.
+- [ ] Trial selection + candidate detail section: clicking a leaderboard row selects the trial and
+      shows a readable diff vs the baseline (changed parameters from `values` + the search-space
+      nodes, toggled rules), its penalty breakdown, ineligibility reasons when present, and the
+      existing save/backtest actions.
+- [ ] **Parameter sensitivity small multiples** — “robust region or lucky spike”: for each numeric
+      search node, a scatter of score vs sampled value across all scored trials, with the baseline's
+      current value marked. (This pulls the cheap part of Milestone 5's sensitivity work forward;
+      the fuller neighborhood/stability tooling stays in Milestone 5.)
+- [ ] **Ablation chart**: horizontal bars of score delta per disabled rule from `summary.ablation`,
+      including skipped entries with their reason — this data is computed today and shown nowhere.
+- [ ] Backend: `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — recompute the
+      candidate and baseline from the immutable snapshot on demand and return per-fold validation
+      equity curves without persisting anything. Add API tests (unknown/rejected trial, determinism
+      across two calls).
+- [ ] **Equity chart** in the candidate detail section: candidate vs baseline validation equity from
+      the endpoint above, clearly labelled as validation-fold performance, loaded lazily on trial
+      selection.
+- [ ] Finish: frontend tests for selection behavior and chart-data derivation, then run react-doctor
+      over the new components.
 
 ## 8. Testing and reproducibility
 
@@ -400,10 +468,13 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] **Milestone 3 — Useful optimizer MVP:** Mode A seeded random search, rule toggles for Mode B,
       constraints, successive halving, caching, and baseline comparisons.
 - [ ] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
-      save-as-strategy, and open-in-backtest. (setup/history/progress with cancel/resume/delete is done;
-      leaderboard, candidate detail, save-as-strategy, and open-in-backtest are still open)
+      save-as-strategy, and open-in-backtest. (setup/history/progress with cancel/resume/delete, the
+      leaderboard with filters, save-as-strategy, and open-in-backtest are done; the Section 7.1
+      experiment result view — selection instead of the dropdown, charts, candidate detail with the
+      on-demand equity endpoint — and the guided setup wizard are still open)
 - [ ] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
-      explicit sealed-holdout workflow.
+      explicit sealed-holdout workflow. (the score-vs-parameter scatter and the ablation chart ship
+      early with Section 7.1; the deeper neighborhood/stability tooling stays here)
 - [ ] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
       Mode C.
 - [ ] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL
@@ -424,7 +495,8 @@ The frontend must be a client of the same API; no optimization logic should exis
       configures them; the Optimize tab should warn on zero-cost experiments per Section 7)
 - [ ] The UI clearly distinguishes training/validation from the one-time sealed holdout.
 - [ ] The user can understand the diff and evidence, save a candidate as a new normal strategy, and backtest
-      it without mutating the baseline.
+      it without mutating the baseline. (saving a candidate and opening it in Backtest work from the
+      leaderboard without touching the baseline; the diff/evidence detail view does not exist yet)
 - [ ] Under an equal evaluation budget, every smarter search method is reported against seeded random
       search; no method is called better based on one strategy or ticker. (a TPE-vs-random equal-budget
       fixture test exists; broader multi-strategy/multi-ticker benchmarks do not)

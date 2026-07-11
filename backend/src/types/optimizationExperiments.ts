@@ -121,6 +121,16 @@ export interface OptimizationExperimentListItem {
   updated_at: string;
 }
 
+export interface OptimizationTrialMetrics {
+  median_return_pct: number;
+  worst_fold_return_pct: number;
+  median_drawdown_pct: number;
+  worst_drawdown_pct: number;
+  total_trades: number;
+  median_turnover_ratio: number | null;
+  fold_count: number;
+}
+
 export interface OptimizationTrialRecord {
   experiment_id: number;
   trial_index: number;
@@ -134,6 +144,7 @@ export interface OptimizationTrialRecord {
   score: TrialScore | null;
   values: TrialValues;
   complexity: StrategyComplexity;
+  metrics: OptimizationTrialMetrics | null;
 }
 
 export interface OptimizationTrialDetail extends OptimizationTrialRecord {

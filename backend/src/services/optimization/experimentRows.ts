@@ -1,11 +1,14 @@
 import type {
+  FoldEvaluation,
   OptimizationExperimentConfig,
   OptimizationExperimentListItem,
   OptimizationExperimentRecord,
   OptimizationExperimentSnapshot,
   OptimizationExperimentStatus,
+  OptimizationTrialMetrics,
   OptimizationTrialRecord,
 } from "../../types.ts";
+import { median } from "./scoring.ts";
 
 export type Row = Record<string, unknown>;
 
@@ -41,6 +44,26 @@ export function experimentListItem(row: Row): OptimizationExperimentListItem {
   };
 }
 
+export function trialMetrics(foldResults: FoldEvaluation[]): OptimizationTrialMetrics | null {
+  if (foldResults.length === 0) {
+    return null;
+  }
+  const returns = foldResults.map((fold) => fold.total_return_pct);
+  const drawdowns = foldResults.map((fold) => Math.abs(fold.max_drawdown_pct));
+  const turnovers = foldResults
+    .map((fold) => fold.turnover_ratio)
+    .filter((value): value is number => value != null);
+  return {
+    median_return_pct: median(returns),
+    worst_fold_return_pct: Math.min(...returns),
+    median_drawdown_pct: median(drawdowns),
+    worst_drawdown_pct: Math.max(...drawdowns),
+    total_trades: foldResults.reduce((sum, fold) => sum + fold.trade_count, 0),
+    median_turnover_ratio: turnovers.length > 0 ? median(turnovers) : null,
+    fold_count: foldResults.length,
+  };
+}
+
 export function trialRecord(row: Row): OptimizationTrialRecord {
   return {
     experiment_id: Number(row.experiment_id),
@@ -55,5 +78,7 @@ export function trialRecord(row: Row): OptimizationTrialRecord {
     score: row.score_detail == null ? null : JSON.parse(String(row.score_detail)),
     values: JSON.parse(String(row.trial_values)),
     complexity: JSON.parse(String(row.complexity)),
+    metrics:
+      row.fold_results == null ? null : trialMetrics(JSON.parse(String(row.fold_results))),
   };
 }

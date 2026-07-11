@@ -10,6 +10,7 @@ import {
   type OptimizationExperimentListItem,
   type OptimizationExperimentRecord,
 } from "@/lib/api";
+import { canCancel } from "@/lib/optimize-utils";
 
 const pollIntervalMs = 3000;
 const pageSize = 20;
@@ -21,6 +22,8 @@ interface OptimizeExperimentsState {
   loading: boolean;
   creating: boolean;
   actioningId: number | null;
+  /** Experiment whose result card is open below the list. */
+  selectedId: number | null;
   error: string | null;
 }
 
@@ -33,6 +36,7 @@ type OptimizeExperimentsAction =
   | { type: "actioning"; id: number | null }
   | { type: "updated"; experiment: OptimizationExperimentListItem }
   | { type: "deleted"; id: number }
+  | { type: "selected"; id: number | null }
   | { type: "errorSet"; message: string | null };
 
 function toListItem(record: OptimizationExperimentRecord): OptimizationExperimentListItem {
@@ -78,13 +82,21 @@ function reducer(
         experiments: state.experiments.map((experiment) =>
           experiment.id === action.experiment.id ? action.experiment : experiment,
         ),
+        // A resumed experiment is active again and has no results to show.
+        selectedId:
+          action.experiment.id === state.selectedId && canCancel(action.experiment.status)
+            ? null
+            : state.selectedId,
       };
     case "deleted":
       return {
         ...state,
         experiments: state.experiments.filter((experiment) => experiment.id !== action.id),
         total: Math.max(0, state.total - 1),
+        selectedId: state.selectedId === action.id ? null : state.selectedId,
       };
+    case "selected":
+      return { ...state, selectedId: action.id };
     case "errorSet":
       return { ...state, error: action.message };
   }
@@ -102,6 +114,7 @@ export function useOptimizeExperiments() {
     loading: false,
     creating: false,
     actioningId: null,
+    selectedId: null,
     error: null,
   });
 
@@ -184,12 +197,20 @@ export function useOptimizeExperiments() {
     }
   }
 
+  function handleSelect(experiment: OptimizationExperimentListItem) {
+    dispatch({ type: "selected", id: state.selectedId === experiment.id ? null : experiment.id });
+  }
+
   return {
     ...state,
+    selectedExperiment:
+      state.experiments.find((experiment) => experiment.id === state.selectedId) ?? null,
     refresh,
     handleCreate,
     handleCancel,
     handleResume,
     handleDelete,
+    handleSelect,
+    closeSelected: () => dispatch({ type: "selected", id: null }),
   };
 }
