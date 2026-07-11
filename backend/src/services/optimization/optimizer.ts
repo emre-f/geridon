@@ -22,6 +22,7 @@ import {
 import type {
   FoldSpec,
   OptimizationConfig,
+  OptimizationControl,
   OptimizationResult,
   OptimizationTrial,
   SearchSpaceNode,
@@ -47,7 +48,7 @@ interface SearchContext {
   factory: TrialFactory;
   evaluation: FullEvaluationContext;
   random: SeededRandom;
-  deadlineMs?: number;
+  stopRequested: () => boolean;
 }
 
 function runRandomSearch(context: SearchContext): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
@@ -71,7 +72,8 @@ function runRandomSearch(context: SearchContext): { trials: OptimizationTrial[];
     settings: context.evaluation.settings,
     scoring: context.evaluation.scoring,
     halving: resolveHalvingConfig(config.halving),
-    deadlineMs: context.deadlineMs,
+    stopRequested: context.stopRequested,
+    onEvaluation: context.evaluation.onEvaluation,
   });
   return { trials, stoppedEarly };
 }
@@ -83,7 +85,7 @@ function runRefinement(context: SearchContext, trials: OptimizationTrial[], scor
   }
   const refined = refineSearchSpace(context.nodes, scoredSorted.slice(0, refinement.topCount));
   for (let i = 0; i < refinement.trials; i += 1) {
-    if (context.deadlineMs != null && Date.now() > context.deadlineMs) {
+    if (context.stopRequested()) {
       return true;
     }
     const values = { ...refined.frozenValues, ...sampleValues(refined.nodes, context.random) };
@@ -101,7 +103,10 @@ function runRefinement(context: SearchContext, trials: OptimizationTrial[], scor
   return false;
 }
 
-export function runOptimization(config: OptimizationConfig): OptimizationResult {
+export function runOptimization(
+  config: OptimizationConfig,
+  control?: OptimizationControl,
+): OptimizationResult {
   validateConfig(config);
   const method = config.method ?? "random";
   const scoring = resolveScoringConfig(config.scoring);
@@ -113,6 +118,13 @@ export function runOptimization(config: OptimizationConfig): OptimizationResult 
     objective: scoring.objective,
   };
   const deadlineMs = config.maxRuntimeMs != null ? Date.now() + config.maxRuntimeMs : undefined;
+  const stopRequested = () =>
+    (deadlineMs != null && Date.now() > deadlineMs) || (control?.shouldStop?.() ?? false);
+  let evaluatedCount = 0;
+  const onEvaluation = () => {
+    evaluatedCount += 1;
+    control?.onEvaluation?.(evaluatedCount);
+  };
 
   const foldsBySymbol = new Map<string, FoldSpec[]>();
   for (const dataset of config.datasets) {
@@ -146,9 +158,10 @@ export function runOptimization(config: OptimizationConfig): OptimizationResult 
       settings,
       scoring,
       finalStage: halving.stageFoldFractions.length - 1,
+      onEvaluation,
     },
     random: new SeededRandom(config.seed),
-    deadlineMs,
+    stopRequested,
   };
 
   let searchOutcome: { trials: OptimizationTrial[]; stoppedEarly: boolean };

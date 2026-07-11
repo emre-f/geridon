@@ -31,7 +31,8 @@ export interface HalvingContext {
   settings: EvaluationSettings;
   scoring: ScoringConfig;
   halving: SuccessiveHalvingConfig;
-  deadlineMs?: number;
+  stopRequested?: () => boolean;
+  onEvaluation?: () => void;
 }
 
 function evaluateTrialOnSubset(
@@ -71,7 +72,7 @@ export function runSuccessiveHalving(
     }
 
     for (const trial of survivors) {
-      if (context.deadlineMs != null && Date.now() > context.deadlineMs) {
+      if (context.stopRequested?.()) {
         if (trial.score == null) {
           trial.status = "pruned";
           trial.rejectionReason = "runtime budget exhausted";
@@ -82,6 +83,7 @@ export function runSuccessiveHalving(
       trial.stageReached = stage;
       trial.foldResults = evaluateTrialOnSubset(trial, context, stageFolds, cache);
       trial.score = scoreTrial(trial.foldResults, trial.complexity, context.scoring);
+      context.onEvaluation?.();
     }
 
     survivors = survivors.filter((trial) => trial.status !== "pruned");

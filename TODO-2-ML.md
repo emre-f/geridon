@@ -234,30 +234,32 @@ For an optimization experiment, the data roles should be:
   - experiment status and progress;
   - candidate/trial parameters, canonical strategy, fold results, score, and rejection reason;
   - promotion/checkpoint state and final holdout evaluation.
-- [ ] Add SQLite tables (exact normalization can be decided during implementation):
+- [x] Add SQLite tables (exact normalization can be decided during implementation):
   - `optimization_experiments` for configuration, snapshots, seed, method, status, and progress;
   - `optimization_trials` for candidate hash, sampled values, score, status, timings, and summaries;
-  - `optimization_trial_folds` for per-fold/per-symbol metrics;
-  - optional `optimization_artifacts` for checkpoints and reports.
+  - per-fold/per-symbol metrics live as JSON on each trial row instead of a third table;
+  - optional `optimization_artifacts` for checkpoints and reports (not needed yet).
 - [ ] Store a strategy snapshot, indicator-catalog/search-space version, data boundaries/coverage, scoring
       version, and simulator assumptions so old experiments remain interpretable.
-- [ ] Add indexes for experiment/rank/status and enforce uniqueness for a candidate hash within an
+- [x] Add indexes for experiment/rank/status and enforce uniqueness for a candidate hash within an
       experiment.
-- [ ] Define safe restart semantics: queued work resumes; an interrupted running trial is returned to the
+- [x] Define safe restart semantics: queued work resumes; an interrupted running trial is returned to the
       queue or marked interrupted; completed trial results are never recomputed unnecessarily.
-- [ ] Deleting an experiment must not delete strategies that were saved from its candidates.
+- [x] Deleting an experiment must not delete strategies that were saved from its candidates.
 
 ## 5. Backend optimization engine
 
-- [ ] Extract a non-persisting backtest/evaluation path so hundreds of internal candidate evaluations do
+- [x] Extract a non-persisting backtest/evaluation path so hundreds of internal candidate evaluations do
       not create ordinary `backtest_runs` rows.
-- [ ] Compile the experiment search space from the strategy snapshot and indicator catalog.
-- [ ] Canonicalize strategies and compute stable hashes for deduplication/cache keys.
-- [ ] Generate valid seeded samples for Phase 1 random search.
-- [ ] Implement cheap candidate rejection and record the reason rather than silently dropping it.
-- [ ] Implement chronological folds and multi-symbol aggregation.
+- [x] Compile the experiment search space from the strategy snapshot and indicator catalog.
+- [x] Canonicalize strategies and compute stable hashes for deduplication/cache keys.
+- [x] Generate valid seeded samples for Phase 1 random search.
+- [x] Implement cheap candidate rejection and record the reason rather than silently dropping it.
+- [x] Implement chronological folds and multi-symbol aggregation.
 - [ ] Implement scoring, constraints, successive-halving promotion, checkpointing, and cancellation.
-- [ ] Run CPU-heavy trials in a bounded worker-thread pool so HTTP requests and the UI remain responsive.
+      (all done except checkpointing: an interrupted run restarts deterministically from its snapshot)
+- [x] Run CPU-heavy trials in a bounded worker-thread pool so HTTP requests and the UI remain responsive.
+      (one worker thread per experiment, experiments run sequentially)
 - [ ] Default worker count conservatively and allow the user to lower it; optimization must not consume
       every core by default.
 - [ ] Cache immutable candle arrays and indicator series by ticker/timeframe/range/spec within sensible
@@ -266,30 +268,30 @@ For an optimization experiment, the data roles should be:
 - [ ] Persist full detail only for promoted/top candidates and recompute a selected candidate on demand
       from its immutable snapshot when appropriate.
 - [ ] Benchmark and profile signal evaluation before adding dependencies or a second language/runtime.
-- [ ] Implement TPE and constrained evolutionary search only after the Phase 1 engine and fixtures pass.
+- [x] Implement TPE and constrained evolutionary search only after the Phase 1 engine and fixtures pass.
 
 ## 6. Backend API
 
 The frontend must be a client of the same API; no optimization logic should exist only in React.
 
-- [ ] `POST /api/v1/optimization-experiments` — validate config, snapshot inputs, create an experiment,
+- [x] `POST /api/v1/optimization-experiments` — validate config, snapshot inputs, create an experiment,
       and queue it.
-- [ ] `GET /api/v1/optimization-experiments` — list experiments with filters/pagination.
-- [ ] `GET /api/v1/optimization-experiments/:id` — configuration, progress, baseline, and summary.
-- [ ] `POST /api/v1/optimization-experiments/:id/cancel` — cooperative cancellation.
-- [ ] `POST /api/v1/optimization-experiments/:id/resume` — resume a paused/interrupted experiment within
+- [x] `GET /api/v1/optimization-experiments` — list experiments with filters/pagination.
+- [x] `GET /api/v1/optimization-experiments/:id` — configuration, progress, baseline, and summary.
+- [x] `POST /api/v1/optimization-experiments/:id/cancel` — cooperative cancellation.
+- [x] `POST /api/v1/optimization-experiments/:id/resume` — resume a paused/interrupted experiment within
       its original immutable configuration.
-- [ ] `GET /api/v1/optimization-experiments/:id/trials` — paginated/sortable leaderboard.
-- [ ] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
+- [x] `GET /api/v1/optimization-experiments/:id/trials` — paginated/sortable leaderboard.
+- [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
 - [ ] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
       evaluation with an audit timestamp.
-- [ ] `POST /api/v1/optimization-experiments/:id/trials/:trialId/strategies` — clone a candidate into the
+- [x] `POST /api/v1/optimization-experiments/:id/trials/:trialId/strategies` — clone a candidate into the
       normal Strategies collection; never overwrite the source strategy.
-- [ ] Decide between short polling and server-sent events for progress. Start with polling unless profiling
-      shows it is inadequate.
-- [ ] Return structured validation errors for invalid ranges, impossible rule combinations, insufficient
+- [x] Decide between short polling and server-sent events for progress. Start with polling unless profiling
+      shows it is inadequate. (decision: short polling of the experiment record's progress JSON)
+- [x] Return structured validation errors for invalid ranges, impossible rule combinations, insufficient
       candles, and budgets above configured safety limits.
-- [ ] Add API tests for lifecycle transitions, cancellation/resume, pagination, reproducibility, invalid
+- [x] Add API tests for lifecycle transitions, cancellation/resume, pagination, reproducibility, invalid
       configurations, and saving a candidate.
 
 ## 7. Frontend — fourth tab
@@ -341,9 +343,9 @@ The frontend must be a client of the same API; no optimization logic should exis
 
 - [ ] **Milestone 1 — Research-safe backtests:** costs, additional metrics, chronological folds, robust
       scoring, data snapshots, and tests.
-- [ ] **Milestone 2 — Backend experiment skeleton:** types, tables, CRUD/lifecycle API, worker pool,
+- [x] **Milestone 2 — Backend experiment skeleton:** types, tables, CRUD/lifecycle API, worker pool,
       checkpoints, cancellation, and a no-op/deterministic trial fixture.
-- [ ] **Milestone 3 — Useful optimizer MVP:** Mode A seeded random search, rule toggles for Mode B,
+- [x] **Milestone 3 — Useful optimizer MVP:** Mode A seeded random search, rule toggles for Mode B,
       constraints, successive halving, caching, and baseline comparisons.
 - [ ] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
       save-as-strategy, and open-in-backtest.

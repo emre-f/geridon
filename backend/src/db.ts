@@ -106,6 +106,50 @@ export function createDb(db: Database): void {
 
     CREATE INDEX IF NOT EXISTS ix_backtest_runs_strategy
       ON backtest_runs (strategy_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS optimization_experiments (
+      id INTEGER PRIMARY KEY,
+      strategy_id INTEGER REFERENCES strategies(id) ON DELETE SET NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'queued',
+      config TEXT NOT NULL,
+      snapshot TEXT NOT NULL,
+      progress TEXT,
+      summary TEXT,
+      error TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_optimization_experiments_status
+      ON optimization_experiments (status, created_at);
+
+    CREATE TABLE IF NOT EXISTS optimization_trials (
+      id INTEGER PRIMARY KEY,
+      experiment_id INTEGER NOT NULL
+        REFERENCES optimization_experiments(id) ON DELETE CASCADE,
+      trial_index INTEGER NOT NULL,
+      hash VARCHAR(64) NOT NULL,
+      phase VARCHAR(8) NOT NULL,
+      status VARCHAR(16) NOT NULL,
+      rejection_reason TEXT,
+      stage_reached INTEGER NOT NULL,
+      leaderboard_rank INTEGER,
+      eligible INTEGER,
+      score FLOAT,
+      score_detail TEXT,
+      trial_values TEXT NOT NULL,
+      strategy TEXT,
+      complexity TEXT NOT NULL,
+      fold_results TEXT,
+      CONSTRAINT uq_optimization_trial UNIQUE (experiment_id, trial_index)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_optimization_trials_hash
+      ON optimization_trials (experiment_id, hash) WHERE status != 'rejected';
+    CREATE INDEX IF NOT EXISTS ix_optimization_trials_rank
+      ON optimization_trials (experiment_id, leaderboard_rank);
+    CREATE INDEX IF NOT EXISTS ix_optimization_trials_status
+      ON optimization_trials (experiment_id, status);
   `);
 
   // Databases created before a column existed need it added in place.

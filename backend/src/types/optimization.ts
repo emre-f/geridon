@@ -172,6 +172,11 @@ export interface OptimizationConfig {
   evolution?: Partial<EvolutionSearchConfig>;
 }
 
+export interface OptimizationControl {
+  shouldStop?: () => boolean;
+  onEvaluation?: (evaluatedCount: number) => void;
+}
+
 export interface AblationEntry {
   ruleId: string;
   summary: string;

@@ -54,7 +54,7 @@ export interface EvolutionSearchContext {
   config: EvolutionSearchConfig;
   random: SeededRandom;
   maxTrials: number;
-  deadlineMs?: number;
+  stopRequested?: () => boolean;
 }
 
 export function runEvolutionSearch(
@@ -71,7 +71,7 @@ export function runEvolutionSearch(
   let stoppedEarly = false;
 
   while (evaluated < maxTrials && attempts < maxTrials * 10) {
-    if (context.deadlineMs != null && Date.now() > context.deadlineMs) {
+    if (context.stopRequested?.()) {
       stoppedEarly = true;
       break;
     }

@@ -166,7 +166,7 @@ export interface TpeSearchContext {
   config: TpeConfig;
   random: SeededRandom;
   maxTrials: number;
-  deadlineMs?: number;
+  stopRequested?: () => boolean;
 }
 
 export function runTpeSearch(
@@ -179,7 +179,7 @@ export function runTpeSearch(
   let stoppedEarly = false;
 
   while (evaluated < context.maxTrials && attempts < context.maxTrials * 5) {
-    if (context.deadlineMs != null && Date.now() > context.deadlineMs) {
+    if (context.stopRequested?.()) {
       stoppedEarly = true;
       break;
     }

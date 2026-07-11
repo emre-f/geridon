@@ -18,7 +18,10 @@ import {
   handleListChartStates,
   handlePutChartState,
 } from "./api/chartStates.ts";
+import { loadExperimentDatasets } from "./api/optimizationRequests.ts";
+import { routeOptimizationExperiments } from "./api/optimizationRouter.ts";
 import type { ApiResult } from "./api/shared.ts";
+import { ExperimentRunner } from "./services/optimization/experimentRunner.ts";
 import {
   handleCreateStrategy,
   handleDeleteStrategy,
@@ -39,6 +42,8 @@ import type { SyncCandlesRequest } from "./types.ts";
 const settings = getSettings();
 const db = openDatabase(settings.databaseUrl);
 createDb(db);
+const experimentRunner = new ExperimentRunner(db, (config) => loadExperimentDatasets(db, config));
+experimentRunner.recoverOnBoot();
 
 function sendResult(response: ServerResponse, result: ApiResult) {
   sendJson(response, result.statusCode, result.body);
@@ -193,6 +198,17 @@ const server = createServer(async (request, response) => {
     const indicatorMatch = url.pathname.match(/^\/api\/v1\/indicators\/([^/]+)$/);
     if (request.method === "GET" && indicatorMatch) {
       sendResult(response, handleListIndicators(db, indicatorMatch[1], url.searchParams));
+      return;
+    }
+
+    const optimizationResult = await routeOptimizationExperiments(
+      db,
+      experimentRunner,
+      request,
+      url,
+    );
+    if (optimizationResult) {
+      sendResult(response, optimizationResult);
       return;
     }
 
