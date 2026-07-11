@@ -70,7 +70,7 @@ export function runEvolutionSearch(
   let attempts = 0;
   let stoppedEarly = false;
 
-  while (evaluated < maxTrials && attempts < maxTrials * 10) {
+  while (attempts < maxTrials) {
     if (context.stopRequested?.()) {
       stoppedEarly = true;
       break;
@@ -92,6 +92,7 @@ export function runEvolutionSearch(
     );
     trials.push(trial);
     if (trial.status === "rejected") {
+      evaluation.onTrialComplete?.(trial);
       continue;
     }
 

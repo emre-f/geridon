@@ -12,11 +12,11 @@ let lastProgressAtMs = 0;
 
 const result = runOptimization(config, {
   shouldStop: () => Atomics.load(cancelFlag, 0) === 1,
-  onEvaluation: (evaluatedCount) => {
+  onTrialComplete: (completedCount) => {
     const now = Date.now();
     if (now - lastProgressAtMs >= 200) {
       lastProgressAtMs = now;
-      parentPort?.postMessage({ type: "progress", evaluated: evaluatedCount });
+      parentPort?.postMessage({ type: "progress", evaluated: completedCount });
     }
   },
 });

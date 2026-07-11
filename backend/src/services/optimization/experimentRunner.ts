@@ -191,6 +191,7 @@ export class ExperimentRunner {
           status,
           message.result,
           Date.now() - active.startedAtMs,
+          record.config.max_trials,
         );
         this.finish(active);
       }

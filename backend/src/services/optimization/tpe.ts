@@ -178,7 +178,7 @@ export function runTpeSearch(
   let attempts = 0;
   let stoppedEarly = false;
 
-  while (evaluated < context.maxTrials && attempts < context.maxTrials * 5) {
+  while (attempts < context.maxTrials) {
     if (context.stopRequested?.()) {
       stoppedEarly = true;
       break;
@@ -190,6 +190,7 @@ export function runTpeSearch(
     const trial = createTrial(context.factory, strategy, values, "search");
     trials.push(trial);
     if (trial.status === "rejected") {
+      context.evaluation.onTrialComplete?.(trial);
       continue;
     }
 

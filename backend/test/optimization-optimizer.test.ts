@@ -73,6 +73,20 @@ test("refinement trials search a narrowed space around top candidates", () => {
   assert.ok(refineTrials.some((trial) => trial.status === "scored"));
 });
 
+test("maxTrials is a hard total budget including refinement and rejected candidates", () => {
+  const maxTrials = 20;
+  const progress: number[] = [];
+  const result = runOptimization(
+    baseConfig(thresholdStrategy(95, 105), { maxTrials }),
+    { onTrialComplete: (completed) => progress.push(completed) },
+  );
+
+  assert.equal(result.trials.length, maxTrials);
+  assert.equal(progress.at(-1), maxTrials);
+  assert.ok(progress.every((completed) => completed <= maxTrials));
+  assert.deepEqual(progress, Array.from({ length: maxTrials }, (_, index) => index + 1));
+});
+
 test("optional rule toggles let the optimizer disable a harmful rule", () => {
   const strategy: Strategy = {
     name: "Blocked",

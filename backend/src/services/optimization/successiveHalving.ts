@@ -32,7 +32,7 @@ export interface HalvingContext {
   scoring: ScoringConfig;
   halving: SuccessiveHalvingConfig;
   stopRequested?: () => boolean;
-  onEvaluation?: () => void;
+  onTrialComplete?: (trial: OptimizationTrial) => void;
 }
 
 function evaluateTrialOnSubset(
@@ -83,7 +83,6 @@ export function runSuccessiveHalving(
       trial.stageReached = stage;
       trial.foldResults = evaluateTrialOnSubset(trial, context, stageFolds, cache);
       trial.score = scoreTrial(trial.foldResults, trial.complexity, context.scoring);
-      context.onEvaluation?.();
     }
 
     survivors = survivors.filter((trial) => trial.status !== "pruned");
@@ -93,6 +92,7 @@ export function runSuccessiveHalving(
       const promoted = Math.max(1, Math.ceil(survivors.length * context.halving.promotionRate));
       for (const trial of survivors.slice(promoted)) {
         trial.status = "pruned";
+        context.onTrialComplete?.(trial);
       }
       survivors = survivors.slice(0, promoted);
     }
@@ -100,6 +100,7 @@ export function runSuccessiveHalving(
 
   for (const trial of survivors) {
     trial.status = "scored";
+    context.onTrialComplete?.(trial);
   }
   return { stoppedEarly };
 }

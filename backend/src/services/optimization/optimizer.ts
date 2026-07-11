@@ -51,18 +51,18 @@ interface SearchContext {
   stopRequested: () => boolean;
 }
 
-function runRandomSearch(context: SearchContext): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
+function runRandomSearch(
+  context: SearchContext,
+  maxTrials: number,
+): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
   const { config, baseStrategy, nodes, factory, random } = context;
   const trials: OptimizationTrial[] = [];
-  let accepted = 0;
-  let attempts = 0;
-  while (accepted < config.maxTrials && attempts < config.maxTrials * 5) {
-    attempts += 1;
+  for (let attempt = 0; attempt < maxTrials; attempt += 1) {
     const values = sampleValues(nodes, random);
     const trial = createTrial(factory, applyValues(baseStrategy, nodes, values), values, "search");
     trials.push(trial);
-    if (trial.status !== "rejected") {
-      accepted += 1;
+    if (trial.status === "rejected") {
+      context.evaluation.onTrialComplete?.(trial);
     }
   }
 
@@ -73,18 +73,23 @@ function runRandomSearch(context: SearchContext): { trials: OptimizationTrial[];
     scoring: context.evaluation.scoring,
     halving: resolveHalvingConfig(config.halving),
     stopRequested: context.stopRequested,
-    onEvaluation: context.evaluation.onEvaluation,
+    onTrialComplete: context.evaluation.onTrialComplete,
   });
   return { trials, stoppedEarly };
 }
 
-function runRefinement(context: SearchContext, trials: OptimizationTrial[], scoredSorted: OptimizationTrial[]) {
+function runRefinement(
+  context: SearchContext,
+  trials: OptimizationTrial[],
+  scoredSorted: OptimizationTrial[],
+  maxTrials: number,
+) {
   const refinement = resolveRefinementConfig(context.config.refinement, context.config.maxTrials);
-  if (!refinement.enabled || refinement.trials < 1 || scoredSorted.length === 0) {
+  if (!refinement.enabled || maxTrials < 1 || scoredSorted.length === 0) {
     return false;
   }
   const refined = refineSearchSpace(context.nodes, scoredSorted.slice(0, refinement.topCount));
-  for (let i = 0; i < refinement.trials; i += 1) {
+  for (let i = 0; i < maxTrials; i += 1) {
     if (context.stopRequested()) {
       return true;
     }
@@ -98,6 +103,8 @@ function runRefinement(context: SearchContext, trials: OptimizationTrial[], scor
     trials.push(trial);
     if (trial.status !== "rejected") {
       evaluateTrialFully(trial, context.evaluation);
+    } else {
+      context.evaluation.onTrialComplete?.(trial);
     }
   }
   return false;
@@ -121,10 +128,13 @@ export function runOptimization(
   const deadlineMs = config.maxRuntimeMs != null ? Date.now() + config.maxRuntimeMs : undefined;
   const stopRequested = () =>
     (deadlineMs != null && Date.now() > deadlineMs) || (control?.shouldStop?.() ?? false);
-  let evaluatedCount = 0;
-  const onEvaluation = () => {
-    evaluatedCount += 1;
-    control?.onEvaluation?.(evaluatedCount);
+  let completedCount = 0;
+  const completedTrialIndexes = new Set<number>();
+  const onTrialComplete = (trial: OptimizationTrial) => {
+    if (completedTrialIndexes.has(trial.index)) return;
+    completedTrialIndexes.add(trial.index);
+    completedCount += 1;
+    control?.onTrialComplete?.(completedCount);
   };
 
   const foldsBySymbol = new Map<string, FoldSpec[]>();
@@ -159,18 +169,23 @@ export function runOptimization(
       settings,
       scoring,
       finalStage: halving.stageFoldFractions.length - 1,
-      onEvaluation,
+      onTrialComplete,
     },
     random: new SeededRandom(config.seed),
     stopRequested,
   };
 
   let searchOutcome: { trials: OptimizationTrial[]; stoppedEarly: boolean };
+  const refinement = resolveRefinementConfig(config.refinement, config.maxTrials);
+  const refinementTrials = method !== "evolution" && refinement.enabled
+    ? Math.min(refinement.trials, Math.max(0, config.maxTrials - 1))
+    : 0;
+  const searchTrials = config.maxTrials - refinementTrials;
   if (method === "tpe") {
     searchOutcome = runTpeSearch({
       ...context,
       config: resolveTpeConfig(config.tpe),
-      maxTrials: config.maxTrials,
+      maxTrials: searchTrials,
     });
   } else if (method === "evolution") {
     searchOutcome = runEvolutionSearch({
@@ -179,7 +194,7 @@ export function runOptimization(
       maxTrials: config.maxTrials,
     });
   } else {
-    searchOutcome = runRandomSearch(context);
+    searchOutcome = runRandomSearch(context, searchTrials);
   }
   const { trials } = searchOutcome;
   let stoppedEarly = searchOutcome.stoppedEarly;
@@ -190,7 +205,7 @@ export function runOptimization(
       .sort((left, right) => compareTrialScores(left.score, right.score));
 
   if (method !== "evolution" && !stoppedEarly) {
-    stoppedEarly = runRefinement(context, trials, scoredSorted());
+    stoppedEarly = runRefinement(context, trials, scoredSorted(), refinementTrials);
   }
 
   const leaderboard = scoredSorted();

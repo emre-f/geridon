@@ -152,10 +152,10 @@ export function OptimizeExperimentForm({
             </Select>
           </Field>
           <div className="flex items-end gap-3">
-            <Field label="Max trials">
+            <Field label="Total trial budget">
               <NumberInput
                 className="w-20"
-                aria-label="Max trials"
+                aria-label="Total trial budget"
                 value={maxTrials}
                 min={1}
                 max={500}

@@ -8,15 +8,16 @@ export function OptimizeExperimentProgress({
   experiment: OptimizationExperimentListItem;
 }) {
   const fraction = progressFraction(experiment);
-  const evaluated = experiment.progress?.evaluated_trials ?? 0;
+  const maxTrials = experiment.max_trials;
+  const evaluated = Math.min(experiment.progress?.evaluated_trials ?? 0, maxTrials);
 
   if (fraction == null) {
     return <span className="text-muted-foreground text-xs">—</span>;
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="bg-accent h-1.5 w-16 overflow-hidden rounded-full">
+    <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+      <div className="bg-accent h-1.5 w-16 shrink-0 overflow-hidden rounded-full">
         <div
           className={cn(
             "h-full rounded-full transition-[width]",
@@ -25,8 +26,8 @@ export function OptimizeExperimentProgress({
           style={{ width: `${Math.round(fraction * 100)}%` }}
         />
       </div>
-      <span className="text-muted-foreground text-xs tabular-nums">
-        {evaluated}/{experiment.max_trials}
+      <span className="text-muted-foreground whitespace-nowrap text-xs tabular-nums">
+        {evaluated}/{maxTrials} trials
       </span>
     </div>
   );

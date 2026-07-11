@@ -178,7 +178,7 @@ export interface OptimizationConfig {
 
 export interface OptimizationControl {
   shouldStop?: () => boolean;
-  onEvaluation?: (evaluatedCount: number) => void;
+  onTrialComplete?: (completedCount: number) => void;
 }
 
 export interface AblationEntry {

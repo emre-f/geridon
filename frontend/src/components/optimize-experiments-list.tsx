@@ -26,7 +26,7 @@ export function OptimizeExperimentsList({
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[42rem]">
+      <div className="min-w-[58rem]">
         <div className="text-muted-foreground flex items-center gap-3 px-2 pb-1 text-xs">
           <div className={experimentsRowGrid}>
             <span>Started</span>
@@ -36,7 +36,7 @@ export function OptimizeExperimentsList({
             <span>Method</span>
             <span>Progress</span>
           </div>
-          <span className="w-14 shrink-0" aria-hidden />
+          <span className="w-20 shrink-0" aria-hidden />
           <span className="w-16 shrink-0" aria-hidden />
         </div>
 

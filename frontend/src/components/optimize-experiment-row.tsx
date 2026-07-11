@@ -8,7 +8,7 @@ import { OptimizeExperimentProgress } from "@/components/optimize-experiment-pro
 
 // Header and rows share this template so the columns line up like a table.
 export const experimentsRowGrid =
-  "grid min-w-0 flex-1 grid-cols-[6.5rem_minmax(8rem,1fr)_5rem_5rem_7rem_8rem] items-center gap-x-3";
+  "grid min-w-0 flex-1 grid-cols-[6.5rem_minmax(8rem,1fr)_5rem_5rem_7rem_10.5rem] items-center gap-x-3";
 
 export function OptimizeExperimentRow({
   experiment,
@@ -40,9 +40,11 @@ export function OptimizeExperimentRow({
         <OptimizeExperimentProgress experiment={experiment} />
       </div>
 
-      <Badge variant={statusBadgeVariant[experiment.status]} className="shrink-0">
-        {statusLabels[experiment.status]}
-      </Badge>
+      <div className="flex w-20 shrink-0 items-center">
+        <Badge variant={statusBadgeVariant[experiment.status]}>
+          {statusLabels[experiment.status]}
+        </Badge>
+      </div>
 
       <div className="flex w-16 shrink-0 items-center justify-end gap-1">
         {actioning ? (

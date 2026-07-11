@@ -111,6 +111,8 @@ test("an experiment runs to completion and persists ranked trials", async () => 
   assert.notEqual(experiment.summary.best_trial_index, null);
   assert.equal(experiment.snapshot.datasets[0].candle_count, 400);
   assert.ok(experiment.progress && experiment.progress.evaluated_trials > 0);
+  assert.equal(experiment.progress?.evaluated_trials, experiment.config.max_trials);
+  assert.equal(experiment.progress?.max_trials, experiment.config.max_trials);
 
   const listed = handleListExperiments(db, new URLSearchParams());
   assert.equal((listed.body as { total: number }).total, 1);

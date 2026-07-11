@@ -37,10 +37,10 @@ export function canResume(status: OptimizationExperimentStatus) {
 
 export function progressFraction(experiment: OptimizationExperimentListItem) {
   const progress = experiment.progress;
-  if (!progress || progress.max_trials <= 0) {
+  if (!progress || experiment.max_trials <= 0) {
     return null;
   }
-  return Math.min(1, progress.evaluated_trials / progress.max_trials);
+  return Math.min(1, progress.evaluated_trials / experiment.max_trials);
 }
 
 const ranAtFormat = new Intl.DateTimeFormat("en-US", {

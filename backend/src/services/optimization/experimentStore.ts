@@ -97,6 +97,7 @@ export function persistExperimentResult(
   status: OptimizationExperimentStatus,
   result: OptimizationResult,
   elapsedMs: number,
+  maxTrials: number,
 ) {
   const ranks = new Map(result.leaderboard.map((trial, position) => [trial.index, position + 1]));
   const counts = { total: result.trials.length, scored: 0, pruned: 0, rejected: 0 };
@@ -118,8 +119,8 @@ export function persistExperimentResult(
     best_trial_index: result.leaderboard[0]?.index ?? null,
   };
   const progress: OptimizationExperimentProgress = {
-    evaluated_trials: counts.scored + counts.pruned,
-    max_trials: result.trials.length,
+    evaluated_trials: counts.total,
+    max_trials: maxTrials,
     updated_at_ms: Date.now(),
   };
 

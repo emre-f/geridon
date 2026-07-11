@@ -69,7 +69,7 @@ export interface FullEvaluationContext {
   settings: EvaluationSettings;
   scoring: ScoringConfig;
   finalStage: number;
-  onEvaluation?: () => void;
+  onTrialComplete?: (trial: OptimizationTrial) => void;
 }
 
 export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvaluationContext) {
@@ -82,5 +82,5 @@ export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvalua
   );
   trial.score = scoreTrial(trial.foldResults, trial.complexity, context.scoring);
   trial.status = "scored";
-  context.onEvaluation?.();
+  context.onTrialComplete?.(trial);
 }
