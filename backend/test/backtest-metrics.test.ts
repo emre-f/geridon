@@ -26,6 +26,7 @@ function sell(pnl: number): BacktestTrade {
     cash_after: 0,
     shares_after: 0,
     equity_after: 0,
+    commission: 0,
     realized_pnl: pnl,
   };
 }
@@ -153,4 +154,83 @@ test("runBacktest surfaces the new metrics on a real run", () => {
   assert.equal(result.metrics.avg_trade_pnl, result.metrics.realized_pnl);
   assert.ok("annualized_return_pct" in result.metrics);
   assert.ok("sharpe_ratio" in result.metrics);
+});
+
+function positionPoint(index: number, equity: number, shares: number): BacktestEquityPoint {
+  return { ...equityPoint(index, equity), shares, cash: 0, position_value: equity };
+}
+
+test("sortino_ratio penalizes only downside bars and calmar uses the drawdown", () => {
+  const metrics = computeMetrics({
+    initialCapital: 100,
+    finalEquity: 108,
+    realizedPnl: 8,
+    trades: [],
+    equityCurve: [100, 105, 102, 108].map((value, index) => equityPoint(index, value)),
+    candles: [bar(0, 1, 1), bar(1, 1, 1), bar(2, 1, 1), bar(3, 1, 1)],
+  });
+  assert.ok(Number.isFinite(metrics.sortino_ratio ?? NaN));
+  assert.ok((metrics.sortino_ratio ?? 0) > (metrics.sharpe_ratio ?? 0));
+  assert.ok(
+    Math.abs(
+      (metrics.calmar_ratio ?? 0) -
+        (metrics.annualized_return_pct ?? 0) / Math.abs(metrics.max_drawdown_pct),
+    ) < epsilon,
+  );
+
+  const onlyGains = computeMetrics({
+    initialCapital: 100,
+    finalEquity: 110,
+    realizedPnl: 10,
+    trades: [],
+    equityCurve: [100, 105, 110].map((value, index) => equityPoint(index, value)),
+    candles: [bar(0, 1, 1), bar(1, 1, 1), bar(2, 1, 1)],
+  });
+  assert.equal(onlyGains.sortino_ratio, null);
+  assert.equal(onlyGains.calmar_ratio, null);
+});
+
+test("exposure and holding period count bars with an open position", () => {
+  const equityCurve = [
+    positionPoint(0, 100, 0),
+    positionPoint(1, 100, 1),
+    positionPoint(2, 100, 1),
+    positionPoint(3, 100, 0),
+    positionPoint(4, 100, -2),
+    positionPoint(5, 100, 0),
+  ];
+  const metrics = computeMetrics({
+    initialCapital: 100,
+    finalEquity: 100,
+    realizedPnl: 0,
+    trades: [],
+    equityCurve,
+    candles: equityCurve.map((_, index) => bar(index, 1, 1)),
+  });
+  assert.ok(Math.abs(metrics.exposure_pct - 50) < epsilon);
+  assert.ok(Math.abs((metrics.avg_holding_period_candles ?? 0) - 1.5) < epsilon);
+
+  const flat = computeMetrics({
+    initialCapital: 100,
+    finalEquity: 100,
+    realizedPnl: 0,
+    trades: [],
+    equityCurve: [equityPoint(0, 100)],
+    candles: [bar(0, 1, 1)],
+  });
+  assert.equal(flat.exposure_pct, 0);
+  assert.equal(flat.avg_holding_period_candles, null);
+});
+
+test("turnover_ratio divides traded value by mean equity", () => {
+  const trades = [sell(0), sell(0)].map((trade) => ({ ...trade, value: 150 }));
+  const metrics = computeMetrics({
+    initialCapital: 100,
+    finalEquity: 100,
+    realizedPnl: 0,
+    trades,
+    equityCurve: [equityPoint(0, 100), equityPoint(1, 100)],
+    candles: [bar(0, 1, 1), bar(1, 1, 1)],
+  });
+  assert.ok(Math.abs((metrics.turnover_ratio ?? 0) - 3) < epsilon);
 });

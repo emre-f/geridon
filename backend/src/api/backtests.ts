@@ -13,6 +13,7 @@ import {
   badRequest,
   candlesForTimeframe,
   parsePositiveId,
+  parseTradeCosts,
   responseToCandle,
   validateTicker,
 } from "./shared.ts";
@@ -117,6 +118,11 @@ export function handleRunBacktest(db: Database, body: unknown) {
   if (!Number.isFinite(initialCapital) || initialCapital <= 0 || initialCapital > 1e12) {
     return badRequest("initial_capital must be a positive number.");
   }
+  const parsedCosts = parseTradeCosts(raw.costs);
+  if ("error" in parsedCosts) {
+    return badRequest(parsedCosts.error);
+  }
+  const costs = parsedCosts.costs;
 
   const strategy = JSON.parse(String(strategyRow.definition)) as Strategy;
   if (positionMode === "three_state" && strategy.cash == null) {
@@ -142,6 +148,7 @@ export function handleRunBacktest(db: Database, body: unknown) {
     buyPercent,
     sellPercent,
     initialCapital,
+    costs,
   });
 
   const inserted = db
@@ -149,9 +156,9 @@ export function handleRunBacktest(db: Database, body: unknown) {
       `
       INSERT INTO backtest_runs (
         strategy_id, ticker, timeframe, start_ms, end_ms,
-        position_mode, buy_percent, sell_percent, initial_capital,
+        position_mode, buy_percent, sell_percent, initial_capital, costs,
         strategy_snapshot, metrics, detail
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     )
     .run(
@@ -164,6 +171,7 @@ export function handleRunBacktest(db: Database, body: unknown) {
       buyPercent,
       sellPercent,
       initialCapital,
+      JSON.stringify(costs),
       JSON.stringify(strategy),
       JSON.stringify(result.metrics),
       JSON.stringify({ equity_curve: result.equity_curve, trades: result.trades }),
@@ -191,7 +199,7 @@ export function handleListStrategyBacktests(db: Database, idPath: string) {
     .prepare(
       `
       SELECT id, strategy_id, ticker, timeframe, start_ms, end_ms,
-             position_mode, buy_percent, sell_percent, initial_capital, metrics,
+             position_mode, buy_percent, sell_percent, initial_capital, costs, metrics,
              strategy_snapshot, created_at
       FROM backtest_runs
       WHERE strategy_id = ?

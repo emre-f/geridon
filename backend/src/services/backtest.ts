@@ -1,13 +1,37 @@
 import { computeMetrics } from "./backtestMetrics.ts";
 import { evaluateSignals } from "./signals.ts";
-import { BacktestAccount, positionEpsilon } from "./backtestAccount.ts";
+import { BacktestAccount, positionEpsilon, zeroTradeCosts } from "./backtestAccount.ts";
 import type {
   BacktestEquityPoint,
   BacktestPositionMode,
   BacktestResult,
   Candle,
   Strategy,
+  TradeCosts,
 } from "../types.ts";
+
+export { zeroTradeCosts };
+
+export const tradeCostLimits = {
+  maxCommissionPerTrade: 1_000,
+  maxCommissionPct: 10,
+  maxSlippageBps: 1_000,
+};
+
+export function validateTradeCosts(costs: TradeCosts): string | null {
+  const fields: Array<[keyof TradeCosts, string, number]> = [
+    ["commission_per_trade", "costs.commission_per_trade", tradeCostLimits.maxCommissionPerTrade],
+    ["commission_pct", "costs.commission_pct", tradeCostLimits.maxCommissionPct],
+    ["slippage_bps", "costs.slippage_bps", tradeCostLimits.maxSlippageBps],
+  ];
+  for (const [key, label, max] of fields) {
+    const value = costs[key];
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > max) {
+      return `${label} must be a number between 0 and ${max}.`;
+    }
+  }
+  return null;
+}
 
 export interface BacktestOptions {
   strategy: Strategy;
@@ -24,6 +48,8 @@ export interface BacktestOptions {
   buyPercent: number;
   sellPercent: number;
   initialCapital: number;
+  /** Commission/slippage assumptions; omitted means frictionless fills. */
+  costs?: TradeCosts;
   /**
    * First candle index where trading may happen; earlier candles only warm
    * indicators and are excluded from the equity curve and metrics.
@@ -60,6 +86,11 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   if (!Number.isInteger(startIndex) || startIndex < 0) {
     throw new Error("simulation_start_index must be a non-negative integer.");
   }
+  const costs = options.costs ?? zeroTradeCosts;
+  const costsError = validateTradeCosts(costs);
+  if (costsError) {
+    throw new Error(costsError);
+  }
 
   const signalsByTimestamp = new Map<number, { buy: boolean; sell: boolean; cash: boolean }>();
   for (const signal of evaluateSignals(strategy, candles)) {
@@ -72,7 +103,7 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     signalsByTimestamp.set(signal.timestamp_ms, entry);
   }
 
-  const account = new BacktestAccount(initialCapital, buyPercent, sellPercent);
+  const account = new BacktestAccount(initialCapital, buyPercent, sellPercent, costs);
   const equityCurve: BacktestEquityPoint[] = [];
 
   // Signals fire on a bar's close and fill on the next bar's open, so the
@@ -142,6 +173,8 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     initialCapital,
     finalEquity,
     realizedPnl: account.realizedPnl,
+    totalCommission: account.totalCommission,
+    totalSlippageCost: account.totalSlippageCost,
     trades: account.trades,
     equityCurve,
     candles: startIndex > 0 ? candles.slice(startIndex) : candles,

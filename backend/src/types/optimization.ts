@@ -1,4 +1,4 @@
-import type { BacktestPositionMode, Candle, Strategy, StrategyRule } from "../types.ts";
+import type { BacktestPositionMode, Candle, Strategy, StrategyRule, TradeCosts } from "../types.ts";
 
 export interface NumericSearchNode {
   id: string;
@@ -92,6 +92,9 @@ export interface FoldEvaluation {
   max_drawdown_pct: number;
   trade_count: number;
   candle_count: number;
+  /** Absent on trials evaluated before these metrics existed. */
+  exposure_pct?: number;
+  turnover_ratio?: number | null;
 }
 
 export interface StrategyComplexity {
@@ -158,6 +161,7 @@ export interface OptimizationConfig {
   buyPercent: number;
   sellPercent: number;
   initialCapital: number;
+  costs?: TradeCosts;
   seed: number;
   maxTrials: number;
   maxRuntimeMs?: number;

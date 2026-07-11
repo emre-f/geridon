@@ -11,6 +11,8 @@ export interface MetricsInput {
   initialCapital: number;
   finalEquity: number;
   realizedPnl: number;
+  totalCommission?: number;
+  totalSlippageCost?: number;
   trades: BacktestTrade[];
   equityCurve: BacktestEquityPoint[];
   candles: Candle[];
@@ -64,7 +66,7 @@ function periodsPerYear(candles: Candle[]): number | null {
   return median > 0 ? msPerYear / median : null;
 }
 
-function sharpeRatio(equityCurve: BacktestEquityPoint[], candles: Candle[]): number | null {
+function barReturns(equityCurve: BacktestEquityPoint[]): number[] {
   const returns: number[] = [];
   for (let i = 1; i < equityCurve.length; i += 1) {
     const previous = equityCurve[i - 1].equity;
@@ -72,6 +74,11 @@ function sharpeRatio(equityCurve: BacktestEquityPoint[], candles: Candle[]): num
       returns.push(equityCurve[i].equity / previous - 1);
     }
   }
+  return returns;
+}
+
+function sharpeRatio(equityCurve: BacktestEquityPoint[], candles: Candle[]): number | null {
+  const returns = barReturns(equityCurve);
   if (returns.length < 2) {
     return null;
   }
@@ -86,8 +93,70 @@ function sharpeRatio(equityCurve: BacktestEquityPoint[], candles: Candle[]): num
   return (mean / std) * Math.sqrt(perYear);
 }
 
+// Like Sharpe, but only downside deviation from zero counts as risk.
+function sortinoRatio(equityCurve: BacktestEquityPoint[], candles: Candle[]): number | null {
+  const returns = barReturns(equityCurve);
+  if (returns.length < 2) {
+    return null;
+  }
+  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const downsideVariance =
+    returns.reduce((sum, value) => sum + Math.min(0, value) ** 2, 0) / returns.length;
+  const downsideDeviation = Math.sqrt(downsideVariance);
+  const perYear = periodsPerYear(candles);
+  if (downsideDeviation === 0 || perYear == null) {
+    return null;
+  }
+  return (mean / downsideDeviation) * Math.sqrt(perYear);
+}
+
+function calmarRatio(annualizedReturn: number | null, maxDrawdown: number): number | null {
+  if (annualizedReturn == null || maxDrawdown === 0) {
+    return null;
+  }
+  return annualizedReturn / Math.abs(maxDrawdown);
+}
+
+const exposureEpsilon = 1e-9;
+
+function positionStats(equityCurve: BacktestEquityPoint[]) {
+  let barsInMarket = 0;
+  let entries = 0;
+  let previousInMarket = false;
+  for (const point of equityCurve) {
+    const inMarket = Math.abs(point.shares) > exposureEpsilon;
+    if (inMarket) {
+      barsInMarket += 1;
+      if (!previousInMarket) {
+        entries += 1;
+      }
+    }
+    previousInMarket = inMarket;
+  }
+  return {
+    exposurePct: equityCurve.length > 0 ? (barsInMarket / equityCurve.length) * 100 : 0,
+    avgHoldingPeriod: entries > 0 ? barsInMarket / entries : null,
+  };
+}
+
+function turnoverRatio(trades: BacktestTrade[], equityCurve: BacktestEquityPoint[]): number | null {
+  if (equityCurve.length === 0) {
+    return null;
+  }
+  const meanEquity =
+    equityCurve.reduce((sum, point) => sum + point.equity, 0) / equityCurve.length;
+  if (meanEquity <= 0) {
+    return null;
+  }
+  const tradedValue = trades.reduce((sum, trade) => sum + Math.abs(trade.value), 0);
+  return tradedValue / meanEquity;
+}
+
 export function computeMetrics(input: MetricsInput): BacktestMetrics {
   const { initialCapital, finalEquity, realizedPnl, trades, equityCurve, candles } = input;
+  const annualizedReturn = annualizedReturnPct(initialCapital, finalEquity, candles);
+  const maxDrawdown = maxDrawdownPct(equityCurve);
+  const { exposurePct, avgHoldingPeriod } = positionStats(equityCurve);
 
   const sellCount = trades.filter((trade) => trade.side === "sell").length;
   const closingTrades = trades.filter((trade) => trade.realized_pnl != null);
@@ -114,17 +183,24 @@ export function computeMetrics(input: MetricsInput): BacktestMetrics {
     initial_capital: initialCapital,
     final_equity: finalEquity,
     total_return_pct: (finalEquity / initialCapital - 1) * 100,
-    annualized_return_pct: annualizedReturnPct(initialCapital, finalEquity, candles),
+    annualized_return_pct: annualizedReturn,
     trade_count: trades.length,
     buy_count: trades.length - sellCount,
     sell_count: sellCount,
     win_rate_pct:
       closingTrades.length > 0 ? (wins.length / closingTrades.length) * 100 : null,
-    max_drawdown_pct: maxDrawdownPct(equityCurve),
+    max_drawdown_pct: maxDrawdown,
     avg_trade_pnl: avgTradePnl,
     profit_factor:
       closingTrades.length === 0 || grossLoss === 0 ? null : grossProfit / grossLoss,
     sharpe_ratio: sharpeRatio(equityCurve, candles),
+    sortino_ratio: sortinoRatio(equityCurve, candles),
+    calmar_ratio: calmarRatio(annualizedReturn, maxDrawdown),
+    exposure_pct: exposurePct,
+    turnover_ratio: turnoverRatio(trades, equityCurve),
+    avg_holding_period_candles: avgHoldingPeriod,
+    total_commission: input.totalCommission ?? 0,
+    total_slippage_cost: input.totalSlippageCost ?? 0,
     realized_pnl: realizedPnl,
     candle_count: candles.length,
     first_candle_ms: candles.at(0)?.timestamp_ms ?? null,

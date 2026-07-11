@@ -98,6 +98,7 @@ export function createDb(db: Database): void {
       buy_percent FLOAT NOT NULL,
       sell_percent FLOAT NOT NULL,
       initial_capital FLOAT NOT NULL,
+      costs TEXT,
       strategy_snapshot TEXT NOT NULL,
       metrics TEXT NOT NULL,
       detail TEXT NOT NULL,
@@ -161,5 +162,8 @@ export function createDb(db: Database): void {
     db.exec(
       "ALTER TABLE backtest_runs ADD COLUMN position_mode VARCHAR(16) NOT NULL DEFAULT 'long_only'",
     );
+  }
+  if (!backtestColumns.includes("costs")) {
+    db.exec("ALTER TABLE backtest_runs ADD COLUMN costs TEXT");
   }
 }

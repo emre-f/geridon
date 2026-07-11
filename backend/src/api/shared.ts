@@ -1,8 +1,9 @@
 import type { Database } from "../db.ts";
 import { parseDatetimeMs, toIsoUtc } from "../datetime.ts";
 import { aggregateHourlyCandles } from "../services/aggregation.ts";
+import { validateTradeCosts, zeroTradeCosts } from "../services/backtest.ts";
 import { parseTimeframe, sourceTimeframe } from "../timeframes.ts";
-import type { Candle, CandleResponse, Timeframe } from "../types.ts";
+import type { Candle, CandleResponse, Timeframe, TradeCosts } from "../types.ts";
 
 export interface ApiResult<T = unknown> {
   statusCode: number;
@@ -71,6 +72,31 @@ export function timeframeKey(multiplier: number, timespan: string): string {
 export function parsePositiveId(idPath: string) {
   const id = Number(idPath);
   return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** Missing costs mean frictionless fills; unknown keys are rejected. */
+export function parseTradeCosts(raw: unknown): { costs: TradeCosts } | { error: string } {
+  if (raw == null) {
+    return { costs: { ...zeroTradeCosts } };
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { error: "costs must be an object." };
+  }
+  const known = ["commission_per_trade", "commission_pct", "slippage_bps"];
+  for (const key of Object.keys(raw)) {
+    if (!known.includes(key)) {
+      return { error: `costs.${key} is not a recognized cost setting.` };
+    }
+  }
+  const body = raw as Record<string, unknown>;
+  const costs: TradeCosts = {
+    commission_per_trade:
+      body.commission_per_trade == null ? 0 : Number(body.commission_per_trade),
+    commission_pct: body.commission_pct == null ? 0 : Number(body.commission_pct),
+    slippage_bps: body.slippage_bps == null ? 0 : Number(body.slippage_bps),
+  };
+  const error = validateTradeCosts(costs);
+  return error ? { error } : { costs };
 }
 
 export function queryCandles(

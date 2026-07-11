@@ -1,3 +1,4 @@
+import { zeroTradeCosts } from "../services/backtest.ts";
 import type {
   BacktestMetrics,
   BacktestPositionMode,
@@ -5,6 +6,7 @@ import type {
   BacktestRunRecord,
   BacktestRunSummary,
   Strategy,
+  TradeCosts,
 } from "../types.ts";
 
 /**
@@ -38,6 +40,8 @@ export function backtestRunSummary(
     buy_percent: Number(row.buy_percent),
     sell_percent: Number(row.sell_percent),
     initial_capital: Number(row.initial_capital),
+    // Runs stored before costs existed were frictionless by construction.
+    costs: row.costs ? (JSON.parse(String(row.costs)) as TradeCosts) : { ...zeroTradeCosts },
     metrics: JSON.parse(String(row.metrics)) as BacktestMetrics,
     strategy_outdated: strategyOutdated,
     created_at: String(row.created_at),

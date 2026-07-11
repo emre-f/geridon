@@ -7,7 +7,7 @@ import type {
   OptimizationDataset,
   OptimizationExperimentConfig,
 } from "../types.ts";
-import { candlesForTimeframe, responseToCandle, validateTicker } from "./shared.ts";
+import { candlesForTimeframe, parseTradeCosts, responseToCandle, validateTicker } from "./shared.ts";
 
 export const experimentLimits = {
   maxTickers: 4,
@@ -132,6 +132,10 @@ export function parseExperimentRequest(
   if (!Number.isFinite(initialCapital) || initialCapital <= 0 || initialCapital > 1e12) {
     return { error: "initial_capital must be a positive number." };
   }
+  const parsedCosts = parseTradeCosts(body.costs);
+  if ("error" in parsedCosts) {
+    return { error: parsedCosts.error };
+  }
 
   const seed = body.seed == null ? 1 : Number(body.seed);
   if (!Number.isInteger(seed)) {
@@ -178,6 +182,7 @@ export function parseExperimentRequest(
     buy_percent: buyPercent,
     sell_percent: sellPercent,
     initial_capital: initialCapital,
+    costs: parsedCosts.costs,
     seed,
     max_trials: maxTrials,
     max_runtime_ms: maxRuntimeMs,

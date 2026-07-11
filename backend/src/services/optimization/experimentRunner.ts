@@ -39,6 +39,7 @@ function toEngineConfig(
     buyPercent: config.buy_percent,
     sellPercent: config.sell_percent,
     initialCapital: config.initial_capital,
+    costs: config.costs,
     seed: config.seed,
     maxTrials: config.max_trials,
     maxRuntimeMs: config.max_runtime_ms,

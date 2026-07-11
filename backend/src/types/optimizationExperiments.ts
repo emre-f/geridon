@@ -15,6 +15,7 @@ import type {
   StrategyComplexity,
   SuccessiveHalvingConfig,
   TpeConfig,
+  TradeCosts,
   TrialScore,
   TrialStatus,
   TrialValues,
@@ -40,6 +41,7 @@ export interface OptimizationExperimentConfig {
   buy_percent: number;
   sell_percent: number;
   initial_capital: number;
+  costs: TradeCosts;
   seed: number;
   max_trials: number;
   max_runtime_ms: number;

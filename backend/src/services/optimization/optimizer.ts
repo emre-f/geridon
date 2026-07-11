@@ -115,6 +115,7 @@ export function runOptimization(
     buyPercent: config.buyPercent,
     sellPercent: config.sellPercent,
     initialCapital: config.initialCapital,
+    costs: config.costs,
     objective: scoring.objective,
   };
   const deadlineMs = config.maxRuntimeMs != null ? Date.now() + config.maxRuntimeMs : undefined;

@@ -7,6 +7,7 @@ import type {
   OptimizationDataset,
   OptimizationObjective,
   Strategy,
+  TradeCosts,
 } from "../../types.ts";
 
 export interface EvaluationSettings {
@@ -14,6 +15,7 @@ export interface EvaluationSettings {
   buyPercent: number;
   sellPercent: number;
   initialCapital: number;
+  costs?: TradeCosts;
   objective: OptimizationObjective;
 }
 
@@ -46,6 +48,8 @@ function toFoldEvaluation(
     max_drawdown_pct: metrics.max_drawdown_pct,
     trade_count: metrics.trade_count,
     candle_count: metrics.candle_count,
+    exposure_pct: metrics.exposure_pct,
+    turnover_ratio: metrics.turnover_ratio,
   };
 }
 
@@ -63,6 +67,7 @@ export function evaluateFold(
     buyPercent: settings.buyPercent,
     sellPercent: settings.sellPercent,
     initialCapital: settings.initialCapital,
+    costs: settings.costs,
     simulationStartIndex: fold.validStartIndex - fold.trainStartIndex,
   });
   return toFoldEvaluation(dataset.symbol, fold, result.metrics, settings.objective);

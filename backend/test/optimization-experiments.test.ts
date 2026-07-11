@@ -166,10 +166,35 @@ test("invalid configurations return structured errors", async () => {
     [experimentBody(strategyId, { max_trials: 10_000 }), 400],
     [experimentBody(strategyId, { tickers: ["TINY"] }), 400],
     [experimentBody(strategyId, { parameter_overrides: lockedOverrides }), 400],
+    [experimentBody(strategyId, { costs: { commission_pct: -1 } }), 400],
+    [experimentBody(strategyId, { costs: { spread: 1 } }), 400],
   ];
   for (const [body, statusCode] of cases) {
     assert.equal(handleCreateExperiment(db, runner, body).statusCode, statusCode);
   }
+});
+
+test("trade costs are stored in the experiment config and lower returns", async () => {
+  const db = makeDb();
+  insertCandles(db, "TEST", 400);
+  const strategyId = insertStrategy(db);
+  const runner = makeRunner(db);
+
+  const costs = { commission_per_trade: 5, commission_pct: 0.5, slippage_bps: 25 };
+  const withCosts = await runToCompletion(db, runner, experimentBody(strategyId, { costs }));
+  assert.deepEqual(withCosts.config.costs, costs);
+  assert.equal(withCosts.status, "completed");
+
+  const frictionless = await runToCompletion(db, runner, experimentBody(strategyId));
+  assert.deepEqual(frictionless.config.costs, {
+    commission_per_trade: 0,
+    commission_pct: 0,
+    slippage_bps: 0,
+  });
+
+  const costObjective = withCosts.summary!.baseline.score.medianObjective;
+  const freeObjective = frictionless.summary!.baseline.score.medianObjective;
+  assert.ok(costObjective < freeObjective);
 });
 
 test("cancelling a running experiment keeps its completed trials", async () => {

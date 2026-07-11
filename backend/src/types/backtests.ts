@@ -7,6 +7,19 @@ import type { Strategy } from "./strategies.ts";
  */
 export type BacktestPositionMode = "long_only" | "always_in" | "three_state";
 
+/**
+ * Per-fill trading frictions. Slippage moves every fill price against the
+ * account (buys fill higher, sells lower); commission is deducted from cash.
+ */
+export interface TradeCosts {
+  /** Fixed currency amount charged once per fill. */
+  commission_per_trade: number;
+  /** Percent of the fill's traded value charged as commission. */
+  commission_pct: number;
+  /** Adverse fill-price adjustment in basis points of the open. */
+  slippage_bps: number;
+}
+
 export interface BacktestTrade {
   timestamp_ms: number;
   side: "buy" | "sell";
@@ -18,6 +31,8 @@ export interface BacktestTrade {
   cash_after: number;
   shares_after: number;
   equity_after: number;
+  /** Commission charged for this fill; 0 when the run has no costs. */
+  commission: number;
   /** Realized profit vs. average cost; null for buys. */
   realized_pnl: number | null;
 }
@@ -49,6 +64,19 @@ export interface BacktestMetrics {
   profit_factor: number | null;
   /** Annualized Sharpe of per-bar returns; null when returns don't vary. */
   sharpe_ratio: number | null;
+  /** Sharpe against downside deviation only; null without negative returns. */
+  sortino_ratio: number | null;
+  /** Annualized return over worst drawdown; null while flat or undrawn. */
+  calmar_ratio: number | null;
+  /** Share of simulated bars holding a non-zero position. */
+  exposure_pct: number;
+  /** Total traded value over mean equity; null on an empty curve. */
+  turnover_ratio: number | null;
+  /** Mean bars from entering a position to going flat; null with no entries. */
+  avg_holding_period_candles: number | null;
+  total_commission: number;
+  /** Sum of adverse fill-price adjustments paid to slippage. */
+  total_slippage_cost: number;
   realized_pnl: number;
   candle_count: number;
   first_candle_ms: number | null;
@@ -72,6 +100,7 @@ export interface BacktestRunSummary {
   buy_percent: number;
   sell_percent: number;
   initial_capital: number;
+  costs: TradeCosts;
   metrics: BacktestMetrics;
   /** True when the strategy's entry/exit rules were edited after this run. */
   strategy_outdated: boolean;

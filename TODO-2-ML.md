@@ -20,16 +20,19 @@ new strategy, and run an ordinary backtest.
 
 ### Principles
 
-- [ ] Optimize for **out-of-sample robustness**, not the prettiest in-sample equity curve.
-- [ ] Keep candidates compatible with the existing explainable strategy JSON/tree model.
-- [ ] Put hard limits on trials, wall-clock time, rules, indicators, and tree depth.
-- [ ] Make every run reproducible with immutable snapshots, data-range metadata, and a random seed.
-- [ ] Always compare against the original strategy, Buy & Hold, and a simple random-search baseline.
-- [ ] Penalize needless complexity, excessive turnover, large drawdowns, and too few trades.
-- [ ] Keep a final holdout period hidden from the optimizer until the user explicitly evaluates the
-      selected candidate once.
-- [ ] Treat optimization results as research evidence, not financial advice or a promise of future
-      returns.
+These are cross-cutting design values, not tasks; the checkboxes throughout the file are where they
+get enforced.
+
+- Optimize for **out-of-sample robustness**, not the prettiest in-sample equity curve.
+- Keep candidates compatible with the existing explainable strategy JSON/tree model.
+- Put hard limits on trials, wall-clock time, rules, indicators, and tree depth.
+- Make every run reproducible with immutable snapshots, data-range metadata, and a random seed.
+- Always compare against the original strategy, Buy & Hold, and a simple random-search baseline.
+- Penalize needless complexity, excessive turnover, large drawdowns, and too few trades.
+- Keep a final holdout period hidden from the optimizer until the user explicitly evaluates the
+  selected candidate once.
+- Treat optimization results as research evidence, not financial advice or a promise of future
+  returns.
 
 ## 1. Method choice
 
@@ -75,7 +78,9 @@ new strategy, and run an ordinary backtest.
 
 ### Methods deliberately deferred
 
-- [ ] **RL / Q-learning: not an initial optimizer.**
+These are decisions/rationale, not tasks.
+
+- **RL / Q-learning: not an initial optimizer.**
   - Q-learning learns a state-to-action policy; it does not naturally tune the current rule tree.
   - Price/indicator state is continuous and non-stationary, so tabular Q-learning is a poor fit.
   - Deep RL needs much more data, careful reward design, repeated environments, and realistic costs;
@@ -84,37 +89,47 @@ new strategy, and run an ordinary backtest.
   - Revisit only as a separate research mode after fees, slippage, position/risk controls, walk-forward
     validation, and the constrained optimizer are solid. Its output should be labelled a learned
     policy, not presented as an ordinary rule strategy.
-- [ ] **Supervised prediction models: later, as a separate feature pipeline.**
+- **Supervised prediction models: later, as a separate feature pipeline.**
   - Predicting a future return/class from lagged features can be useful, but requires feature versioning,
     label-horizon definitions, probability calibration, retraining, and conversion of predictions into
     trades. It should not be smuggled into parameter optimization.
-- [ ] **Exhaustive grid search: diagnostic use only.** Its cost grows combinatorially and it spends
-      equal compute on unpromising regions.
-- [ ] **Genetic programming with unrestricted trees: do not implement.** It creates an enormous search
-      space and is an overfitting machine under a small compute budget.
+- **Exhaustive grid search: diagnostic use only.** Its cost grows combinatorially and it spends
+  equal compute on unpromising regions.
+- **Genetic programming with unrestricted trees: do not implement.** It creates an enormous search
+  space and is an overfitting machine under a small compute budget.
 
 ## 2. Define the exploration space
 
 Use three explicit search modes so “tune my strategy” and “invent a strategy” are never confused.
 
+Implementation note: the backend has no `mode` field. A mode is a UI framing over the same config —
+Mode A is `parameterOverrides` only, Mode B adds `ruleRoles`, Mode C adds `method: "evolution"` with a
+rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes an explicit control.
+
 ### Mode A — Tune parameters (default, smallest space)
 
-- [ ] Start from a saved strategy snapshot and keep its tree structure fixed.
+- [x] Start from a saved strategy snapshot and keep its tree structure fixed.
 - [ ] Let the user lock or tune each numeric value:
   - indicator parameters such as MACD `fast`, `slow`, and `signal` or Momentum `period`;
   - constant thresholds used by rules;
   - backtest sizing values when the position mode supports them.
-- [ ] Support integer, decimal, categorical, linear, and curated candidate ranges.
-- [ ] Validate every sample against catalog constraints, including `MACD fast < slow`.
-- [ ] Make range defaults conservative and centered near the current value; do not automatically use
+  (indicator parameters and rule thresholds are done via `parameterOverrides`; backtest sizing values
+  are not searchable yet)
+- [x] Support integer, decimal, categorical, linear, and curated candidate ranges.
+- [x] Validate every sample against catalog constraints, including `MACD fast < slow`.
+- [x] Make range defaults conservative and centered near the current value; do not automatically use
       the indicator catalog's entire `1..500` validation range.
 
 ### Mode B — Select/prune rules (recommended second step)
 
-- [ ] Include Mode A plus required/optional/off controls for every existing rule or group.
+- [x] Include Mode A plus required/optional/off controls for every existing rule or group.
+      (roles apply per rule via `ruleRoles`; a group is controlled through its rules)
 - [ ] Allow selected operators or group `at_least` counts to be searched only when the user opts in.
-- [ ] Preserve type-compatible operands and valid group shapes.
-- [ ] Add a complexity cost for active rules, unique indicator configurations, and tree depth.
+      (evolution search mutates operators and `at_least` counts, but there is no per-rule opt-in
+      control for Mode B yet)
+- [x] Preserve type-compatible operands and valid group shapes. (Mode A/B toggles cannot change
+      operands; evolution mutations are typed and every candidate passes `validateCandidate`)
+- [x] Add a complexity cost for active rules, unique indicator configurations, and tree depth.
 - [ ] Report inclusion frequency among the top robust candidates; a rule appearing in only one lucky
       candidate is weak evidence.
 
@@ -144,10 +159,14 @@ Use three explicit search modes so “tune my strategy” and “invent a strate
 - [ ] Offer **Quick**, **Standard**, and **Thorough** presets, plus Advanced custom limits.
 - [ ] A budget must include `max_trials`, `max_runtime`, worker count, promotion rate, and deterministic
       seed. The first defaults should be calibrated with benchmarks rather than guessed here.
+      (`max_trials`, `max_runtime_ms`, `halving.promotionRate`, and `seed` exist in the config; worker
+      count is hard-coded to one thread and defaults are not benchmark-calibrated)
 - [ ] Show an estimate in “backtest evaluations” and an approximate runtime based on a small preflight
       benchmark on the selected data.
 - [ ] Allow pause/cancel; retain completed trials and checkpoints. Never leave a request running without
-      a visible experiment record.
+      a visible experiment record. (cancel/resume works, cancelled experiments keep their scored trials,
+      and every run has an experiment record; there are no mid-run checkpoints — resume restarts
+      deterministically from the snapshot)
 
 ## 3. Validation and scoring — required before optimization
 
@@ -180,28 +199,36 @@ For an optimization experiment, the data roles should be:
 
 - [ ] Make the UI label these roles explicitly as **Search/Train**, **Validation**, and **Sealed Test**,
       with date ranges and a timeline preview.
-- [ ] Provide expanding/anchored walk-forward folds first; add rolling fixed-length training windows as
+- [x] Provide expanding/anchored walk-forward folds first; add rolling fixed-length training windows as
       an option.
-- [ ] Never use ordinary shuffled k-fold, random train/test splitting, or random candle sampling.
+- [x] Never use ordinary shuffled k-fold, random train/test splitting, or random candle sampling.
+      (only chronological anchored/rolling folds exist in `folds.ts`)
 - [ ] Fit any learned preprocessing (scalers, imputers, feature selection, regime clustering) on the
       training portion only and apply that frozen transformation to later validation/test data.
-- [ ] Warm indicators using only candles at or before the evaluated timestamp. It is valid for the first
+- [x] Warm indicators using only candles at or before the evaluated timestamp. It is valid for the first
       validation indicator value to use earlier training candles; it is not valid to use a future candle.
+      (`evaluateFold` slices from the fold's train start and simulates from `simulationStartIndex`;
+      covered by a leakage test)
 - [ ] Add purging/embargo when observations or supervised-learning labels overlap a fold boundary. Size it
       from the actual label/trade horizon, not automatically from the indicator warm-up period.
 - [ ] Show fold-by-fold learning/robustness evidence so users can recognize high variance and overfitting;
-      do not expose only one aggregate score.
+      do not expose only one aggregate score. (per-fold results are persisted and returned by the trial
+      API; the "show" part is Milestone 4 UI work)
 - [ ] If we later train a predictive model, include the standard concerns explicitly: feature/label
       definitions, scaling, class imbalance, calibration, training-only feature selection, model version,
       and a naive baseline.
 
-- [ ] Add transaction-cost assumptions to the simulator: commission/fees and configurable slippage.
+- [x] Add transaction-cost assumptions to the simulator: commission/fees and configurable slippage.
+      (fixed per-trade + percent-of-value commission and adverse slippage in basis points; accepted by
+      the backtest and experiment APIs, stored with each run/experiment, default zero)
 - [ ] Decide whether dividends/splits/adjusted-price behavior is sufficient for the selected data source
       and record that decision in each experiment.
 - [ ] Build chronological train/validation/holdout splits; never randomly shuffle candles.
-- [ ] Add anchored and rolling walk-forward validation.
-- [ ] Evaluate across multiple symbols and market regimes when the user selects them; aggregate per-fold
-      and per-symbol scores instead of concatenating unrelated equity curves.
+      (train/validation folds are done; the sealed holdout split does not exist yet)
+- [x] Add anchored and rolling walk-forward validation.
+- [x] Evaluate across multiple symbols and market regimes when the user selects them; aggregate per-fold
+      and per-symbol scores instead of concatenating unrelated equity curves. (each symbol/fold gets its
+      own backtest and scoring takes medians across all fold evaluations)
 - [ ] Keep one final holdout sealed during search and show a warning after it has been opened.
 - [ ] Calculate additional research metrics:
   - downside deviation / Sortino ratio;
@@ -212,13 +239,20 @@ For an optimization experiment, the data roles should be:
   - worst-fold return and drawdown;
   - stability of nearby parameter values;
   - active rule and unique-indicator count.
-- [ ] Define a versioned default robust score. Proposed shape (exact weights need fixture-based tuning):
+  (all computed except the parameter-stability metric, which belongs with Milestone 5's sensitivity
+  work; Sortino, Calmar, exposure, turnover, and average holding period live in `BacktestMetrics`,
+  and per-fold exposure/turnover are recorded on new trial fold results)
+- [x] Define a versioned default robust score. Proposed shape (exact weights need fixture-based tuning):
 
   `median validation score - drawdown penalty - instability penalty - turnover penalty - complexity penalty`
 
-- [ ] Apply hard eligibility constraints before ranking, for example minimum trades, maximum drawdown,
-      positive results in a minimum fraction of folds, and complete data coverage.
-- [ ] Rank with median/robust aggregates rather than choosing the candidate with the single highest fold.
+  (implemented exactly this shape as `scoringVersion = "1"` in `scoring.ts`; weights are still the
+  initial guesses, not fixture-tuned)
+
+- [x] Apply hard eligibility constraints before ranking, for example minimum trades, maximum drawdown,
+      positive results in a minimum fraction of folds, and complete data coverage. (first three done;
+      data coverage is not checked)
+- [x] Rank with median/robust aggregates rather than choosing the candidate with the single highest fold.
 - [ ] After search, compare the chosen candidate once on the sealed holdout against the untouched baseline
       and benchmarks. Do not feed that result back into the same experiment.
 - [ ] Document survivorship bias: testing only today's ticker universe over historical periods can
@@ -226,7 +260,7 @@ For an optimization experiment, the data roles should be:
 
 ## 4. Backend domain model and persistence
 
-- [ ] Add shared types for:
+- [x] Add shared types for:
   - `OptimizationExperimentConfig` and immutable strategy/data snapshots;
   - parameter, categorical, rule-toggle, and bounded-rule search-space nodes;
   - walk-forward split definitions;
@@ -234,13 +268,16 @@ For an optimization experiment, the data roles should be:
   - experiment status and progress;
   - candidate/trial parameters, canonical strategy, fold results, score, and rejection reason;
   - promotion/checkpoint state and final holdout evaluation.
+  (all exist except checkpoint and holdout types, which belong to features that don't exist yet)
 - [x] Add SQLite tables (exact normalization can be decided during implementation):
   - `optimization_experiments` for configuration, snapshots, seed, method, status, and progress;
   - `optimization_trials` for candidate hash, sampled values, score, status, timings, and summaries;
   - per-fold/per-symbol metrics live as JSON on each trial row instead of a third table;
   - optional `optimization_artifacts` for checkpoints and reports (not needed yet).
 - [ ] Store a strategy snapshot, indicator-catalog/search-space version, data boundaries/coverage, scoring
-      version, and simulator assumptions so old experiments remain interpretable.
+      version, and simulator assumptions so old experiments remain interpretable. (strategy snapshot,
+      per-ticker data boundaries, scoring version, and cost/slippage assumptions are stored;
+      catalog/search-space versions are not)
 - [x] Add indexes for experiment/rank/status and enforce uniqueness for a candidate hash within an
       experiment.
 - [x] Define safe restart semantics: queued work resumes; an interrupted running trial is returned to the
@@ -261,12 +298,18 @@ For an optimization experiment, the data roles should be:
 - [x] Run CPU-heavy trials in a bounded worker-thread pool so HTTP requests and the UI remain responsive.
       (one worker thread per experiment, experiments run sequentially)
 - [ ] Default worker count conservatively and allow the user to lower it; optimization must not consume
-      every core by default.
+      every core by default. (currently exactly one worker thread, so the conservative default holds by
+      construction, but there is no user-facing setting)
 - [ ] Cache immutable candle arrays and indicator series by ticker/timeframe/range/spec within sensible
-      memory bounds. Reuse identical indicator calculations across candidates.
-- [ ] Stream or page trial writes; do not retain every equity curve for every losing trial.
+      memory bounds. Reuse identical indicator calculations across candidates. (only per-run fold-result
+      memoization by candidate hash exists in successive halving; indicator series are recomputed per
+      backtest)
+- [ ] Stream or page trial writes; do not retain every equity curve for every losing trial. (no equity
+      curves are persisted for any trial, but all trial rows are written in one transaction at the end
+      of the run rather than streamed)
 - [ ] Persist full detail only for promoted/top candidates and recompute a selected candidate on demand
-      from its immutable snapshot when appropriate.
+      from its immutable snapshot when appropriate. (currently the strategy JSON and fold results are
+      stored for every non-rejected trial)
 - [ ] Benchmark and profile signal evaluation before adding dependencies or a second language/runtime.
 - [x] Implement TPE and constrained evolutionary search only after the Phase 1 engine and fixtures pass.
 
@@ -281,6 +324,8 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] `POST /api/v1/optimization-experiments/:id/cancel` — cooperative cancellation.
 - [x] `POST /api/v1/optimization-experiments/:id/resume` — resume a paused/interrupted experiment within
       its original immutable configuration.
+- [x] `DELETE /api/v1/optimization-experiments/:id` — delete an experiment without touching strategies
+      saved from its candidates. (added during implementation; was not in the original plan)
 - [x] `GET /api/v1/optimization-experiments/:id/trials` — paginated/sortable leaderboard.
 - [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
 - [ ] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
@@ -326,14 +371,17 @@ The frontend must be a client of the same API; no optimization logic should exis
 
 ## 8. Testing and reproducibility
 
-- [ ] Unit-test search-space compilation, conditional constraints, canonical hashes, sampling, pruning,
-      fold boundaries, embargoes, scores, penalties, and promotion decisions.
-- [ ] Use synthetic candle fixtures where the expected useful/irrelevant rules are known.
-- [ ] Prove identical config + data snapshot + seed produces the same candidate sequence and ranking,
-      independent of worker completion order.
-- [ ] Prove no candle after a fold boundary influences that fold's indicator values, signals, or score.
-- [ ] Compare cached and uncached evaluations byte-for-byte at the response boundary.
-- [ ] Add integration tests for a tiny completed experiment and cancel/resume behavior.
+- [x] Unit-test search-space compilation, conditional constraints, canonical hashes, sampling, pruning,
+      fold boundaries, embargoes, scores, penalties, and promotion decisions. (all covered except
+      embargoes, which are not implemented)
+- [x] Use synthetic candle fixtures where the expected useful/irrelevant rules are known.
+- [x] Prove identical config + data snapshot + seed produces the same candidate sequence and ranking,
+      independent of worker completion order. (tested at optimizer and experiment level; completion
+      order is trivially fixed while there is one worker per experiment)
+- [x] Prove no candle after a fold boundary influences that fold's indicator values, signals, or score.
+- [ ] Compare cached and uncached evaluations byte-for-byte at the response boundary. (blocked on the
+      indicator/candle cache existing)
+- [x] Add integration tests for a tiny completed experiment and cancel/resume behavior.
 - [ ] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
       and explicit holdout confirmation.
 - [ ] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
@@ -341,10 +389,12 @@ The frontend must be a client of the same API; no optimization logic should exis
 
 ## 9. Suggested implementation order
 
-- [ ] **Milestone 1 — Research-safe backtests:** costs, additional metrics, chronological folds, robust
-      scoring, data snapshots, and tests.
+- [x] **Milestone 1 — Research-safe backtests:** costs, additional metrics, chronological folds, robust
+      scoring, data snapshots, and tests. (the parameter-stability metric is deferred to Milestone 5's
+      sensitivity tooling; everything else is done)
 - [x] **Milestone 2 — Backend experiment skeleton:** types, tables, CRUD/lifecycle API, worker pool,
-      checkpoints, cancellation, and a no-op/deterministic trial fixture.
+      checkpoints, cancellation, and a no-op/deterministic trial fixture. (checkpoints became
+      deterministic restart-from-snapshot rather than mid-run checkpoints)
 - [x] **Milestone 3 — Useful optimizer MVP:** Mode A seeded random search, rule toggles for Mode B,
       constraints, successive halving, caching, and baseline comparisons.
 - [ ] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
@@ -358,17 +408,22 @@ The frontend must be a client of the same API; no optimization logic should exis
 
 ## 10. MVP completion criteria
 
-- [ ] From either the backend API or Optimize tab, a user can tune a saved strategy's selected numeric
-      parameters and optional existing rules under a finite compute budget.
+- [x] From either the backend API or Optimize tab, a user can tune a saved strategy's selected numeric
+      parameters and optional existing rules under a finite compute budget. (works via the backend API;
+      the Optimize tab does not exist yet)
 - [ ] The experiment is reproducible, cancellable/resumable, does not block normal API requests, and
-      survives a backend restart without losing completed trials.
-- [ ] Candidate ranking uses walk-forward validation, realistic configured costs, hard eligibility
-      constraints, and a complexity-aware robust score.
+      survives a backend restart without losing completed trials. (all true except the last clause:
+      trials are only persisted when a run finishes or is cancelled, so a restart mid-run recomputes
+      them on resume — deterministic, but not retained)
+- [x] Candidate ranking uses walk-forward validation, realistic configured costs, hard eligibility
+      constraints, and a complexity-aware robust score. (costs default to zero until the user
+      configures them; the Optimize tab should warn on zero-cost experiments per Section 7)
 - [ ] The UI clearly distinguishes training/validation from the one-time sealed holdout.
 - [ ] The user can understand the diff and evidence, save a candidate as a new normal strategy, and backtest
       it without mutating the baseline.
 - [ ] Under an equal evaluation budget, every smarter search method is reported against seeded random
-      search; no method is called better based on one strategy or ticker.
+      search; no method is called better based on one strategy or ticker. (a TPE-vs-random equal-budget
+      fixture test exists; broader multi-strategy/multi-ticker benchmarks do not)
 
 ## 11. Decisions to discuss before implementation
 
@@ -376,11 +431,14 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [ ] Confirm the first MVP scope: Mode A plus existing-rule toggles from Mode B (recommended), with new-rule
       generation deferred.
 - [ ] Choose the default robust objective and hard constraints; total return alone should not be offered as
-      the recommended objective.
+      the recommended objective. (the code currently defaults to Sharpe with the scoring-v1 penalty
+      weights and constraints — treat that as the proposal to confirm or revise)
 - [ ] Choose the default validation design and minimum history for 1d versus intraday experiments.
 - [ ] Decide whether an experiment initially targets one symbol or requires a small symbol basket by
       default.
-- [ ] Decide which transaction-cost/slippage model is sufficient for the MVP.
+- [ ] Decide which transaction-cost/slippage model is sufficient for the MVP. (the code now implements
+      fixed-per-trade + percent-of-value commission and adverse slippage in basis points — treat that
+      as the proposal to confirm or revise)
 - [ ] Calibrate Quick/Standard/Thorough budgets on the actual machine and representative stored data.
 - [ ] Decide whether Phase 2 TPE should remain dependency-light in TypeScript or use a separately managed
       Python worker only if the measured benefit justifies the operational cost.
