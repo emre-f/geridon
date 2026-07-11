@@ -79,6 +79,8 @@ export function OptimizeTrialsLeaderboard({ board }: { board: OptimizeExperiment
                 baselineScore={board.baselineScore}
                 saving={board.savingIndex === trial.trial_index}
                 savedStrategy={board.savedStrategies[trial.trial_index]}
+                selected={board.selectedTrialIndex === trial.trial_index}
+                onSelect={(selected) => board.selectTrial(selected.trial_index)}
                 onSave={board.handleSave}
                 onOpenInBacktest={board.handleOpenInBacktest}
               />

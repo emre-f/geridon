@@ -2,9 +2,11 @@ import { useEffect, useMemo, useReducer } from "react";
 
 import {
   getOptimizationExperiment,
+  getOptimizationTrial,
   listOptimizationTrials,
   saveOptimizationTrialStrategy,
   type OptimizationExperimentRecord,
+  type OptimizationTrialDetail,
   type OptimizationTrialRecord,
   type StrategyRecord,
 } from "@/lib/api";
@@ -25,6 +27,8 @@ interface DetailState {
   loading: boolean;
   filter: TrialFilter;
   selectedTrialIndex: number | null;
+  trialDetails: Record<number, OptimizationTrialDetail>;
+  trialDetailLoading: boolean;
   savingIndex: number | null;
   savedStrategies: Record<number, StrategyRecord>;
   error: string | null;
@@ -36,6 +40,9 @@ type DetailAction =
   | { type: "loadFailed"; message: string }
   | { type: "filterChanged"; filter: TrialFilter }
   | { type: "trialSelected"; trialIndex: number | null }
+  | { type: "trialDetailRequested" }
+  | { type: "trialDetailLoaded"; detail: OptimizationTrialDetail }
+  | { type: "trialDetailFailed"; message: string }
   | { type: "saveStarted"; trialIndex: number }
   | { type: "saveSucceeded"; trialIndex: number; record: StrategyRecord }
   | { type: "saveFailed"; message: string };
@@ -52,6 +59,16 @@ function reducer(state: DetailState, action: DetailAction): DetailState {
       return { ...state, filter: action.filter };
     case "trialSelected":
       return { ...state, selectedTrialIndex: action.trialIndex };
+    case "trialDetailRequested":
+      return { ...state, trialDetailLoading: true };
+    case "trialDetailLoaded":
+      return {
+        ...state,
+        trialDetailLoading: false,
+        trialDetails: { ...state.trialDetails, [action.detail.trial_index]: action.detail },
+      };
+    case "trialDetailFailed":
+      return { ...state, trialDetailLoading: false, error: action.message };
     case "saveStarted":
       return { ...state, savingIndex: action.trialIndex, error: null };
     case "saveSucceeded":
@@ -78,7 +95,7 @@ interface DetailOptions {
 /**
  * Everything the experiment result card shows: the experiment record with its
  * summary, every trial (fetched once), chart series, the filtered leaderboard,
- * and candidate save/backtest actions.
+ * the selected trial's fold details, and candidate save/backtest actions.
  */
 export function useOptimizeExperimentDetail({
   experimentId,
@@ -91,6 +108,8 @@ export function useOptimizeExperimentDetail({
     loading: true,
     filter: "all",
     selectedTrialIndex: null,
+    trialDetails: {},
+    trialDetailLoading: false,
     savingIndex: null,
     savedStrategies: {},
     error: null,
@@ -125,6 +144,38 @@ export function useOptimizeExperimentDetail({
     };
   }, [experimentId]);
 
+  const selectedTrialIndex = state.selectedTrialIndex;
+  const hasSelectedDetail = selectedTrialIndex != null && selectedTrialIndex in state.trialDetails;
+
+  useEffect(() => {
+    if (selectedTrialIndex == null || hasSelectedDetail) {
+      return;
+    }
+    let cancelled = false;
+
+    async function loadDetail() {
+      dispatch({ type: "trialDetailRequested" });
+      try {
+        const detail = await getOptimizationTrial(experimentId, selectedTrialIndex!);
+        if (!cancelled) {
+          dispatch({ type: "trialDetailLoaded", detail });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          dispatch({
+            type: "trialDetailFailed",
+            message: errorMessage(error, "Could not load the trial's fold results."),
+          });
+        }
+      }
+    }
+
+    loadDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [experimentId, selectedTrialIndex, hasSelectedDetail]);
+
   const trace = useMemo(() => traceSeries(state.trials), [state.trials]);
   const leaderboardTrials = useMemo(
     () =>
@@ -132,9 +183,8 @@ export function useOptimizeExperimentDetail({
     [state.trials, state.filter],
   );
   const selectedTrial = useMemo(
-    () =>
-      state.trials.find((trial) => trial.trial_index === state.selectedTrialIndex) ?? null,
-    [state.trials, state.selectedTrialIndex],
+    () => state.trials.find((trial) => trial.trial_index === selectedTrialIndex) ?? null,
+    [state.trials, selectedTrialIndex],
   );
 
   async function handleSave(trial: OptimizationTrialRecord): Promise<StrategyRecord | null> {
@@ -167,12 +217,14 @@ export function useOptimizeExperimentDetail({
     trace,
     leaderboardTrials,
     selectedTrial,
+    selectedTrialDetail:
+      selectedTrialIndex != null ? (state.trialDetails[selectedTrialIndex] ?? null) : null,
     baselineScore: state.experiment?.summary?.baseline.score.score ?? null,
     setFilter: (filter: TrialFilter) => dispatch({ type: "filterChanged", filter }),
     selectTrial: (trialIndex: number) =>
       dispatch({
         type: "trialSelected",
-        trialIndex: state.selectedTrialIndex === trialIndex ? null : trialIndex,
+        trialIndex: selectedTrialIndex === trialIndex ? null : trialIndex,
       }),
     handleSave,
     handleOpenInBacktest,

@@ -5,6 +5,7 @@ import { formatPercent } from "@/lib/format";
 import { trialStatusBadge } from "@/lib/optimize-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const trialsRowGrid =
   "grid min-w-0 flex-1 grid-cols-[2.5rem_4rem_4.5rem_5rem_5rem_4.5rem_3.5rem_4.5rem_5.5rem] items-center gap-x-3";
@@ -18,6 +19,8 @@ export function OptimizeTrialRow({
   baselineScore,
   saving,
   savedStrategy,
+  selected,
+  onSelect,
   onSave,
   onOpenInBacktest,
 }: {
@@ -25,6 +28,8 @@ export function OptimizeTrialRow({
   baselineScore: number | null;
   saving: boolean;
   savedStrategy: StrategyRecord | undefined;
+  selected: boolean;
+  onSelect: (trial: OptimizationTrialRecord) => void;
   onSave: (trial: OptimizationTrialRecord) => void;
   onOpenInBacktest: (trial: OptimizationTrialRecord) => void;
 }) {
@@ -33,10 +38,23 @@ export function OptimizeTrialRow({
   const badge = trialStatusBadge(trial);
   const delta = score != null && baselineScore != null ? score.score - baselineScore : null;
   const hasCandidate = trial.status !== "rejected";
+  const selectable = trial.status === "scored" || trial.status === "pruned";
 
   return (
-    <div className="hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors">
-      <div className={trialsRowGrid}>
+    <div
+      className={cn(
+        "hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors",
+        selected && "bg-muted/60",
+      )}
+    >
+      <button
+        type="button"
+        className={cn(trialsRowGrid, "text-left", selectable && "cursor-pointer")}
+        disabled={!selectable}
+        aria-pressed={selected}
+        title={selectable ? "Compare this trial's folds against the baseline" : undefined}
+        onClick={() => onSelect(trial)}
+      >
         <span className="text-muted-foreground text-xs">
           {trial.rank != null ? `#${trial.rank}` : `t${trial.trial_index}`}
         </span>
@@ -76,7 +94,7 @@ export function OptimizeTrialRow({
           {trial.complexity.activeRules}r · {trial.complexity.uniqueIndicators}i · d
           {trial.complexity.maxDepth}
         </span>
-      </div>
+      </button>
 
       <div className="flex w-20 shrink-0 items-center">
         <Badge variant={badge.variant} title={badge.title}>

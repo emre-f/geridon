@@ -1,24 +1,11 @@
 import type { BacktestEquityPoint, BacktestTrade } from "@/lib/api";
 import type { EquityOverlay } from "@/components/equity-chart-types";
+import { niceTicks } from "@/lib/chart-scale";
 import { formatDate } from "@/lib/format";
 
 export const equityChartMargin = { top: 12, right: 64, bottom: 26, left: 10 };
 
 const maxTradeMarkers = 60;
-
-function niceTicks(min: number, max: number, count = 4) {
-  if (!(max > min)) {
-    return [min];
-  }
-  const step = (max - min) / count;
-  const magnitude = 10 ** Math.floor(Math.log10(step));
-  const niceStep = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((m) => m >= step) ?? step;
-  const ticks: number[] = [];
-  for (let tick = Math.ceil(min / niceStep) * niceStep; tick <= max + niceStep / 1e6; tick += niceStep) {
-    ticks.push(tick);
-  }
-  return ticks;
-}
 
 export function buildEquityChartPlot({
   points,

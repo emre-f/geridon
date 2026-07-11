@@ -406,23 +406,27 @@ Tasks, in order:
       the same response, and track the selected trial. Unit-test the pure derivation helpers.
       (derivations live in `lib/optimize-detail-utils.ts` with node:test coverage via `npm test`;
       the hook replaced `use-optimize-trials`, the leaderboard consumes it and filters client-side)
-- [ ] Build the result-card header and stat tiles: strategy / ticker / timeframe / date range /
+- [x] Build the result-card header and stat tiles: strategy / ticker / timeframe / date range /
       method / seed summary, plus tiles for baseline score, best score, Δ vs baseline, buy & hold
       median objective, scored/pruned/rejected counts, and elapsed time. Use the dataviz skill for
-      the tiles and every chart below.
-- [ ] **Optimization trace chart** — “what did we try and did it improve”: score vs trial index for
+      the tiles and every chart below. (all chart series colors are `--viz-*` tokens in `index.css`,
+      validated for both themes with the dataviz palette validator)
+- [x] **Optimization trace chart** — “what did we try and did it improve”: score vs trial index for
       every scored trial (colored eligible vs not, pruned marked), a best-so-far step line, and a
       horizontal baseline-score reference line. Tooltip shows the trial's sampled values.
-- [ ] **Score decomposition chart** — “why is the score small or negative”: for the baseline and the
+      (sampled-value ids are compressed to labels like “entry r1 fast” via `nodeLabel`)
+- [x] **Score decomposition chart** — “why is the score small or negative”: for the baseline and the
       top ~8 eligible trials, show the median objective with the drawdown / instability / turnover /
       complexity penalties subtracted from it, so the net score is legible at a glance.
-- [ ] **Fold robustness chart** — “does it survive regimes”: per-fold objective for the selected
+- [x] **Fold robustness chart** — “does it survive regimes”: per-fold objective for the selected
       trial vs baseline vs buy & hold, grouped per fold (and per symbol when several). Render the
-      baseline alone while no trial is selected.
+      baseline alone while no trial is selected. (baseline + buy & hold always render; clicking a
+      scored/pruned leaderboard row lazily fetches that trial's fold results and adds its bars)
 - [ ] Trial selection + candidate detail section: clicking a leaderboard row selects the trial and
       shows a readable diff vs the baseline (changed parameters from `values` + the search-space
       nodes, toggled rules), its penalty breakdown, ineligibility reasons when present, and the
-      existing save/backtest actions.
+      existing save/backtest actions. (row selection with the lazy trial-detail fetch shipped with
+      the fold chart above; the diff/penalty/ineligibility detail section itself is still open)
 - [ ] **Parameter sensitivity small multiples** — “robust region or lucky spike”: for each numeric
       search node, a scatter of score vs sampled value across all scored trials, with the baseline's
       current value marked. (This pulls the cheap part of Milestone 5's sensitivity work forward;
