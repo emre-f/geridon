@@ -7,7 +7,8 @@ import {
   listExperiments,
   resetExperimentForResume,
 } from "../services/optimization/experimentStore.ts";
-import { compileSearchSpace } from "../services/optimization/searchSpace.ts";
+import { compileSearchSpace, searchSpaceVersion } from "../services/optimization/searchSpace.ts";
+import { indicatorCatalogVersion } from "../services/indicatorCatalog.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
 import { searchDatasets, validateHoldoutSize } from "../services/optimization/holdout.ts";
 import type {
@@ -105,6 +106,8 @@ export function handleCreateExperiment(db: Database, runner: ExperimentRunner, b
       strategy,
       strategy_name: String(strategyRow.name),
       datasets: datasetSpecs(datasets, config.holdout),
+      catalog_version: indicatorCatalogVersion,
+      search_space_version: searchSpaceVersion,
     });
     runner.enqueue(record.id);
     return { statusCode: 201, body: record };

@@ -215,6 +215,37 @@ export function handleListStrategyBacktests(db: Database, idPath: string) {
   };
 }
 
+export function handleListBacktests(db: Database) {
+  const rows = db
+    .prepare(
+      `
+      SELECT backtest_runs.id, backtest_runs.strategy_id, backtest_runs.ticker,
+             backtest_runs.timeframe, backtest_runs.start_ms, backtest_runs.end_ms,
+             backtest_runs.position_mode, backtest_runs.buy_percent,
+             backtest_runs.sell_percent, backtest_runs.initial_capital,
+             backtest_runs.costs, backtest_runs.metrics, backtest_runs.strategy_snapshot,
+             backtest_runs.created_at, strategies.definition AS current_strategy_definition
+      FROM backtest_runs
+      JOIN strategies ON strategies.id = backtest_runs.strategy_id
+      ORDER BY backtest_runs.created_at DESC, backtest_runs.id DESC
+    `,
+    )
+    .all();
+
+  return {
+    statusCode: 200,
+    body: rows.map((row) =>
+      backtestRunSummary(
+        row,
+        !snapshotMatchesDefinition(
+          String(row.strategy_snapshot),
+          String(row.current_strategy_definition),
+        ),
+      ),
+    ),
+  };
+}
+
 export function handleGetBacktest(db: Database, idPath: string) {
   const id = parsePositiveId(idPath);
   if (id == null) {

@@ -166,9 +166,10 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 - [ ] Show an estimate in “backtest evaluations” and an approximate runtime based on a small preflight
       benchmark on the selected data.
 - [ ] Allow pause/cancel; retain completed trials and checkpoints. Never leave a request running without
-      a visible experiment record. (cancel/resume works, cancelled experiments keep their scored trials,
-      and every run has an experiment record; there are no mid-run checkpoints — resume restarts
-      deterministically from the snapshot)
+      a visible experiment record. (cancel/resume works, cancelled and interrupted experiments keep
+      their scored trials — trials now stream to the database mid-run — and every run has an
+      experiment record; there are no mid-run checkpoints — resume restarts deterministically from
+      the snapshot)
 
 ## 3. Validation and scoring — required before optimization
 
@@ -290,10 +291,11 @@ For an optimization experiment, the data roles should be:
   - `optimization_trials` for candidate hash, sampled values, score, status, timings, and summaries;
   - per-fold/per-symbol metrics live as JSON on each trial row instead of a third table;
   - optional `optimization_artifacts` for checkpoints and reports (not needed yet).
-- [ ] Store a strategy snapshot, indicator-catalog/search-space version, data boundaries/coverage, scoring
-      version, and simulator assumptions so old experiments remain interpretable. (strategy snapshot,
-      per-ticker data boundaries, scoring version, and cost/slippage assumptions are stored;
-      catalog/search-space versions are not)
+- [x] Store a strategy snapshot, indicator-catalog/search-space version, data boundaries/coverage, scoring
+      version, and simulator assumptions so old experiments remain interpretable. (the snapshot now
+      also records `catalog_version` and `search_space_version` — bump `indicatorCatalogVersion` when
+      an indicator's computation/parameters change and `searchSpaceVersion` when compilation changes;
+      older experiments simply lack the fields)
 - [x] Add indexes for experiment/rank/status and enforce uniqueness for a candidate hash within an
       experiment.
 - [x] Define safe restart semantics: queued work resumes; an interrupted running trial is returned to the
@@ -316,13 +318,15 @@ For an optimization experiment, the data roles should be:
 - [ ] Default worker count conservatively and allow the user to lower it; optimization must not consume
       every core by default. (currently exactly one worker thread, so the conservative default holds by
       construction, but there is no user-facing setting)
-- [ ] Cache immutable candle arrays and indicator series by ticker/timeframe/range/spec within sensible
-      memory bounds. Reuse identical indicator calculations across candidates. (only per-run fold-result
-      memoization by candidate hash exists in successive halving; indicator series are recomputed per
-      backtest)
-- [ ] Stream or page trial writes; do not retain every equity curve for every losing trial. (no equity
-      curves are persisted for any trial, but all trial rows are written in one transaction at the end
-      of the run rather than streamed)
+- [x] Cache immutable candle arrays and indicator series by ticker/timeframe/range/spec within sensible
+      memory bounds. Reuse identical indicator calculations across candidates. (a per-run LRU in
+      `indicatorCache.ts` keyed by symbol/candle-slice/indicator-spec shares indicator series across
+      all candidates, folds, ablation, and refinement; bounded by total cached values and freed with
+      the worker. Candle arrays are loaded once per run; there is no cross-run cache)
+- [x] Stream or page trial writes; do not retain every equity curve for every losing trial. (each
+      finished trial is upserted to SQLite the moment the worker reports it, so a crash or restart
+      keeps completed work; the final pass fills in leaderboard ranks. No equity curves are persisted
+      for any trial)
 - [ ] Persist full detail only for promoted/top candidates and recompute a selected candidate on demand
       from its immutable snapshot when appropriate. (currently the strategy JSON and fold results are
       stored for every non-rejected trial)
@@ -476,8 +480,9 @@ Tasks, in order:
       independent of worker completion order. (tested at optimizer and experiment level; completion
       order is trivially fixed while there is one worker per experiment)
 - [x] Prove no candle after a fold boundary influences that fold's indicator values, signals, or score.
-- [ ] Compare cached and uncached evaluations byte-for-byte at the response boundary. (blocked on the
-      indicator/candle cache existing)
+- [x] Compare cached and uncached evaluations byte-for-byte at the response boundary. (cached,
+      cache-disabled, and eviction-heavy `runOptimization` results compare byte-for-byte in
+      `optimization-cache.test.ts`, plus fold-level identity with asserted hit/miss counts)
 - [x] Add integration tests for a tiny completed experiment and cancel/resume behavior.
 - [ ] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
       and explicit holdout confirmation. (leaderboard sorting/filtering, candidate diff, selection
@@ -518,10 +523,10 @@ Tasks, in order:
       parameters and optional existing rules under a finite compute budget. (works via the backend API
       and the Optimize tab's new-experiment form, which searches all tunable parameters by default;
       per-parameter/per-rule Mode A/B controls are still backend-only, see Section 7)
-- [ ] The experiment is reproducible, cancellable/resumable, does not block normal API requests, and
-      survives a backend restart without losing completed trials. (all true except the last clause:
-      trials are only persisted when a run finishes or is cancelled, so a restart mid-run recomputes
-      them on resume — deterministic, but not retained)
+- [x] The experiment is reproducible, cancellable/resumable, does not block normal API requests, and
+      survives a backend restart without losing completed trials. (finished trials now stream to
+      SQLite mid-run, so a restart leaves an interrupted experiment with its completed trials intact
+      and listable; resuming still recomputes deterministically from the snapshot)
 - [x] Candidate ranking uses walk-forward validation, realistic configured costs, hard eligibility
       constraints, and a complexity-aware robust score. (costs default to zero until the user
       configures them; the Optimize tab should warn on zero-cost experiments per Section 7)

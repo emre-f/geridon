@@ -50,15 +50,15 @@ export function BacktestRunRow({
           <span className="text-muted-foreground/60 text-xs">current</span>
         )}
         <span className="text-muted-foreground truncate text-xs">{formatRunRange(run)}</span>
-        <span className="text-muted-foreground text-right text-xs tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {metrics.trade_count}
         </span>
-        <span className="text-muted-foreground text-right text-xs tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {metrics.win_rate_pct == null ? "—" : formatAbsolutePercent(metrics.win_rate_pct)}
         </span>
         <span
           className={cn(
-            "text-right font-medium tabular-nums",
+            "font-medium tabular-nums",
             metrics.total_return_pct < 0 ? "text-[var(--chart-down)]" : "text-[var(--chart-up)]",
           )}
         >
@@ -66,13 +66,13 @@ export function BacktestRunRow({
         </span>
         <span
           className={cn(
-            "text-right text-xs tabular-nums",
+            "text-xs tabular-nums",
             (metrics.max_drawdown_pct ?? 0) < 0 ? "text-[var(--chart-down)]" : "text-muted-foreground",
           )}
         >
           {metrics.max_drawdown_pct == null ? "—" : formatPercent(metrics.max_drawdown_pct)}
         </span>
-        <span className="text-muted-foreground text-right text-xs tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {metrics.sharpe_ratio == null ? "—" : metrics.sharpe_ratio.toFixed(2)}
         </span>
       </button>

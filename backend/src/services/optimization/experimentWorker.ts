@@ -19,6 +19,9 @@ const result = runOptimization(config, {
       parentPort?.postMessage({ type: "progress", evaluated: completedCount });
     }
   },
+  onTrialFinished: (trial) => {
+    parentPort?.postMessage({ type: "trial", trial });
+  },
 });
 
 parentPort?.postMessage({ type: "result", result });

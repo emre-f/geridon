@@ -4,6 +4,7 @@ import { sampleValues, applyValues } from "./sampler.ts";
 import { strategyHash } from "./canonical.ts";
 import { buildFolds } from "./folds.ts";
 import { evaluateBuyHold, evaluateOnFolds, type EvaluationSettings } from "./evaluate.ts";
+import { createIndicatorSeriesCache } from "./indicatorCache.ts";
 import { compareTrialScores, median, resolveScoringConfig, scoreTrial, scoringVersion } from "./scoring.ts";
 import { resolveHalvingConfig, runSuccessiveHalving } from "./successiveHalving.ts";
 import { refineSearchSpace, resolveRefinementConfig } from "./coarseToFine.ts";
@@ -125,6 +126,10 @@ export function runOptimization(
     initialCapital: config.initialCapital,
     costs: config.costs,
     objective: scoring.objective,
+    cache:
+      config.cache?.enabled === false
+        ? undefined
+        : createIndicatorSeriesCache(config.cache?.maxValues),
   };
   const deadlineMs = config.maxRuntimeMs != null ? Date.now() + config.maxRuntimeMs : undefined;
   const stopRequested = () =>
@@ -136,6 +141,7 @@ export function runOptimization(
     completedTrialIndexes.add(trial.index);
     completedCount += 1;
     control?.onTrialComplete?.(completedCount);
+    control?.onTrialFinished?.(trial);
   };
 
   const foldsBySymbol = new Map<string, FoldSpec[]>();

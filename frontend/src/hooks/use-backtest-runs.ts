@@ -3,7 +3,7 @@ import { useCallback, useEffect, useReducer } from "react";
 import {
   deleteBacktest,
   getBacktest,
-  listStrategyBacktests,
+  listBacktests,
   runBacktest,
   type BacktestRunRecord,
   type BacktestRunSummary,
@@ -101,7 +101,7 @@ interface BacktestRunsOptions {
   strategyUpdatedAt: string | null;
 }
 
-/** Past runs for the selected strategy, plus running, opening, and deleting them. */
+/** Past runs for all strategies, plus running, opening, and deleting them. */
 export function useBacktestRuns({ form, strategyUpdatedAt }: BacktestRunsOptions) {
   const [state, dispatch] = useReducer(backtestRunsReducer, {
     runs: [],
@@ -123,7 +123,7 @@ export function useBacktestRuns({ form, strategyUpdatedAt }: BacktestRunsOptions
     let cancelled = false;
     dispatch({ type: "runsRequested" });
 
-    listStrategyBacktests(strategyId)
+    listBacktests()
       .then((records) => {
         if (!cancelled) {
           dispatch({ type: "runsLoaded", runs: records });

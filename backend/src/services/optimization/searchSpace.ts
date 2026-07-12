@@ -19,6 +19,12 @@ import type {
   ToggleSearchNode,
 } from "../../types.ts";
 
+/**
+ * Bump when compilation changes the nodes produced from the same strategy
+ * and overrides (range defaults, toggle rules, validation).
+ */
+export const searchSpaceVersion = 1;
+
 export interface CompiledSearchSpace {
   baseStrategy: Strategy;
   nodes: SearchSpaceNode[];

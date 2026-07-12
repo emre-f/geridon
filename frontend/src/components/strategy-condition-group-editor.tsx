@@ -113,8 +113,8 @@ export function ConditionGroupEditor({
               </span>
             </div>
           ) : (
-            <span className="text-muted-foreground hidden text-xs sm:inline">
-              {groupOperatorHints[group.operator]}
+            <span className="text-muted-foreground ml-1 hidden text-xs italic sm:inline">
+              ({groupOperatorHints[group.operator]})
             </span>
           )}
         </div>

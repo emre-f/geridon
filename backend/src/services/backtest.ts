@@ -1,5 +1,6 @@
 import { computeMetrics } from "./backtestMetrics.ts";
 import { evaluateSignals } from "./signals.ts";
+import type { SharedSeriesScope } from "./optimization/indicatorCache.ts";
 import { BacktestAccount, positionEpsilon, zeroTradeCosts } from "./backtestAccount.ts";
 import type {
   BacktestEquityPoint,
@@ -55,6 +56,8 @@ export interface BacktestOptions {
    * indicators and are excluded from the equity curve and metrics.
    */
   simulationStartIndex?: number;
+  /** Reuses indicator series computed for the same candle slice elsewhere. */
+  indicatorCache?: SharedSeriesScope;
 }
 
 type ThreeStateTarget = "long" | "short" | "cash";
@@ -93,7 +96,7 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   }
 
   const signalsByTimestamp = new Map<number, { buy: boolean; sell: boolean; cash: boolean }>();
-  for (const signal of evaluateSignals(strategy, candles)) {
+  for (const signal of evaluateSignals(strategy, candles, options.indicatorCache)) {
     const entry = signalsByTimestamp.get(signal.timestamp_ms) ?? {
       buy: false,
       sell: false,

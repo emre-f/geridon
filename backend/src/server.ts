@@ -3,6 +3,7 @@ import { createServer, type ServerResponse } from "node:http";
 import {
   handleDeleteBacktest,
   handleGetBacktest,
+  handleListBacktests,
   handleListStrategyBacktests,
   handleRunBacktest,
   handleSignals,
@@ -133,6 +134,11 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "POST" && url.pathname === "/api/v1/backtests") {
       sendResult(response, handleRunBacktest(db, await readJson(request)));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/backtests") {
+      sendResult(response, handleListBacktests(db));
       return;
     }
 

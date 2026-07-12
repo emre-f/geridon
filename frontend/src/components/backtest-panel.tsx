@@ -137,9 +137,9 @@ export function BacktestPanel({
               <Separator />
 
               <section className="flex flex-col gap-2" aria-label="Past runs">
-                <h3 className="text-sm font-medium">Past runs</h3>
                 <BacktestRunsList
                   activeRunId={runs.activeRun?.id}
+                  currentStrategyId={form.strategyId}
                   openingRunId={runs.openingRunId}
                   runs={runs.runs}
                   runsLoading={runs.runsLoading}

@@ -1,4 +1,5 @@
 import { computeIndicatorValueSeries } from "./indicators.ts";
+import type { SharedSeriesScope } from "./optimization/indicatorCache.ts";
 import type {
   Candle,
   Strategy,
@@ -9,6 +10,12 @@ import type {
 } from "../types.ts";
 
 type NumericSeries = Array<number | null>;
+
+interface SeriesContext {
+  candles: Candle[];
+  cache: Map<string, NumericSeries>;
+  shared?: SharedSeriesScope;
+}
 
 function stableParametersKey(parameters: Record<string, number>) {
   return JSON.stringify(
@@ -44,30 +51,26 @@ function buildOperandSeries(operand: StrategyOperand, candles: Candle[]): Numeri
   return computeIndicatorValueSeries(candles, operand.kind, operand.parameters, operand.output);
 }
 
-function operandSeries(
-  operand: StrategyOperand,
-  candles: Candle[],
-  cache: Map<string, NumericSeries>,
-): NumericSeries {
+function operandSeries(operand: StrategyOperand, context: SeriesContext): NumericSeries {
   const key = operandKey(operand);
-  const cached = cache.get(key);
+  const cached = context.cache.get(key);
   if (cached) {
     return cached;
   }
 
-  const series = buildOperandSeries(operand, candles);
-  cache.set(key, series);
+  // Indicator series are the expensive part; the shared scope reuses them
+  // across candidates that evaluate the same candle slice.
+  const shareable = operand.type === "indicator" ? context.shared : undefined;
+  const series =
+    shareable?.get(key) ?? buildOperandSeries(operand, context.candles);
+  context.cache.set(key, series);
+  shareable?.set(key, series);
   return series;
 }
 
-function evaluateRule(
-  rule: StrategyRule,
-  candles: Candle[],
-  index: number,
-  cache: Map<string, NumericSeries>,
-) {
-  const left = operandSeries(rule.left, candles, cache);
-  const right = operandSeries(rule.right, candles, cache);
+function evaluateRule(rule: StrategyRule, context: SeriesContext, index: number) {
+  const left = operandSeries(rule.left, context);
+  const right = operandSeries(rule.right, context);
   const leftValue = left[index];
   const rightValue = right[index];
 
@@ -115,32 +118,31 @@ function evaluateRule(
 
 function evaluateCondition(
   condition: StrategyCondition,
-  candles: Candle[],
+  context: SeriesContext,
   index: number,
-  cache: Map<string, NumericSeries>,
 ): boolean {
   if (condition.type === "rule") {
-    return evaluateRule(condition, candles, index, cache);
+    return evaluateRule(condition, context, index);
   }
 
   if (condition.operator === "and") {
-    return condition.conditions.every((child) => evaluateCondition(child, candles, index, cache));
+    return condition.conditions.every((child) => evaluateCondition(child, context, index));
   }
   if (condition.operator === "or") {
-    return condition.conditions.some((child) => evaluateCondition(child, candles, index, cache));
+    return condition.conditions.some((child) => evaluateCondition(child, context, index));
   }
   if (condition.operator === "at_least") {
     const required = condition.count ?? condition.conditions.length;
     let hits = 0;
     for (const child of condition.conditions) {
-      if (evaluateCondition(child, candles, index, cache) && (hits += 1) >= required) {
+      if (evaluateCondition(child, context, index) && (hits += 1) >= required) {
         return true;
       }
     }
     return false;
   }
 
-  return !evaluateCondition(condition.conditions[0], candles, index, cache);
+  return !evaluateCondition(condition.conditions[0], context, index);
 }
 
 /**
@@ -171,9 +173,13 @@ export function pruneDisabledConditions(condition: StrategyCondition): StrategyC
   return { ...condition, conditions };
 }
 
-export function evaluateSignals(strategy: Strategy, candles: Candle[]): StrategySignal[] {
+export function evaluateSignals(
+  strategy: Strategy,
+  candles: Candle[],
+  shared?: SharedSeriesScope,
+): StrategySignal[] {
   const signals: StrategySignal[] = [];
-  const cache = new Map<string, NumericSeries>();
+  const context: SeriesContext = { candles, cache: new Map(), shared };
   // A side with every condition disabled simply never fires.
   const entry = pruneDisabledConditions(strategy.entry);
   const exit = pruneDisabledConditions(strategy.exit);
@@ -182,13 +188,13 @@ export function evaluateSignals(strategy: Strategy, candles: Candle[]): Strategy
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
 
-    if (entry && evaluateCondition(entry, candles, index, cache)) {
+    if (entry && evaluateCondition(entry, context, index)) {
       signals.push({ timestamp_ms: candle.timestamp_ms, side: "buy" });
     }
-    if (exit && evaluateCondition(exit, candles, index, cache)) {
+    if (exit && evaluateCondition(exit, context, index)) {
       signals.push({ timestamp_ms: candle.timestamp_ms, side: "sell" });
     }
-    if (cash && evaluateCondition(cash, candles, index, cache)) {
+    if (cash && evaluateCondition(cash, context, index)) {
       signals.push({ timestamp_ms: candle.timestamp_ms, side: "cash" });
     }
   }

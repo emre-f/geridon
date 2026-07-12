@@ -76,6 +76,9 @@ export interface OptimizationExperimentSnapshot {
   strategy: Strategy;
   strategy_name: string;
   datasets: ExperimentDatasetSpec[];
+  /** Absent on experiments created before versioning existed. */
+  catalog_version?: number;
+  search_space_version?: number;
 }
 
 export interface OptimizationExperimentProgress {

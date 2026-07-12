@@ -1,6 +1,7 @@
 import type { Database } from "../db.ts";
 import { evaluateBuyHold, evaluateOnFolds } from "../services/optimization/evaluate.ts";
-import { getTrialDetail, setExperimentHoldout } from "../services/optimization/experimentStore.ts";
+import { setExperimentHoldout } from "../services/optimization/experimentStore.ts";
+import { getTrialDetail } from "../services/optimization/trialStore.ts";
 import { holdoutCandleCount, holdoutFoldSpec } from "../services/optimization/holdout.ts";
 import type {
   FoldSpec,

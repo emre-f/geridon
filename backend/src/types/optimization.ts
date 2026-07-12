@@ -154,6 +154,12 @@ export interface EvolutionSearchConfig {
   maxUniqueIndicatorsPerSide: number;
 }
 
+export interface IndicatorCacheConfig {
+  enabled?: boolean;
+  /** Memory bound as a total count of cached series values. */
+  maxValues?: number;
+}
+
 export interface OptimizationConfig {
   strategy: Strategy;
   datasets: OptimizationDataset[];
@@ -174,11 +180,14 @@ export interface OptimizationConfig {
   method?: "random" | "tpe" | "evolution";
   tpe?: Partial<TpeConfig>;
   evolution?: Partial<EvolutionSearchConfig>;
+  cache?: IndicatorCacheConfig;
 }
 
 export interface OptimizationControl {
   shouldStop?: () => boolean;
   onTrialComplete?: (completedCount: number) => void;
+  /** Fires once per finished trial with its final status, score, and folds. */
+  onTrialFinished?: (trial: OptimizationTrial) => void;
 }
 
 export interface AblationEntry {

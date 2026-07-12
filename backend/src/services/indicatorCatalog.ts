@@ -16,6 +16,12 @@ import {
 import { computeBbp, computeCci, computeMomentum } from "./oscillatorCalculations.ts";
 
 /**
+ * Bump when an indicator's computation, parameters, or defaults change so
+ * old optimization experiments stay interpretable against their snapshot.
+ */
+export const indicatorCatalogVersion = 1;
+
+/**
  * A catalog entry plus its runtime behavior. Adding an indicator means
  * appending one implementation here: the API catalog, spec validation, the
  * strategy builder, and chart rendering are all driven by this list.

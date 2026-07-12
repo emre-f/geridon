@@ -1,6 +1,6 @@
 import type { Database } from "../db.ts";
 import { equityOnFolds, type EvaluationSettings } from "../services/optimization/evaluate.ts";
-import { getTrialDetail, listTrials } from "../services/optimization/experimentStore.ts";
+import { getTrialDetail, listTrials } from "../services/optimization/trialStore.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
 import { searchDatasets } from "../services/optimization/holdout.ts";
 import { resolveScoringConfig } from "../services/optimization/scoring.ts";

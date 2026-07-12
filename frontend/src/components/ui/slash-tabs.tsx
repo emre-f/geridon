@@ -114,7 +114,7 @@ export function SlashTabs({
     <div
       ref={containerRef}
       aria-label={ariaLabel}
-      className={cn("relative flex items-center gap-2 pb-1 text-sm", className)}
+      className={cn("relative flex h-7 items-center gap-2 text-sm", className)}
     >
       {options.map((option, index) => {
         const isSelected = option.value === value;
@@ -139,7 +139,7 @@ export function SlashTabs({
               disabled={option.disabled}
               onClick={() => onValueChange(option.value)}
               className={cn(
-                "transition-colors",
+                "inline-flex h-full items-center transition-colors",
                 isSelected ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                 option.disabled &&
                   "text-muted-foreground/40 hover:text-muted-foreground/40 cursor-not-allowed",

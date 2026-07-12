@@ -8,13 +8,14 @@ import type {
   OptimizationExperimentRecord,
   OptimizationExperimentStatus,
   OptimizationResult,
+  OptimizationTrial,
 } from "../../types.ts";
 import {
   getExperiment,
-  persistExperimentResult,
   updateExperimentProgress,
   updateExperimentStatus,
 } from "./experimentStore.ts";
+import { persistExperimentResult, upsertTrialRow } from "./trialStore.ts";
 import { searchDatasets } from "./holdout.ts";
 
 export type DatasetLoader = (config: OptimizationExperimentConfig) => OptimizationDataset[];
@@ -174,13 +175,24 @@ export class ExperimentRunner {
     };
     this.active = active;
 
-    worker.on("message", (message: { type: string; evaluated?: number; result?: OptimizationResult }) => {
+    worker.on("message", (message: {
+      type: string;
+      evaluated?: number;
+      trial?: OptimizationTrial;
+      result?: OptimizationResult;
+    }) => {
       if (message.type === "progress" && message.evaluated != null) {
         updateExperimentProgress(this.db, experimentId, {
           evaluated_trials: message.evaluated,
           max_trials: record.config.max_trials,
           updated_at_ms: Date.now(),
         });
+        return;
+      }
+      // Each finished trial lands in SQLite immediately so a crash or
+      // restart keeps completed work; the final result pass fills in ranks.
+      if (message.type === "trial" && message.trial) {
+        upsertTrialRow(this.db, experimentId, message.trial);
         return;
       }
       if (message.type === "result" && message.result) {

@@ -1,4 +1,5 @@
 import { runBacktest } from "../backtest.ts";
+import type { IndicatorSeriesCache } from "./indicatorCache.ts";
 import type {
   BacktestMetrics,
   BacktestPositionMode,
@@ -18,6 +19,7 @@ export interface EvaluationSettings {
   initialCapital: number;
   costs?: TradeCosts;
   objective: OptimizationObjective;
+  cache?: IndicatorSeriesCache;
 }
 
 export function objectiveFromMetrics(
@@ -70,6 +72,11 @@ function runFoldBacktest(
     initialCapital: settings.initialCapital,
     costs: settings.costs,
     simulationStartIndex: fold.validStartIndex - fold.trainStartIndex,
+    indicatorCache: settings.cache?.scope(
+      dataset.symbol,
+      fold.trainStartIndex,
+      fold.validEndIndex,
+    ),
   });
 }
 

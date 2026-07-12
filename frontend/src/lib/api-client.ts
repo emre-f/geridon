@@ -119,6 +119,10 @@ export function listStrategyBacktests(strategyId: number) {
   return fetchJson<BacktestRunSummary[]>(`/api/v1/strategies/${strategyId}/backtests`);
 }
 
+export function listBacktests() {
+  return fetchJson<BacktestRunSummary[]>("/api/v1/backtests");
+}
+
 export function getBacktest(id: number) {
   return fetchJson<BacktestRunRecord>(`/api/v1/backtests/${id}`);
 }

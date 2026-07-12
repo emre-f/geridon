@@ -136,7 +136,6 @@ export function ChartPanelHeader({
             type="button"
             variant="secondary"
             size="sm"
-            className="mt-[-0.125rem]"
             aria-label="Add indicator"
             title="Add indicator"
             onClick={onOpenIndicatorPicker}
