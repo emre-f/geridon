@@ -46,7 +46,9 @@ export function OptimizeHoldoutSection({
         ) : (
           <LockIcon className="text-muted-foreground size-4" />
         )}
-        <h3 className="text-sm font-medium">Sealed holdout</h3>
+        <h3 className="text-foreground text-sm font-semibold uppercase tracking-wide">
+          Sealed holdout
+        </h3>
         <span className="text-muted-foreground text-xs">
           last {sealedWindow.fractionPct}% of the data ({sealedWindow.sealedCandles} of {sealedWindow.totalCandles}{" "}
           candles) hidden from search and validation
@@ -86,8 +88,8 @@ export function OptimizeHoldoutSection({
           ) : confirming ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm">
-                Evaluate trial {trial.trial_index} on the sealed data? This can be done only once
-                — the result must not steer further candidate picks.
+                Evaluate trial {trial.trial_index} on the sealed data? This can be done only
+                once, and the result must not steer further candidate picks.
               </p>
               <Button
                 type="button"

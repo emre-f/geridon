@@ -15,7 +15,7 @@ export function HelpTip({ ariaLabel, children }: { ariaLabel: string; children: 
       >
         ?
       </span>
-      <span className="border-border bg-popover text-popover-foreground invisible absolute left-0 top-[calc(100%+0.375rem)] z-50 w-64 rounded-md border p-2 text-[11px] font-normal opacity-0 shadow-md transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <span className="border-border bg-popover text-popover-foreground invisible absolute left-0 top-[calc(100%+0.375rem)] z-50 w-72 rounded-md border p-2.5 text-[11px] font-normal opacity-0 shadow-md transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
         {children}
       </span>
     </span>

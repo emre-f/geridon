@@ -170,7 +170,7 @@ export function OptimizeAblationChart({ entries }: { entries: AblationEntry[] })
 
       {skipped.map((entry) => (
         <p key={entry.ruleId} className="text-muted-foreground px-1 text-xs">
-          {entry.summary} — not ablated{entry.skipReason ? `: ${entry.skipReason}` : "."}
+          {entry.summary} (not ablated{entry.skipReason ? `: ${entry.skipReason}` : ""})
         </p>
       ))}
     </div>

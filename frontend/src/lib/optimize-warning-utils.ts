@@ -19,7 +19,7 @@ export function experimentWarnings(
 
   if (record.holdout != null) {
     warnings.push(
-      `The sealed holdout was opened for trial ${record.holdout.trial_index} — it is no longer unseen data, so it cannot vet any other candidate from this experiment.`,
+      `The sealed holdout was opened for trial ${record.holdout.trial_index}. It is no longer unseen data, so it cannot vet any other candidate from this experiment.`,
     );
   }
 
@@ -31,7 +31,7 @@ export function experimentWarnings(
     costs.slippage_bps === 0
   ) {
     warnings.push(
-      "Transaction costs are zero — every score ignores commissions and slippage, which flatters high-turnover candidates.",
+      "Transaction costs are zero: every score ignores commissions and slippage, which flatters high-turnover candidates.",
     );
   }
 
@@ -50,7 +50,7 @@ export function experimentWarnings(
   const metrics = bestTrial?.metrics ?? null;
   if (metrics != null && metrics.total_trades < minTotalTrades) {
     warnings.push(
-      `The top candidate traded only ${metrics.total_trades} time${metrics.total_trades === 1 ? "" : "s"} across all validation folds — too few trades to trust the score.`,
+      `The top candidate traded only ${metrics.total_trades} time${metrics.total_trades === 1 ? "" : "s"} across all validation folds, too few trades to trust the score.`,
     );
   }
 
@@ -63,7 +63,7 @@ export function experimentWarnings(
     metrics != null && metrics.median_return_pct > 0 && metrics.worst_fold_return_pct < 0;
   if (unstablePenalty || losesWorstFold) {
     warnings.push(
-      "The top candidate's results are unstable across validation folds — it may only work in some market regimes.",
+      "The top candidate's results are unstable across validation folds; it may only work in some market regimes.",
     );
   }
 

@@ -142,10 +142,6 @@ export function nodeLabel(node: SearchSpaceNode): string {
   return [side, ruleNumbers ? `r${ruleNumbers}` : "", name].filter(Boolean).join(" ");
 }
 
-export function nodeLabelsById(space: SearchSpaceNode[]): Map<string, string> {
-  return new Map(space.map((node) => [node.id, nodeLabel(node)]));
-}
-
 export function formatSampledValue(value: number | boolean): string {
   if (typeof value === "boolean") {
     return value ? "on" : "off";

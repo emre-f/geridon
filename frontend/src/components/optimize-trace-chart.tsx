@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 
-import type { TrialValues } from "@/lib/api-optimization-types";
+import type { CandidateDiffRow } from "@/lib/optimize-candidate-utils";
 import type { TracePoint } from "@/lib/optimize-detail-utils";
 import { niceTicks } from "@/lib/chart-scale";
-import { formatSampledValue, seriesColors } from "@/lib/optimize-chart-utils";
+import { seriesColors } from "@/lib/optimize-chart-utils";
 import { ChartLegend } from "@/components/optimize-chart-legend";
+import { OptimizeTraceTooltip } from "@/components/optimize-trace-tooltip";
 import { useElementSize } from "@/hooks/use-element-size";
 
 const margin = { top: 12, right: 14, bottom: 22, left: 44 };
@@ -21,13 +22,11 @@ const legendItems = [
 export function OptimizeTraceChart({
   points,
   baselineScore,
-  valuesByTrial,
-  labelById,
+  diffsByTrial,
 }: {
   points: TracePoint[];
   baselineScore: number | null;
-  valuesByTrial: Map<number, TrialValues>;
-  labelById: Map<string, string>;
+  diffsByTrial: Map<number, CandidateDiffRow[]>;
 }) {
   const [containerRef, { width }] = useElementSize<HTMLDivElement>();
   const [hovered, setHovered] = useState<number | null>(null);
@@ -92,7 +91,7 @@ export function OptimizeTraceChart({
   }
 
   const hoveredPoint = hovered != null ? points[hovered] : null;
-  const hoveredValues = hoveredPoint ? valuesByTrial.get(hoveredPoint.trialIndex) : undefined;
+  const hoveredDiff = hoveredPoint ? diffsByTrial.get(hoveredPoint.trialIndex) : undefined;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -202,38 +201,14 @@ export function OptimizeTraceChart({
         </svg>
 
         {plot && hoveredPoint ? (
-          <div
-            className="border-border bg-popover text-popover-foreground pointer-events-none absolute z-10 w-56 rounded-md border p-2.5 text-xs shadow-md"
-            style={{
-              top: 8,
-              left: Math.min(
-                Math.max(plot.xAt(hoveredPoint.trialIndex) - 112, 0),
-                Math.max(width - 224, 0),
-              ),
-            }}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium">Trial {hoveredPoint.trialIndex}</span>
-              <span className="font-semibold">{hoveredPoint.score.toFixed(2)}</span>
-            </div>
-            <div className="text-muted-foreground mt-0.5">
-              {hoveredPoint.status === "pruned"
-                ? "Pruned by successive halving"
-                : hoveredPoint.eligible
-                  ? "Eligible"
-                  : "Ineligible"}
-            </div>
-            {hoveredValues && Object.keys(hoveredValues).length > 0 ? (
-              <div className="mt-1 flex flex-col gap-0.5 border-t pt-1">
-                {Object.entries(hoveredValues).map(([id, value]) => (
-                  <div key={id} className="flex items-baseline justify-between gap-2">
-                    <span className="text-muted-foreground truncate">{labelById.get(id) ?? id}</span>
-                    <span className="tabular-nums">{formatSampledValue(value)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <OptimizeTraceTooltip
+            point={hoveredPoint}
+            diff={hoveredDiff}
+            left={Math.min(
+              Math.max(plot.xAt(hoveredPoint.trialIndex) - 112, 0),
+              Math.max(width - 224, 0),
+            )}
+          />
         ) : null}
       </div>
       <ChartLegend items={legendItems} />

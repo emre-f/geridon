@@ -79,6 +79,8 @@ export default function App() {
     handleTabChange("backtest");
   }
 
+  const showSymbolSidebar = activeTab === "charts" || activeTab === "strategies";
+
   return (
     <main className="bg-background text-foreground min-h-screen">
       <div className="flex w-full flex-col gap-3 px-3 py-3 sm:px-4 lg:px-5 2xl:px-6">
@@ -96,7 +98,13 @@ export default function App() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div
+          className={
+            showSymbolSidebar
+              ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]"
+              : "grid grid-cols-[minmax(0,1fr)] gap-4"
+          }
+        >
           <div className="flex min-w-0 flex-col gap-4">
             {activeTab !== "backtest" && activeTab !== "optimize" ? (
               <ChartPanel
@@ -193,25 +201,27 @@ export default function App() {
             </div>
           </div>
 
-          <SymbolSidebar
-            addPanelRef={symbolManager.addPanelRef}
-            addTickerInputRef={symbolManager.addTickerInputRef}
-            addPanelOpen={symbolManager.addPanelOpen}
-            addTickerInput={symbolManager.addTickerInput}
-            addingSymbol={symbolManager.addingSymbol}
-            deletingTicker={symbolManager.deletingTicker}
-            filteredSymbols={symbolManager.filteredSymbols}
-            selectedTicker={symbolManager.selectedTicker}
-            symbolFilter={symbolManager.symbolFilter}
-            symbolsLoading={symbolManager.symbolsLoading}
-            visibleSymbols={symbolManager.visibleSymbols}
-            onAddPanelOpenChange={symbolManager.setAddPanelOpen}
-            onAddTickerInputChange={symbolManager.setAddTickerInput}
-            onAddSymbolSubmit={symbolManager.handleAddSymbolSubmit}
-            onContextMenu={symbolManager.openSymbolContextMenu}
-            onSelectSymbol={symbolManager.selectSymbol}
-            onSymbolFilterChange={symbolManager.setSymbolFilter}
-          />
+          {showSymbolSidebar ? (
+            <SymbolSidebar
+              addPanelRef={symbolManager.addPanelRef}
+              addTickerInputRef={symbolManager.addTickerInputRef}
+              addPanelOpen={symbolManager.addPanelOpen}
+              addTickerInput={symbolManager.addTickerInput}
+              addingSymbol={symbolManager.addingSymbol}
+              deletingTicker={symbolManager.deletingTicker}
+              filteredSymbols={symbolManager.filteredSymbols}
+              selectedTicker={symbolManager.selectedTicker}
+              symbolFilter={symbolManager.symbolFilter}
+              symbolsLoading={symbolManager.symbolsLoading}
+              visibleSymbols={symbolManager.visibleSymbols}
+              onAddPanelOpenChange={symbolManager.setAddPanelOpen}
+              onAddTickerInputChange={symbolManager.setAddTickerInput}
+              onAddSymbolSubmit={symbolManager.handleAddSymbolSubmit}
+              onContextMenu={symbolManager.openSymbolContextMenu}
+              onSelectSymbol={symbolManager.selectSymbol}
+              onSymbolFilterChange={symbolManager.setSymbolFilter}
+            />
+          ) : null}
         </div>
       </div>
       <IndicatorPicker

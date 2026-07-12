@@ -54,7 +54,9 @@ export function OptimizeCandidateDetail({
       aria-label="Candidate detail"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">Candidate {candidateLabel}</h3>
+        <h3 className="text-foreground text-sm font-semibold uppercase tracking-wide">
+          Candidate {candidateLabel}
+        </h3>
         <div className="flex items-center gap-1.5">
           {saving ? (
             <RefreshCwIcon className="text-muted-foreground size-4 animate-spin" />

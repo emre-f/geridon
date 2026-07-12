@@ -48,7 +48,12 @@ function PanelChart({
 
   return (
     <div className="flex flex-col gap-1">
-      <p className="text-muted-foreground px-1 text-xs font-medium">{panel.label}</p>
+      <p className="text-muted-foreground flex items-baseline justify-between gap-2 px-1 text-xs font-medium">
+        <span className="truncate">{panel.label}</span>
+        <span className="text-muted-foreground/70 tabular-nums" title="Score impact">
+          Δ {panel.impact.toFixed(2)}
+        </span>
+      </p>
       <div ref={containerRef} className="relative w-full">
         <svg
           role="img"
@@ -146,6 +151,8 @@ function PanelChart({
   );
 }
 
+const collapsedPanelCount = 6;
+
 export function OptimizeSensitivityChart({
   panels,
   domain,
@@ -153,13 +160,27 @@ export function OptimizeSensitivityChart({
   panels: SensitivityPanel[];
   domain: { min: number; max: number };
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const visiblePanels = showAll ? panels : panels.slice(0, collapsedPanelCount);
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
-        {panels.map((panel) => (
+        {visiblePanels.map((panel) => (
           <PanelChart key={panel.nodeId} panel={panel} domain={domain} />
         ))}
       </div>
+      {panels.length > collapsedPanelCount ? (
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground self-start px-1 text-xs underline underline-offset-2"
+          onClick={() => setShowAll((previous) => !previous)}
+        >
+          {showAll
+            ? `Show the ${collapsedPanelCount} highest-impact parameters`
+            : `Show all ${panels.length} parameters`}
+        </button>
+      ) : null}
       <ChartLegend items={legendItems} />
     </div>
   );

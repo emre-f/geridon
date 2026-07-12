@@ -75,7 +75,7 @@ export function OptimizePanel({
           </CardTitle>
           <CardDescription>
             Search for stronger variants of a saved strategy under a bounded compute budget.
-            Candidates are ranked with walk-forward validation, never applied automatically —
+            Candidates are ranked with walk-forward validation and never applied automatically:
             review the evidence, then save one as a new strategy.
           </CardDescription>
         </CardHeader>
@@ -83,7 +83,7 @@ export function OptimizePanel({
         <CardContent className="flex flex-col gap-4 px-4 sm:px-5">
           {strategies.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Save a strategy in the Strategies tab first — experiments search over a saved
+              Save a strategy in the Strategies tab first; experiments search over a saved
               strategy's parameters and rules.
             </p>
           ) : (

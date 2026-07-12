@@ -3,6 +3,7 @@ import type {
   ParameterOverride,
   RuleRole,
   SearchSpacePreview,
+  SearchSpacePreviewRule,
 } from "@/lib/api";
 
 export interface ParameterEdit {
@@ -63,6 +64,29 @@ export function buildParameterOverrides(
   return Object.keys(overrides).length > 0 ? overrides : undefined;
 }
 
+export interface RuleParameterGroup {
+  rule: SearchSpacePreviewRule | null;
+  nodes: NumericPreviewNode[];
+}
+
+/** Parameters grouped under the rule they belong to; rule-less nodes last. */
+export function ruleParameterGroups(preview: SearchSpacePreview): RuleParameterGroup[] {
+  const nodes = numericNodes(preview);
+  const grouped = new Set<string>();
+  const groups: RuleParameterGroup[] = preview.rules.map((rule) => {
+    const ruleNodes = nodes.filter((node) => node.id.startsWith(`${rule.id}.`));
+    for (const node of ruleNodes) {
+      grouped.add(node.id);
+    }
+    return { rule, nodes: ruleNodes };
+  });
+  const leftover = nodes.filter((node) => !grouped.has(node.id));
+  if (leftover.length > 0) {
+    groups.push({ rule: null, nodes: leftover });
+  }
+  return groups;
+}
+
 export function underOffRule(nodeId: string, edits: SearchSpaceEdits): boolean {
   return Object.entries(edits.roles).some(
     ([ruleId, role]) => role === "off" && nodeId.startsWith(`${ruleId}.`),
@@ -106,7 +130,7 @@ export function editsIssue(preview: SearchSpacePreview, edits: SearchSpaceEdits)
   }
   const optionalRules = Object.values(edits.roles).filter((role) => role === "optional").length;
   if (searchedNodes(preview, edits).length === 0 && optionalRules === 0) {
-    return "Everything is locked — there is nothing left to search.";
+    return "Everything is locked, so there is nothing left to search.";
   }
   return null;
 }

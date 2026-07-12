@@ -8,6 +8,7 @@ import {
   editsIssue,
   editsSummary,
   initialEdits,
+  ruleParameterGroups,
   searchedNodes,
 } from "./optimize-search-space-utils.ts";
 
@@ -83,6 +84,34 @@ test("nodes under an off rule are not counted as searched", () => {
     ["entry.conditions.0.left.parameters.fast"],
   );
   assert.equal(editsSummary(data, edits), "1 of 2 parameters searched · 1 rule off");
+});
+
+test("ruleParameterGroups nests each parameter under its rule and keeps leftovers", () => {
+  const data = preview();
+  data.nodes.push({
+    id: "sizing.value",
+    kind: "numeric",
+    path: ["sizing", "value"],
+    valueType: "integer",
+    min: 1,
+    max: 10,
+    step: 1,
+    scale: "linear",
+    current: 5,
+    hard_min: null,
+    hard_max: null,
+  });
+
+  const groups = ruleParameterGroups(data);
+  assert.deepEqual(
+    groups.map((group) => [group.rule?.id ?? null, group.nodes.map((node) => node.id)]),
+    [
+      ["entry.conditions.0", ["entry.conditions.0.left.parameters.fast"]],
+      ["entry.conditions.1", ["entry.conditions.1.right.value"]],
+      ["exit", []],
+      [null, ["sizing.value"]],
+    ],
+  );
 });
 
 test("turning every rule of one side off is an issue", () => {

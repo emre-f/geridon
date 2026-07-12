@@ -2,29 +2,106 @@ import { useState } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 import type { RuleRole } from "@/lib/api";
-import { nodeLabel } from "@/lib/optimize-chart-utils";
-import { numericNodes, underOffRule } from "@/lib/optimize-search-space-utils";
+import { ruleParameterGroups, type RuleParameterGroup } from "@/lib/optimize-search-space-utils";
 import type { useOptimizeSearchSpace } from "@/hooks/use-optimize-search-space";
+import { searchSpaceHelp } from "@/components/optimize-section-help";
+import { OptimizeSearchSpaceParameterRow } from "@/components/optimize-search-space-parameter-row";
 import { Badge } from "@/components/ui/badge";
-import { NumberInput } from "@/components/ui/number-input";
+import { HelpTip } from "@/components/ui/help-tip";
 import { Select } from "@/components/ui/select";
+
+type SearchSpaceHook = ReturnType<typeof useOptimizeSearchSpace>;
+
+function RuleGroup({
+  group,
+  searchSpace,
+}: {
+  group: RuleParameterGroup;
+  searchSpace: SearchSpaceHook;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { edits } = searchSpace;
+  const rule = group.rule;
+  const role = rule ? edits?.roles[rule.id] : undefined;
+  const off = role === "off";
+  const tuned = group.nodes.filter((node) => !edits?.parameters[node.id]?.locked).length;
+  const showParameters = expanded && !off && group.nodes.length > 0;
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center gap-2 py-0.5">
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={`Parameters for ${rule ? `rule ${rule.id}` : "the strategy"}`}
+          disabled={off || group.nodes.length === 0}
+          className="text-muted-foreground disabled:opacity-30"
+          onClick={() => setExpanded((previous) => !previous)}
+        >
+          {expanded && !off ? (
+            <ChevronDownIcon className="size-4" aria-hidden />
+          ) : (
+            <ChevronRightIcon className="size-4" aria-hidden />
+          )}
+        </button>
+        {rule ? (
+          <>
+            <Badge variant="outline" className="w-14 justify-center">
+              {rule.side}
+            </Badge>
+            <code className="min-w-0 flex-1 truncate font-mono text-xs">{rule.summary}</code>
+            <span className="text-muted-foreground shrink-0 text-xs">
+              {off
+                ? "removed from search"
+                : group.nodes.length === 0
+                  ? "no parameters"
+                  : `${tuned}/${group.nodes.length} tuned`}
+            </span>
+            <Select
+              value={role}
+              aria-label={`Role for rule ${rule.id}`}
+              className="w-28"
+              onChange={(event) => searchSpace.setRole(rule.id, event.target.value as RuleRole)}
+            >
+              <option value="required">Required</option>
+              <option value="optional">Optional</option>
+              <option value="off">Off</option>
+            </Select>
+          </>
+        ) : (
+          <>
+            <span className="min-w-0 flex-1 truncate text-xs">Strategy-level parameters</span>
+            <span className="text-muted-foreground shrink-0 text-xs">
+              {tuned}/{group.nodes.length} tuned
+            </span>
+          </>
+        )}
+      </div>
+      {showParameters ? (
+        <div className="flex flex-col pb-1 pl-6">
+          {group.nodes.map((node) => (
+            <OptimizeSearchSpaceParameterRow key={node.id} node={node} searchSpace={searchSpace} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * Collapsible Mode A/B controls for the new-experiment form: per-rule
- * required/optional/off roles and per-parameter tune/lock with bounded ranges.
+ * required/optional/off roles with each rule's tunable parameters grouped
+ * beneath it. Defaults need no editing: every rule stays required and every
+ * parameter is tuned over a conservative range around its current value.
  */
-export function OptimizeSearchSpaceEditor({
-  searchSpace,
-}: {
-  searchSpace: ReturnType<typeof useOptimizeSearchSpace>;
-}) {
+export function OptimizeSearchSpaceEditor({ searchSpace }: { searchSpace: SearchSpaceHook }) {
   const [open, setOpen] = useState(false);
   const { preview, edits, loading, error, issue, summary } = searchSpace;
 
   const headerNote = loading
     ? "Loading search space…"
     : error
-      ? "Search space unavailable — defaults will be used"
+      ? "Search space unavailable; defaults will be used"
       : summary;
 
   return (
@@ -45,99 +122,18 @@ export function OptimizeSearchSpaceEditor({
       </button>
 
       {open && preview && edits ? (
-        <div className="flex flex-col gap-4 border-t px-3 pt-3 pb-3">
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2 border-t px-3 pt-3 pb-3">
+          <div className="flex items-center gap-2">
             <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Rules
             </h4>
-            <p className="text-muted-foreground text-xs">
-              Optional rules are switched on/off by the search; off rules are removed before
-              searching.
-            </p>
-            {preview.rules.map((rule) => (
-              <div key={rule.id} className="flex items-center gap-2 py-0.5">
-                <Badge variant="outline" className="w-14 justify-center">
-                  {rule.side}
-                </Badge>
-                <code className="min-w-0 flex-1 truncate font-mono text-xs">{rule.summary}</code>
-                <Select
-                  value={edits.roles[rule.id]}
-                  aria-label={`Role for rule ${rule.id}`}
-                  className="w-28"
-                  onChange={(event) => searchSpace.setRole(rule.id, event.target.value as RuleRole)}
-                >
-                  <option value="required">Required</option>
-                  <option value="optional">Optional</option>
-                  <option value="off">Off</option>
-                </Select>
-              </div>
-            ))}
+            <HelpTip ariaLabel="How rule roles and parameter ranges work">
+              {searchSpaceHelp}
+            </HelpTip>
           </div>
-
-          <div className="flex flex-col gap-1">
-            <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              Parameters
-            </h4>
-            {numericNodes(preview).map((node) => {
-              const edit = edits.parameters[node.id];
-              if (!edit) {
-                return null;
-              }
-              const ruleOff = underOffRule(node.id, edits);
-              return (
-                <div
-                  key={node.id}
-                  className={`flex flex-wrap items-center gap-2 py-0.5 ${ruleOff ? "opacity-50" : ""}`}
-                >
-                  <span className="w-44 truncate text-xs" title={node.id}>
-                    {nodeLabel(node)}
-                  </span>
-                  <span className="text-muted-foreground w-16 text-xs">now {node.current}</span>
-                  {ruleOff ? (
-                    <span className="text-muted-foreground text-xs">rule is off</span>
-                  ) : (
-                    <>
-                      <Select
-                        value={edit.locked ? "lock" : "tune"}
-                        aria-label={`Search mode for ${node.id}`}
-                        className="w-20"
-                        onChange={(event) =>
-                          searchSpace.setParameter(node.id, {
-                            locked: event.target.value === "lock",
-                          })
-                        }
-                      >
-                        <option value="tune">Tune</option>
-                        <option value="lock">Lock</option>
-                      </Select>
-                      <NumberInput
-                        className="w-20"
-                        aria-label={`Minimum for ${node.id}`}
-                        value={edit.min}
-                        min={node.hard_min ?? undefined}
-                        max={node.hard_max ?? undefined}
-                        step={node.step}
-                        disabled={edit.locked}
-                        onValueChange={(min) => searchSpace.setParameter(node.id, { min })}
-                      />
-                      <span className="text-muted-foreground text-xs">to</span>
-                      <NumberInput
-                        className="w-20"
-                        aria-label={`Maximum for ${node.id}`}
-                        value={edit.max}
-                        min={node.hard_min ?? undefined}
-                        max={node.hard_max ?? undefined}
-                        step={node.step}
-                        disabled={edit.locked}
-                        onValueChange={(max) => searchSpace.setParameter(node.id, { max })}
-                      />
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
+          {ruleParameterGroups(preview).map((group) => (
+            <RuleGroup key={group.rule?.id ?? "strategy"} group={group} searchSpace={searchSpace} />
+          ))}
           {issue ? <p className="text-destructive text-xs">{issue}</p> : null}
         </div>
       ) : null}

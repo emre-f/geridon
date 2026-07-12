@@ -18,9 +18,11 @@ import { OptimizeHoldoutSection } from "@/components/optimize-holdout-section";
 import { OptimizeResultSections } from "@/components/optimize-result-sections";
 import { OptimizeStatTiles } from "@/components/optimize-stat-tiles";
 import { OptimizeTrialsLeaderboard } from "@/components/optimize-trials-leaderboard";
+import { BacktestSection } from "@/components/backtest-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 /**
  * Results for one selected experiment, shown below the Strategy Lab card the
@@ -96,14 +98,17 @@ export function OptimizeExperimentResultCard({
         </Button>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-5 px-4 sm:px-5">
+      <CardContent className="flex flex-col gap-6 px-4 sm:px-5">
         {board.loading && !record ? (
           <p className="text-muted-foreground text-sm">Loading experiment results…</p>
         ) : null}
 
-        {record && summary ? <OptimizeStatTiles experiment={record} trials={board.trials} /> : null}
-
-        <OptimizeExperimentWarnings warnings={warnings} />
+        {record && summary ? (
+          <BacktestSection title="Summary">
+            <OptimizeStatTiles experiment={record} trials={board.trials} />
+            <OptimizeExperimentWarnings warnings={warnings} />
+          </BacktestSection>
+        ) : null}
 
         {record && summary ? (
           <OptimizeResultSections
@@ -114,19 +119,29 @@ export function OptimizeExperimentResultCard({
           />
         ) : null}
 
+        <Separator />
+
         <OptimizeTrialsLeaderboard board={board} />
 
         {record && summary && candidateLabel != null ? (
-          <OptimizeCandidateDetail
-            board={board}
-            experimentId={experiment.id}
-            space={summary.space}
-            timeframe={record.config.timeframe}
-            candidateLabel={candidateLabel}
-          />
+          <>
+            <Separator />
+            <OptimizeCandidateDetail
+              board={board}
+              experimentId={experiment.id}
+              space={summary.space}
+              timeframe={record.config.timeframe}
+              candidateLabel={candidateLabel}
+            />
+          </>
         ) : null}
 
-        {record && summary ? <OptimizeHoldoutSection board={board} record={record} /> : null}
+        {record && summary && record.config.holdout ? (
+          <>
+            <Separator />
+            <OptimizeHoldoutSection board={board} record={record} />
+          </>
+        ) : null}
 
         <p className="text-muted-foreground text-xs">
           Research evidence, not a forecast: candidates are evaluated on today&apos;s ticker

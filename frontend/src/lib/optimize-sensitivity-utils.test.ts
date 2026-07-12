@@ -119,6 +119,38 @@ test("sensitivityPanels widens the x domain to cover samples outside the node ra
   });
 });
 
+test("sensitivityPanels sorts panels by impact so influential parameters come first", () => {
+  const trials = [
+    trial({
+      trial_index: 0,
+      score: score(0),
+      values: { "entry.right.value": 91, "exit.right.value": 105 },
+    }),
+    trial({
+      trial_index: 1,
+      score: score(0.1),
+      values: { "entry.right.value": 99, "exit.right.value": 105 },
+    }),
+    trial({
+      trial_index: 2,
+      score: score(3),
+      values: { "entry.right.value": 91, "exit.right.value": 109 },
+    }),
+    trial({
+      trial_index: 3,
+      score: score(3.1),
+      values: { "entry.right.value": 99, "exit.right.value": 109 },
+    }),
+  ];
+
+  const panels = sensitivityPanels([numericNode, categoricalNode], trials);
+  assert.deepEqual(
+    panels.map((panel) => panel.nodeId),
+    ["exit.right.value", "entry.right.value"],
+  );
+  assert.ok(panels[0].impact > panels[1].impact);
+});
+
 test("sensitivityScoreDomain spans every panel plus the baseline with padding", () => {
   const trials = [
     trial({ trial_index: 0, score: score(1), values: { "entry.right.value": 92 } }),

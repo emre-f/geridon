@@ -5,34 +5,43 @@ import type {
   OptimizationExperimentSummary,
 } from "@/lib/api-optimization-experiment-types";
 import type { OptimizeExperimentDetail } from "@/hooks/use-optimize-experiment-detail";
-import {
-  decompositionRows,
-  foldGroups,
-  nodeLabelsById,
-  objectiveLabels,
-} from "@/lib/optimize-chart-utils";
+import { decompositionRows, foldGroups, objectiveLabels } from "@/lib/optimize-chart-utils";
+import { candidateDiff } from "@/lib/optimize-candidate-utils";
 import { sensitivityPanels, sensitivityScoreDomain } from "@/lib/optimize-sensitivity-utils";
 import { OptimizeAblationChart } from "@/components/optimize-ablation-chart";
 import { OptimizeFoldChart } from "@/components/optimize-fold-chart";
 import { OptimizeInclusionList } from "@/components/optimize-inclusion-list";
 import { OptimizeScoreDecomposition } from "@/components/optimize-score-decomposition";
+import {
+  ablationHelp,
+  decompositionHelp,
+  foldsHelp,
+  inclusionHelp,
+  sensitivityHelp,
+  traceHelp,
+} from "@/components/optimize-section-help";
 import { OptimizeSensitivityChart } from "@/components/optimize-sensitivity-chart";
 import { OptimizeTraceChart } from "@/components/optimize-trace-chart";
+import { HelpTip } from "@/components/ui/help-tip";
+import { Separator } from "@/components/ui/separator";
 
-function ChartSection({
+export function ChartSection({
   title,
   question,
+  help,
   children,
 }: {
   title: string;
   question: string;
+  help?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2" aria-label={title}>
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <h3 className="text-sm font-medium">{title}</h3>
+      <div className="flex flex-wrap items-center gap-x-2">
+        <h3 className="text-foreground text-sm font-semibold uppercase tracking-wide">{title}</h3>
         <p className="text-muted-foreground text-xs">{question}</p>
+        {help ? <HelpTip ariaLabel={`How to read ${title}`}>{help}</HelpTip> : null}
       </div>
       {children}
     </section>
@@ -54,15 +63,14 @@ export function OptimizeResultSections({
   const objectiveLabel = objectiveLabels[record.config.scoring?.objective ?? "sharpe"];
   const inclusion = summary.inclusion ?? [];
 
-  const labelById = useMemo(() => nodeLabelsById(summary.space), [summary]);
-  const valuesByTrial = useMemo(
+  const diffsByTrial = useMemo(
     () =>
       new Map(
         board.trials
           .filter((trial) => trial.score != null)
-          .map((trial) => [trial.trial_index, trial.values]),
+          .map((trial) => [trial.trial_index, candidateDiff(summary.space, trial.values)]),
       ),
-    [board.trials],
+    [board.trials, summary],
   );
   const decomposition = useMemo(
     () => decompositionRows(summary, board.trials),
@@ -89,70 +97,96 @@ export function OptimizeResultSections({
   return (
     <>
       {board.trace.length > 0 ? (
-        <ChartSection title="Search trace" question="Did the search improve on the baseline?">
-          <OptimizeTraceChart
-            points={board.trace}
-            baselineScore={board.baselineScore}
-            valuesByTrial={valuesByTrial}
-            labelById={labelById}
-          />
-        </ChartSection>
+        <>
+          <Separator />
+          <ChartSection
+            title="Search trace"
+            question="Did the search improve on the baseline?"
+            help={traceHelp}
+          >
+            <OptimizeTraceChart
+              points={board.trace}
+              baselineScore={board.baselineScore}
+              diffsByTrial={diffsByTrial}
+            />
+          </ChartSection>
+        </>
       ) : null}
 
       {decomposition.length > 0 ? (
-        <ChartSection
-          title="Score decomposition"
-          question="Which penalties pull each candidate's score down?"
-        >
-          <OptimizeScoreDecomposition rows={decomposition} />
-        </ChartSection>
+        <>
+          <Separator />
+          <ChartSection
+            title="Score decomposition"
+            question="Which penalties pull each candidate's score down?"
+            help={decompositionHelp(objectiveLabel)}
+          >
+            <OptimizeScoreDecomposition rows={decomposition} />
+          </ChartSection>
+        </>
       ) : null}
 
       {folds.length > 0 ? (
-        <ChartSection
-          title="Fold robustness"
-          question={`Does the ${objectiveLabel} objective survive every validation fold?`}
-        >
-          <OptimizeFoldChart
-            groups={folds}
-            candidateLabel={candidateLabel}
-            objectiveLabel={objectiveLabel}
-          />
-          <p className="text-muted-foreground px-1 text-xs">
-            {board.trialDetailLoading
-              ? "Loading the selected trial's folds…"
-              : candidateLabel == null
-                ? "Select a scored trial in the leaderboard to compare its folds against the baseline."
-                : null}
-          </p>
-        </ChartSection>
+        <>
+          <Separator />
+          <ChartSection
+            title="Fold robustness"
+            question={`Does the ${objectiveLabel} objective survive every validation fold?`}
+            help={foldsHelp}
+          >
+            <OptimizeFoldChart
+              groups={folds}
+              candidateLabel={candidateLabel}
+              objectiveLabel={objectiveLabel}
+            />
+            <p className="text-muted-foreground px-1 text-xs">
+              {board.trialDetailLoading
+                ? "Loading the selected trial's folds…"
+                : candidateLabel == null
+                  ? "Select a scored trial in the leaderboard to compare its folds against the baseline."
+                  : null}
+            </p>
+          </ChartSection>
+        </>
       ) : null}
 
       {panels.length > 0 && scoreDomain ? (
-        <ChartSection
-          title="Parameter sensitivity"
-          question="Is each tuned value in a robust region or on a lucky spike?"
-        >
-          <OptimizeSensitivityChart panels={panels} domain={scoreDomain} />
-        </ChartSection>
+        <>
+          <Separator />
+          <ChartSection
+            title="Parameter sensitivity"
+            question="Is each tuned value in a robust region or on a lucky spike?"
+            help={sensitivityHelp}
+          >
+            <OptimizeSensitivityChart panels={panels} domain={scoreDomain} />
+          </ChartSection>
+        </>
       ) : null}
 
       {summary.ablation.length > 0 ? (
-        <ChartSection
-          title="Ablation"
-          question="Does every rule of the best candidate earn its place?"
-        >
-          <OptimizeAblationChart entries={summary.ablation} />
-        </ChartSection>
+        <>
+          <Separator />
+          <ChartSection
+            title="Ablation"
+            question="Does every rule of the best candidate earn its place?"
+            help={ablationHelp}
+          >
+            <OptimizeAblationChart entries={summary.ablation} />
+          </ChartSection>
+        </>
       ) : null}
 
       {inclusion.length > 0 ? (
-        <ChartSection
-          title="Rule inclusion"
-          question="Which rules do the top candidates keep enabled?"
-        >
-          <OptimizeInclusionList entries={inclusion} />
-        </ChartSection>
+        <>
+          <Separator />
+          <ChartSection
+            title="Rule inclusion"
+            question="Which rules do the top candidates keep enabled?"
+            help={inclusionHelp}
+          >
+            <OptimizeInclusionList entries={inclusion} />
+          </ChartSection>
+        </>
       ) : null}
     </>
   );
