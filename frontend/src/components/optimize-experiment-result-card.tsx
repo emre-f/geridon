@@ -127,6 +127,11 @@ export function OptimizeExperimentResultCard({
         ) : null}
 
         {record && summary ? <OptimizeHoldoutSection board={board} record={record} /> : null}
+
+        <p className="text-muted-foreground text-xs">
+          Research evidence, not a forecast: candidates are evaluated on today&apos;s ticker
+          selection over historical data, so survivorship bias can overstate results.
+        </p>
       </CardContent>
     </Card>
   );

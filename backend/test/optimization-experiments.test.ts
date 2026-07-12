@@ -101,6 +101,9 @@ test("invalid configurations return structured errors", async () => {
     [experimentBody(strategyId, { parameter_overrides: lockedOverrides }), 400],
     [experimentBody(strategyId, { costs: { commission_pct: -1 } }), 400],
     [experimentBody(strategyId, { costs: { spread: 1 } }), 400],
+    [experimentBody(strategyId, { folds: { foldCount: 4, embargoCandles: -1 } }), 400],
+    [experimentBody(strategyId, { folds: { foldCount: 4, embargoCandles: 251 } }), 400],
+    [experimentBody(strategyId, { folds: { foldCount: 4, embargoCandles: 79 } }), 400],
   ];
   for (const [body, statusCode] of cases) {
     assert.equal(handleCreateExperiment(db, runner, body).statusCode, statusCode);

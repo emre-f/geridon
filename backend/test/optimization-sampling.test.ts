@@ -86,6 +86,31 @@ test("too few candles for the requested folds throws", () => {
   assert.throws(() => buildFolds(12, { foldCount: 5, mode: "anchored" }), /Not enough candles/);
 });
 
+test("an embargo leaves a gap between train end and validation start", () => {
+  const embargo = 10;
+  const plain = buildFolds(400, { foldCount: 4, mode: "anchored" });
+  const embargoed = buildFolds(400, { foldCount: 4, mode: "anchored", embargoCandles: embargo });
+  assert.equal(embargoed.length, plain.length);
+  for (let i = 0; i < plain.length; i += 1) {
+    assert.equal(embargoed[i].trainStartIndex, plain[i].trainStartIndex);
+    assert.equal(embargoed[i].trainEndIndex, plain[i].trainEndIndex);
+    assert.equal(embargoed[i].validStartIndex, plain[i].validStartIndex + embargo);
+    assert.equal(embargoed[i].validEndIndex, plain[i].validEndIndex);
+    assert.equal(embargoed[i].validStartIndex, embargoed[i].trainEndIndex + 1 + embargo);
+  }
+});
+
+test("an embargo that starves validation windows throws", () => {
+  assert.throws(
+    () => buildFolds(400, { foldCount: 4, mode: "anchored", embargoCandles: 78 }),
+    /embargo/,
+  );
+  assert.throws(
+    () => buildFolds(400, { foldCount: 4, mode: "anchored", embargoCandles: 2.5 }),
+    /non-negative integer/,
+  );
+});
+
 test("spread fold subsets cover early and late regimes", () => {
   const folds = buildFolds(1000, { foldCount: 9, mode: "anchored" });
   const subset = spreadFoldSubset(folds, 3);

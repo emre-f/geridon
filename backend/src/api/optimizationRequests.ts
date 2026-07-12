@@ -15,6 +15,7 @@ export const experimentLimits = {
   maxRuntimeMs: 30 * 60_000,
   minFolds: 2,
   maxFolds: 12,
+  maxEmbargoCandles: 250,
 };
 
 const optionalObjectKeys = [
@@ -57,6 +58,13 @@ function parseFolds(raw: unknown): FoldsConfig | string {
       return "folds.minValidationCandles must be an integer of at least 2.";
     }
     folds.minValidationCandles = minValidation;
+  }
+  if (raw.embargoCandles != null) {
+    const embargo = Number(raw.embargoCandles);
+    if (!Number.isInteger(embargo) || embargo < 0 || embargo > experimentLimits.maxEmbargoCandles) {
+      return `folds.embargoCandles must be an integer between 0 and ${experimentLimits.maxEmbargoCandles}.`;
+    }
+    folds.embargoCandles = embargo;
   }
   return folds;
 }

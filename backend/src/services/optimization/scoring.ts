@@ -5,11 +5,16 @@ import type {
   TrialScore,
 } from "../../types.ts";
 
-export const scoringVersion = "1";
+/**
+ * Version 2 halved the instability weight (0.5 -> 0.25): at 0.5 x IQR a
+ * strategy that is positive in every fold but dispersed across regimes scored
+ * negative, per the calibration fixtures in optimization-scoring-calibration.
+ */
+export const scoringVersion = "2";
 
 export const defaultScoringConfig: ScoringConfig = {
   objective: "sharpe",
-  penalties: { drawdown: 0.02, instability: 0.5, turnover: 0.02, complexity: 0.05 },
+  penalties: { drawdown: 0.02, instability: 0.25, turnover: 0.02, complexity: 0.05 },
   constraints: { minTotalTrades: 5, maxDrawdownPct: 60, minPositiveFoldFraction: 0.5 },
 };
 

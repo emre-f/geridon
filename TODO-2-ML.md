@@ -212,11 +212,15 @@ For an optimization experiment, the data roles should be:
       validation indicator value to use earlier training candles; it is not valid to use a future candle.
       (`evaluateFold` slices from the fold's train start and simulates from `simulationStartIndex`;
       covered by a leakage test)
-- [ ] Add purging/embargo when observations or supervised-learning labels overlap a fold boundary. Size it
+- [x] Add purging/embargo when observations or supervised-learning labels overlap a fold boundary. Size it
       from the actual label/trade horizon, not automatically from the indicator warm-up period.
-- [ ] Show fold-by-fold learning/robustness evidence so users can recognize high variance and overfitting;
+      (optional `folds.embargoCandles` leaves a user-sized gap between each training window and its
+      validation window; gap candles warm indicators but are neither training evidence nor scored,
+      and the API rejects embargoes that starve validation windows)
+- [x] Show fold-by-fold learning/robustness evidence so users can recognize high variance and overfitting;
       do not expose only one aggregate score. (per-fold results are persisted and returned by the trial
-      API; the "show" part is Milestone 4 UI work)
+      API; the Section 7.1 fold robustness chart shows per-fold objectives for the selected trial vs
+      baseline vs buy & hold, and the penalty breakdown exposes the instability component)
 - [ ] If we later train a predictive model, include the standard concerns explicitly: feature/label
       definitions, scaling, class imbalance, calibration, training-only feature selection, model version,
       and a naive baseline.
@@ -254,14 +258,19 @@ For an optimization experiment, the data roles should be:
 
   `median validation score - drawdown penalty - instability penalty - turnover penalty - complexity penalty`
 
-  (implemented exactly this shape as `scoringVersion = "1"` in `scoring.ts`; weights are still the
-  initial guesses, not fixture-tuned)
+  (implemented exactly this shape, now `scoringVersion = "2"` in `scoring.ts` with fixture-tuned
+  weights)
 
-- [ ] Calibrate the scoring penalty weights on deterministic fixtures. The instability penalty
+- [x] Calibrate the scoring penalty weights on deterministic fixtures. The instability penalty
       (`0.5 × IQR of fold objectives`) especially can push every candidate negative when folds span
       different regimes, and the drawdown weight (0.02/pct) costs 0.6 for a 30% drawdown — verify on
       fixtures with known good/bad strategies that good ones stay positive. Bump `scoringVersion`
       when weights change so old experiments remain interpretable.
+      (the predicted failure was real: an all-folds-positive but regime-dispersed strategy scored
+      negative, so v2 halves the instability weight to 0.25; `optimization-scoring-calibration.test.ts`
+      pins this with a three-regime candle fixture — known good/bad/one-regime-lucky strategies —
+      plus hand-built fold sharpes covering dispersion, 30% drawdowns, and ranking order. The
+      drawdown/turnover/complexity weights survived calibration unchanged)
 
 - [x] Apply hard eligibility constraints before ranking, for example minimum trades, maximum drawdown,
       positive results in a minimum fraction of folds, and complete data coverage. (first three done;
@@ -272,8 +281,9 @@ For an optimization experiment, the data roles should be:
       candidate, baseline, and buy & hold on the sealed window with warmup from the search
       portion; the result is stored separately from the summary and a second candidate gets a
       409 — tests assert the summary and trials are untouched)
-- [ ] Document survivorship bias: testing only today's ticker universe over historical periods can
-      overstate results.
+- [x] Document survivorship bias: testing only today's ticker universe over historical periods can
+      overstate results. (a permanent "research evidence, not a forecast" note at the bottom of the
+      experiment result card states it where results are read)
 
 ## 4. Backend domain model and persistence
 
@@ -330,7 +340,10 @@ For an optimization experiment, the data roles should be:
 - [ ] Persist full detail only for promoted/top candidates and recompute a selected candidate on demand
       from its immutable snapshot when appropriate. (currently the strategy JSON and fold results are
       stored for every non-rejected trial)
-- [ ] Benchmark and profile signal evaluation before adding dependencies or a second language/runtime.
+- [x] Benchmark and profile signal evaluation before adding dependencies or a second language/runtime.
+      (`npm run bench` measures 56–149 fold backtests/second single-threaded on representative 1d/1h
+      workloads — a maximum 500-trial experiment finishes in minutes, far inside the runtime cap, so
+      plain TypeScript stays; numbers and the decision are recorded in `backend/bench/RESULTS.md`)
 - [x] Implement TPE and constrained evolutionary search only after the Phase 1 engine and fixtures pass.
 
 ## 6. Backend API
@@ -473,8 +486,8 @@ Tasks, in order:
 ## 8. Testing and reproducibility
 
 - [x] Unit-test search-space compilation, conditional constraints, canonical hashes, sampling, pruning,
-      fold boundaries, embargoes, scores, penalties, and promotion decisions. (all covered except
-      embargoes, which are not implemented)
+      fold boundaries, embargoes, scores, penalties, and promotion decisions. (all covered, including
+      embargo gaps, starved-validation errors, and warmup-only embargo candles)
 - [x] Use synthetic candle fixtures where the expected useful/irrelevant rules are known.
 - [x] Prove identical config + data snapshot + seed produces the same candidate sequence and ranking,
       independent of worker completion order. (tested at optimizer and experiment level; completion
@@ -488,8 +501,10 @@ Tasks, in order:
       and explicit holdout confirmation. (leaderboard sorting/filtering, candidate diff, selection
       behavior, chart/warning derivations, and the holdout open lifecycle + comparison-row
       derivations are covered; configuration validation and progress states remain)
-- [ ] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
-      workloads.
+- [x] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
+      workloads. (`backend/bench/optimizationBench.ts` runs seeded 1d and 1h random-walk workloads with
+      a MACD+RSI strategy; results — 149 and 56 fold backtests/second, peak RSS under 200 MB — are
+      recorded in `backend/bench/RESULTS.md`)
 
 ## 9. Suggested implementation order
 
@@ -549,7 +564,7 @@ Tasks, in order:
 - [ ] Confirm the first MVP scope: Mode A plus existing-rule toggles from Mode B (recommended), with new-rule
       generation deferred.
 - [ ] Choose the default robust objective and hard constraints; total return alone should not be offered as
-      the recommended objective. (the code currently defaults to Sharpe with the scoring-v1 penalty
+      the recommended objective. (the code currently defaults to Sharpe with the scoring-v2 penalty
       weights and constraints — treat that as the proposal to confirm or revise)
 - [ ] Choose the default validation design and minimum history for 1d versus intraday experiments.
 - [ ] Decide whether an experiment initially targets one symbol or requires a small symbol basket by

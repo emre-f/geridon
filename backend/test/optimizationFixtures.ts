@@ -65,6 +65,34 @@ export function dataset(count = 400): OptimizationDataset {
   return { symbol: "TEST", candles: triangleCandles(count) };
 }
 
+/**
+ * Three regimes over 480 candles: a fast wide triangle (90..110, 20-bar cycle),
+ * a slow medium triangle (94..106, 40-bar cycle), and a fast narrow triangle
+ * (97..102, 10-bar cycle). Buying below 98 and selling above 101.9 is
+ * profitable in every regime; buying below 91 only ever triggers in the first.
+ */
+export function regimeClose(index: number): number {
+  if (index < 160) {
+    const phase = index % 20;
+    return 90 + 2 * Math.min(phase, 20 - phase);
+  }
+  if (index < 320) {
+    const phase = (index - 160) % 40;
+    return 94 + 0.6 * Math.min(phase, 40 - phase);
+  }
+  const phase = (index - 320) % 10;
+  return 97 + Math.min(phase, 10 - phase);
+}
+
+export function regimeDataset(): OptimizationDataset {
+  const candles: Candle[] = [];
+  for (let index = 0; index < 480; index += 1) {
+    const open = index === 0 ? regimeClose(0) : regimeClose(index - 1);
+    candles.push(candle(index, open, regimeClose(index)));
+  }
+  return { symbol: "TEST", candles };
+}
+
 export function baseConfig(strategy: Strategy, overrides?: Partial<OptimizationConfig>): OptimizationConfig {
   return {
     strategy,

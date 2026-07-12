@@ -142,5 +142,5 @@ test("baseline and buy & hold benchmarks are always evaluated", () => {
   const result = runOptimization(curatedThresholdConfig());
   assert.equal(result.baseline.foldResults.length, 4);
   assert.equal(result.buyHold.foldResults.length, 4);
-  assert.equal(result.scoringVersion, "1");
+  assert.equal(result.scoringVersion, "2");
 });

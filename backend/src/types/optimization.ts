@@ -59,6 +59,12 @@ export interface FoldsConfig {
   foldCount: number;
   mode: "anchored" | "rolling";
   minValidationCandles?: number;
+  /**
+   * Purge gap between each training window and its validation window, sized by
+   * the user from the label/trade horizon. Gap candles warm indicators but are
+   * neither training evidence nor scored.
+   */
+  embargoCandles?: number;
 }
 
 export type OptimizationObjective = "sharpe" | "annualized_return" | "total_return";

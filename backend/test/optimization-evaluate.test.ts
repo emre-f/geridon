@@ -55,6 +55,20 @@ test("candles after a fold's validation window cannot influence its result", () 
   assert.deepEqual(after, before);
 });
 
+test("embargoed candles warm indicators but are never scored", () => {
+  const data = dataset(400);
+  const embargo = 15;
+  const config = { foldCount: 4, mode: "anchored" } as const;
+  const fold = buildFolds(data.candles.length, config)[1];
+  const embargoedFold = buildFolds(data.candles.length, { ...config, embargoCandles: embargo })[1];
+  const strategy = thresholdStrategy(95, 105);
+
+  const plain = evaluateFold(strategy, data, fold, settings);
+  const embargoed = evaluateFold(strategy, data, embargoedFold, settings);
+  assert.equal(embargoed.candle_count, plain.candle_count - embargo);
+  assert.deepEqual(evaluateFold(strategy, data, embargoedFold, settings), embargoed);
+});
+
 test("buy & hold evaluation is always long from the start of each window", () => {
   const data = dataset(400);
   const folds = new Map([["TEST", buildFolds(400, { foldCount: 4, mode: "anchored" })]]);
