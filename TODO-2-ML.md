@@ -113,8 +113,8 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
   - indicator parameters such as MACD `fast`, `slow`, and `signal` or Momentum `period`;
   - constant thresholds used by rules;
   - backtest sizing values when the position mode supports them.
-  (indicator parameters and rule thresholds are done via `parameterOverrides`; backtest sizing values
-  are not searchable yet)
+  (indicator parameters and rule thresholds are done via `parameterOverrides` and controllable from
+  the Optimize form's "Parameters & rules" section; backtest sizing values are not searchable yet)
 - [x] Support integer, decimal, categorical, linear, and curated candidate ranges.
 - [x] Validate every sample against catalog constraints, including `MACD fast < slow`.
 - [x] Make range defaults conservative and centered near the current value; do not automatically use
@@ -123,7 +123,8 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 ### Mode B — Select/prune rules (recommended second step)
 
 - [x] Include Mode A plus required/optional/off controls for every existing rule or group.
-      (roles apply per rule via `ruleRoles`; a group is controlled through its rules)
+      (roles apply per rule via `ruleRoles`; a group is controlled through its rules; the Optimize
+      form's "Parameters & rules" section exposes the per-rule role control)
 - [ ] Allow selected operators or group `at_least` counts to be searched only when the user opts in.
       (evolution search mutates operators and `at_least` counts, but there is no per-rule opt-in
       control for Mode B yet)
@@ -359,6 +360,11 @@ The frontend must be a client of the same API; no optimization logic should exis
       its original immutable configuration.
 - [x] `DELETE /api/v1/optimization-experiments/:id` — delete an experiment without touching strategies
       saved from its candidates. (added during implementation; was not in the original plan)
+- [x] `GET /api/v1/optimization-experiments/search-space?strategy_id=N` — the default-compiled search
+      space for a saved strategy (rules with ids/summaries, parameter nodes with conservative ranges
+      and catalog hard bounds), so the experiment form can offer per-parameter and per-rule controls
+      before anything is created. `rule_roles` and `parameter_overrides` are now validated with
+      structured errors instead of being cast unchecked. (added during implementation)
 - [x] `GET /api/v1/optimization-experiments/:id/trials` — paginated/sortable leaderboard.
 - [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
 - [x] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
@@ -392,6 +398,11 @@ The frontend must be a client of the same API; no optimization logic should exis
   4. mark parameters and rules as fixed/tunable/optional and set bounded ranges;
   5. choose objective, penalties, and hard constraints;
   6. choose compute preset, inspect the preflight cost estimate, and start.
+  (steps 1, 3, and 4 exist on the flat form — step 4 via the collapsible "Parameters & rules"
+  section, which loads the compiled search space, offers tune/lock with catalog-bounded ranges and
+  required/optional/off per rule, pre-validates impossible configurations, and only sends
+  deviations from the defaults; still open: the explicit A/B/C mode framing, objective/penalty/
+  constraint controls, and presets with a preflight estimate)
 - [ ] Visualize the search-space size/risk before starting, including which choices multiply the space.
 - [ ] Build an experiment progress view with status, elapsed time, completed/promoted/rejected trial counts,
       current stage, remaining budget, stop/resume controls, and baseline score.
@@ -500,7 +511,8 @@ Tasks, in order:
 - [ ] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
       and explicit holdout confirmation. (leaderboard sorting/filtering, candidate diff, selection
       behavior, chart/warning derivations, and the holdout open lifecycle + comparison-row
-      derivations are covered; configuration validation and progress states remain)
+      derivations are covered, and the search-space editor's override/role building and
+      configuration pre-validation are unit-tested; progress states remain)
 - [x] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
       workloads. (`backend/bench/optimizationBench.ts` runs seeded 1d and 1h random-walk workloads with
       a MACD+RSI strategy; results — 149 and 56 fold backtests/second, peak RSS under 200 MB — are
@@ -537,7 +549,8 @@ Tasks, in order:
 - [x] From either the backend API or Optimize tab, a user can tune a saved strategy's selected numeric
       parameters and optional existing rules under a finite compute budget. (works via the backend API
       and the Optimize tab's new-experiment form, which searches all tunable parameters by default;
-      per-parameter/per-rule Mode A/B controls are still backend-only, see Section 7)
+      per-parameter tune/lock ranges and per-rule required/optional/off roles are editable in the
+      form's "Parameters & rules" section)
 - [x] The experiment is reproducible, cancellable/resumable, does not block normal API requests, and
       survives a backend restart without losing completed trials. (finished trials now stream to
       SQLite mid-run, so a restart leaves an interrupted experiment with its completed trials intact

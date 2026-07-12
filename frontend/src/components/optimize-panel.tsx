@@ -4,7 +4,9 @@ import type { StrategyRecord, SymbolSummary } from "@/lib/api";
 import { dayEndMs, dayStartMs } from "@/lib/backtest-utils";
 import { useOptimizeExperimentForm } from "@/hooks/use-optimize-experiment-form";
 import { useOptimizeExperiments } from "@/hooks/use-optimize-experiments";
+import { useOptimizeSearchSpace } from "@/hooks/use-optimize-search-space";
 import { OptimizeExperimentForm } from "@/components/optimize-experiment-form";
+import { OptimizeSearchSpaceEditor } from "@/components/optimize-search-space-editor";
 import { OptimizeExperimentResultCard } from "@/components/optimize-experiment-result-card";
 import { OptimizeExperimentsList } from "@/components/optimize-experiments-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,9 +35,10 @@ export function OptimizePanel({
 }: OptimizePanelProps) {
   const form = useOptimizeExperimentForm({ strategies, initialStrategyId, symbols, defaultTicker });
   const experiments = useOptimizeExperiments();
+  const searchSpace = useOptimizeSearchSpace(form.strategyId);
 
   async function handleStart() {
-    if (form.strategyId == null || !form.ticker) {
+    if (form.strategyId == null || !form.ticker || searchSpace.issue != null) {
       return;
     }
     const startMs = dayStartMs(form.startDate);
@@ -55,6 +58,10 @@ export function OptimizePanel({
       folds: { foldCount: form.foldCount, mode: "anchored" },
       ...(form.holdoutPct > 0 ? { holdout: { fraction: form.holdoutPct / 100 } } : {}),
       seed: form.seed,
+      ...(searchSpace.ruleRoles ? { rule_roles: searchSpace.ruleRoles } : {}),
+      ...(searchSpace.parameterOverrides
+        ? { parameter_overrides: searchSpace.parameterOverrides }
+        : {}),
     });
   }
 
@@ -110,7 +117,10 @@ export function OptimizePanel({
                 onStrategyIdChange={form.setStrategyId}
                 onTickerChange={form.setTicker}
                 onTimeframeChange={form.setTimeframe}
-              />
+                startDisabled={searchSpace.issue != null}
+              >
+                <OptimizeSearchSpaceEditor searchSpace={searchSpace} />
+              </OptimizeExperimentForm>
 
               {experiments.error ? (
                 <p className="text-destructive text-sm">{experiments.error}</p>

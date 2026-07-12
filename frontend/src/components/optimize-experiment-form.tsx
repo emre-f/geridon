@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { PlayIcon, RefreshCwIcon } from "lucide-react";
 
 import type { OptimizationMethod, StrategyRecord, SymbolTimeframe } from "@/lib/api";
@@ -11,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
 export function OptimizeExperimentForm({
+  children,
   coverage,
   creating,
   endDate,
@@ -21,6 +23,7 @@ export function OptimizeExperimentForm({
   method,
   seed,
   startDate,
+  startDisabled,
   strategies,
   strategyId,
   ticker,
@@ -40,6 +43,7 @@ export function OptimizeExperimentForm({
   onTickerChange,
   onTimeframeChange,
 }: {
+  children?: ReactNode;
   coverage: SymbolTimeframe | undefined;
   creating: boolean;
   endDate: string;
@@ -50,6 +54,7 @@ export function OptimizeExperimentForm({
   method: OptimizationMethod;
   seed: number;
   startDate: string;
+  startDisabled?: boolean;
   strategies: StrategyRecord[];
   strategyId: number | null;
   ticker: string;
@@ -226,8 +231,14 @@ export function OptimizeExperimentForm({
         </div>
       </div>
 
+      {children}
+
       <div>
-        <Button type="button" onClick={onStart} disabled={creating || strategyId == null || !ticker}>
+        <Button
+          type="button"
+          onClick={onStart}
+          disabled={creating || strategyId == null || !ticker || startDisabled}
+        >
           {creating ? <RefreshCwIcon className="animate-spin" /> : <PlayIcon />}
           Start experiment
         </Button>

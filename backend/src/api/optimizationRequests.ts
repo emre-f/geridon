@@ -6,6 +6,7 @@ import type {
   HoldoutConfig,
   OptimizationExperimentConfig,
 } from "../types.ts";
+import { parseParameterOverrides, parseRuleRoles } from "./optimizationSearchInputs.ts";
 import { parseTradeCosts, validateTicker } from "./shared.ts";
 
 export const experimentLimits = {
@@ -18,15 +19,7 @@ export const experimentLimits = {
   maxEmbargoCandles: 250,
 };
 
-const optionalObjectKeys = [
-  "scoring",
-  "rule_roles",
-  "parameter_overrides",
-  "halving",
-  "refinement",
-  "tpe",
-  "evolution",
-] as const;
+const optionalObjectKeys = ["scoring", "halving", "refinement", "tpe", "evolution"] as const;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value);
@@ -202,6 +195,15 @@ export function parseExperimentRequest(
     }
   }
 
+  const ruleRoles = parseRuleRoles(body.rule_roles);
+  if ("error" in ruleRoles) {
+    return { error: ruleRoles.error };
+  }
+  const parameterOverrides = parseParameterOverrides(body.parameter_overrides);
+  if ("error" in parameterOverrides) {
+    return { error: parameterOverrides.error };
+  }
+
   const config: OptimizationExperimentConfig = {
     strategy_id: strategyId,
     tickers,
@@ -220,15 +222,8 @@ export function parseExperimentRequest(
     folds,
     ...(holdout ? { holdout } : {}),
     ...(body.scoring ? { scoring: body.scoring as OptimizationExperimentConfig["scoring"] } : {}),
-    ...(body.rule_roles
-      ? { rule_roles: body.rule_roles as OptimizationExperimentConfig["rule_roles"] }
-      : {}),
-    ...(body.parameter_overrides
-      ? {
-          parameter_overrides:
-            body.parameter_overrides as OptimizationExperimentConfig["parameter_overrides"],
-        }
-      : {}),
+    ...(ruleRoles.roles ? { rule_roles: ruleRoles.roles } : {}),
+    ...(parameterOverrides.overrides ? { parameter_overrides: parameterOverrides.overrides } : {}),
     ...(body.halving ? { halving: body.halving as OptimizationExperimentConfig["halving"] } : {}),
     ...(body.refinement
       ? { refinement: body.refinement as OptimizationExperimentConfig["refinement"] }

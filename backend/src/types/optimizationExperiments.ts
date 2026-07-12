@@ -63,6 +63,26 @@ export interface OptimizationExperimentConfig {
   evolution?: Partial<EvolutionSearchConfig>;
 }
 
+export interface SearchSpacePreviewRule {
+  id: string;
+  side: "entry" | "exit" | "cash";
+  summary: string;
+  enabled: boolean;
+}
+
+export type SearchSpacePreviewNode = SearchSpaceNode & {
+  /** Catalog bounds for indicator parameters; null for free value thresholds. */
+  hard_min: number | null;
+  hard_max: number | null;
+};
+
+/** Default-compiled search space for one strategy, served to the experiment form. */
+export interface SearchSpacePreview {
+  strategy_id: number;
+  rules: SearchSpacePreviewRule[];
+  nodes: SearchSpacePreviewNode[];
+}
+
 export interface ExperimentDatasetSpec {
   ticker: string;
   candle_count: number;

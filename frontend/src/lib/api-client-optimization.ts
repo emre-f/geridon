@@ -7,6 +7,7 @@ import type {
   OptimizationExperimentStatus,
   OptimizationTrialDetail,
   OptimizationTrialRecord,
+  SearchSpacePreview,
   TrialEquityResponse,
 } from "@/lib/api-types";
 import type { StrategyRecord } from "@/lib/api-strategy-types";
@@ -44,6 +45,10 @@ export function listOptimizationExperiments(options?: {
     offset: number;
     experiments: OptimizationExperimentListItem[];
   }>(`${basePath}?${params}`);
+}
+
+export function getOptimizationSearchSpace(strategyId: number) {
+  return fetchJson<SearchSpacePreview>(`${basePath}/search-space?strategy_id=${strategyId}`);
 }
 
 export function getOptimizationExperiment(id: number) {

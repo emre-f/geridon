@@ -13,6 +13,7 @@ import {
   handleResumeExperiment,
 } from "./optimizationExperiments.ts";
 import { handleOpenTrialHoldout } from "./optimizationHoldout.ts";
+import { handleGetSearchSpacePreview } from "./optimizationSearchSpace.ts";
 import {
   handleGetExperimentTrial,
   handleGetTrialEquity,
@@ -43,6 +44,10 @@ export async function routeOptimizationExperiments(
       return handleCreateExperiment(db, runner, await readJson(request));
     }
     return null;
+  }
+
+  if (pathname === `${basePath}/search-space` && method === "GET") {
+    return handleGetSearchSpacePreview(db, url.searchParams.get("strategy_id"));
   }
 
   const idMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)$`));
