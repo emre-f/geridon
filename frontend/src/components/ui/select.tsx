@@ -2,6 +2,7 @@ import * as React from "react";
 import { ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { fieldControlClassName } from "@/components/ui/field-control";
 
 function Select({ className, children, ...props }: React.ComponentProps<"select">) {
   return (
@@ -9,8 +10,8 @@ function Select({ className, children, ...props }: React.ComponentProps<"select"
       <select
         data-slot="select"
         className={cn(
-          "border-input bg-background flex h-9 w-full min-w-0 appearance-none rounded-md border py-1 pl-3 pr-8 text-sm shadow-xs transition-[border-color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50",
-          "focus-visible:border-border focus-visible:shadow-[var(--input-focus-shadow)]",
+          fieldControlClassName,
+          "flex w-full appearance-none py-1 pl-3 pr-8",
         )}
         {...props}
       >

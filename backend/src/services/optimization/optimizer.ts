@@ -8,6 +8,7 @@ import { compareTrialScores, median, resolveScoringConfig, scoreTrial, scoringVe
 import { resolveHalvingConfig, runSuccessiveHalving } from "./successiveHalving.ts";
 import { refineSearchSpace, resolveRefinementConfig } from "./coarseToFine.ts";
 import { runAblation } from "./ablation.ts";
+import { computeRuleInclusion } from "./inclusion.ts";
 import { computeComplexity } from "./strategyPaths.ts";
 import { computeParetoFronts } from "./pareto.ts";
 import { resolveTpeConfig, runTpeSearch } from "./tpe.ts";
@@ -219,6 +220,9 @@ export function runOptimization(
       })
     : [];
 
+  const structureSearched = method === "evolution" || nodes.some((node) => node.kind === "toggle");
+  const inclusion = structureSearched ? computeRuleInclusion(leaderboard, config.strategy) : [];
+
   return {
     scoringVersion,
     seed: config.seed,
@@ -229,6 +233,7 @@ export function runOptimization(
     trials,
     leaderboard,
     ablation,
+    inclusion,
     paretoFronts: computeParetoFronts(trials),
     stoppedEarly,
   };

@@ -6,6 +6,7 @@ import type {
   OptimizationExperimentStatus,
   OptimizationTrialDetail,
   OptimizationTrialRecord,
+  TrialEquityResponse,
 } from "@/lib/api-types";
 import type { StrategyRecord } from "@/lib/api-strategy-types";
 
@@ -84,6 +85,12 @@ export function listOptimizationTrials(
 
 export function getOptimizationTrial(experimentId: number, trialIndex: number) {
   return fetchJson<OptimizationTrialDetail>(`${basePath}/${experimentId}/trials/${trialIndex}`);
+}
+
+export function getOptimizationTrialEquity(experimentId: number, trialIndex: number) {
+  return fetchJson<TrialEquityResponse>(
+    `${basePath}/${experimentId}/trials/${trialIndex}/equity`,
+  );
 }
 
 export function saveOptimizationTrialStrategy(

@@ -14,8 +14,10 @@ import { IndicatorPicker } from "@/components/indicator-picker";
 import { OutputHelp } from "@/components/strategy-output-help";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { fieldControlClassName } from "@/components/ui/field-control";
 import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export function OperandEditor({
   label,
@@ -74,7 +76,10 @@ export function OperandEditor({
                   : `${label} add indicator`
               }
               title={definition ? `Select indicator (current: ${definition.full_name})` : undefined}
-              className="border-input bg-background h-9 w-24 justify-start rounded-md border px-3 text-sm font-normal shadow-xs hover:bg-accent focus-visible:border-border focus-visible:shadow-[var(--input-focus-shadow)]"
+              className={cn(
+                fieldControlClassName,
+                "w-24 justify-start px-3 font-normal transition-colors hover:bg-accent",
+              )}
               onClick={() => setIndicatorPickerOpen(true)}
             >
               <span className="truncate">{definition?.label ?? "Add indicator"}</span>

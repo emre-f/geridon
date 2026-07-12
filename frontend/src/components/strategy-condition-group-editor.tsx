@@ -125,7 +125,7 @@ export function ConditionGroupEditor({
             variant="outline"
             size="sm"
             disabled={!canAdd}
-            onClick={() => append(createRuleNode(catalog))}
+            onClick={() => append(createRuleNode())}
           >
             <PlusIcon />
             Rule
@@ -135,7 +135,7 @@ export function ConditionGroupEditor({
             variant="outline"
             size="sm"
             disabled={!canAdd}
-            onClick={() => append(createGroupNode([createRuleNode(catalog)]))}
+            onClick={() => append(createGroupNode([createRuleNode()]))}
           >
             <PlusIcon />
             Group

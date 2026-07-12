@@ -8,6 +8,7 @@ import type {
   FoldsConfig,
   ParameterOverride,
   RefinementConfig,
+  RuleInclusionEntry,
   RuleRole,
   ScoringConfig,
   SearchSpaceNode,
@@ -90,6 +91,8 @@ export interface OptimizationExperimentSummary {
   buy_hold: BuyHoldEvaluation;
   space: SearchSpaceNode[];
   ablation: AblationEntry[];
+  /** Absent on experiments that finished before inclusion reporting existed. */
+  inclusion?: RuleInclusionEntry[];
   pareto_fronts: number[][];
   trial_counts: OptimizationTrialCounts;
   best_trial_index: number | null;
@@ -150,4 +153,22 @@ export interface OptimizationTrialRecord {
 export interface OptimizationTrialDetail extends OptimizationTrialRecord {
   strategy: Strategy | null;
   fold_results: FoldEvaluation[];
+}
+
+export interface EquityPoint {
+  timestamp_ms: number;
+  equity: number;
+}
+
+export interface FoldEquityCurve {
+  symbol: string;
+  foldIndex: number;
+  points: EquityPoint[];
+}
+
+export interface TrialEquityResponse {
+  trial_index: number;
+  initial_capital: number;
+  candidate: FoldEquityCurve[];
+  baseline: FoldEquityCurve[];
 }

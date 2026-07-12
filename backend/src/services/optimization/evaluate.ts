@@ -2,6 +2,7 @@ import { runBacktest } from "../backtest.ts";
 import type {
   BacktestMetrics,
   BacktestPositionMode,
+  FoldEquityCurve,
   FoldEvaluation,
   FoldSpec,
   OptimizationDataset,
@@ -53,14 +54,14 @@ function toFoldEvaluation(
   };
 }
 
-export function evaluateFold(
+function runFoldBacktest(
   strategy: Strategy,
   dataset: OptimizationDataset,
   fold: FoldSpec,
   settings: EvaluationSettings,
-): FoldEvaluation {
+) {
   const slice = dataset.candles.slice(fold.trainStartIndex, fold.validEndIndex + 1);
-  const result = runBacktest({
+  return runBacktest({
     strategy,
     candles: slice,
     positionMode: settings.positionMode,
@@ -70,7 +71,36 @@ export function evaluateFold(
     costs: settings.costs,
     simulationStartIndex: fold.validStartIndex - fold.trainStartIndex,
   });
+}
+
+export function evaluateFold(
+  strategy: Strategy,
+  dataset: OptimizationDataset,
+  fold: FoldSpec,
+  settings: EvaluationSettings,
+): FoldEvaluation {
+  const result = runFoldBacktest(strategy, dataset, fold, settings);
   return toFoldEvaluation(dataset.symbol, fold, result.metrics, settings.objective);
+}
+
+export function equityOnFolds(
+  strategy: Strategy,
+  datasets: OptimizationDataset[],
+  foldsBySymbol: Map<string, FoldSpec[]>,
+  settings: EvaluationSettings,
+): FoldEquityCurve[] {
+  const curves: FoldEquityCurve[] = [];
+  for (const dataset of datasets) {
+    for (const fold of foldsBySymbol.get(dataset.symbol) ?? []) {
+      const result = runFoldBacktest(strategy, dataset, fold, settings);
+      curves.push({
+        symbol: dataset.symbol,
+        foldIndex: fold.index,
+        points: result.equity_curve.map(({ timestamp_ms, equity }) => ({ timestamp_ms, equity })),
+      });
+    }
+  }
+  return curves;
 }
 
 export function evaluateOnFolds(

@@ -130,8 +130,10 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 - [x] Preserve type-compatible operands and valid group shapes. (Mode A/B toggles cannot change
       operands; evolution mutations are typed and every candidate passes `validateCandidate`)
 - [x] Add a complexity cost for active rules, unique indicator configurations, and tree depth.
-- [ ] Report inclusion frequency among the top robust candidates; a rule appearing in only one lucky
-      candidate is weak evidence.
+- [x] Report inclusion frequency among the top robust candidates; a rule appearing in only one lucky
+      candidate is weak evidence. (computed over the top ≤10 eligible candidates whenever rule
+      structure is searched — optional-rule toggles or evolution — persisted as `summary.inclusion`
+      and shown as the "Rule inclusion" bars in the result card)
 
 ### Mode C — Explore bounded new rules (advanced)
 
@@ -336,9 +338,10 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
 - [ ] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
       evaluation with an audit timestamp.
-- [ ] `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — on-demand recompute of a
+- [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — on-demand recompute of a
       candidate's (and the baseline's) per-fold validation equity curves from the immutable snapshot;
-      persists nothing. (serves the Section 7.1 equity chart)
+      persists nothing. (serves the Section 7.1 equity chart; 409 when stored candles have drifted
+      from the snapshot, since the curves could no longer be recomputed faithfully)
 - [x] `POST /api/v1/optimization-experiments/:id/trials/:trialId/strategies` — clone a candidate into the
       normal Strategies collection; never overwrite the source strategy.
 - [x] Decide between short polling and server-sent events for progress. Start with polling unless profiling
@@ -373,8 +376,10 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] Add **Save as strategy** and **Open in Backtest** actions. Saving always creates a named copy with
       experiment/trial provenance. (both live on each leaderboard row; Open in Backtest saves the
       candidate first, then switches tabs with it preselected in the run form)
-- [ ] Make warnings visible when the sample is small, costs are zero, too few trades occurred, results are
-      unstable, or the sealed holdout has already been inspected.
+- [x] Make warnings visible when the sample is small, costs are zero, too few trades occurred, results are
+      unstable, or the sealed holdout has already been inspected. (amber warning list on the result
+      card covers zero costs, short validation folds, too few trades on the top candidate, and fold
+      instability; the holdout warning waits for Milestone 5's sealed-holdout workflow)
 
 ### 7.1 Experiment result view — selection + charts (replaces the expand-row dropdown)
 
@@ -422,26 +427,34 @@ Tasks, in order:
       trial vs baseline vs buy & hold, grouped per fold (and per symbol when several). Render the
       baseline alone while no trial is selected. (baseline + buy & hold always render; clicking a
       scored/pruned leaderboard row lazily fetches that trial's fold results and adds its bars)
-- [ ] Trial selection + candidate detail section: clicking a leaderboard row selects the trial and
+- [x] Trial selection + candidate detail section: clicking a leaderboard row selects the trial and
       shows a readable diff vs the baseline (changed parameters from `values` + the search-space
       nodes, toggled rules), its penalty breakdown, ineligibility reasons when present, and the
-      existing save/backtest actions. (row selection with the lazy trial-detail fetch shipped with
-      the fold chart above; the diff/penalty/ineligibility detail section itself is still open)
-- [ ] **Parameter sensitivity small multiples** — “robust region or lucky spike”: for each numeric
+      existing save/backtest actions. (`OptimizeCandidateDetail` renders below the leaderboard;
+      `candidateDiff` in `optimize-candidate-utils.ts` derives the rows and is unit-tested)
+- [x] **Parameter sensitivity small multiples** — “robust region or lucky spike”: for each numeric
       search node, a scatter of score vs sampled value across all scored trials, with the baseline's
       current value marked. (This pulls the cheap part of Milestone 5's sensitivity work forward;
-      the fuller neighborhood/stability tooling stays in Milestone 5.)
-- [ ] **Ablation chart**: horizontal bars of score delta per disabled rule from `summary.ablation`,
+      the fuller neighborhood/stability tooling stays in Milestone 5.) (numeric and curated-choice
+      nodes each get a small scatter with a shared score scale and a dashed line at the baseline
+      value; panels whose trials all sampled one value are dropped)
+- [x] **Ablation chart**: horizontal bars of score delta per disabled rule from `summary.ablation`,
       including skipped entries with their reason — this data is computed today and shown nowhere.
-- [ ] Backend: `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — recompute the
+      (diverging bars sorted by delta with tooltips; skipped rules listed with their skip reason)
+- [x] Backend: `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — recompute the
       candidate and baseline from the immutable snapshot on demand and return per-fold validation
       equity curves without persisting anything. Add API tests (unknown/rejected trial, determinism
-      across two calls).
-- [ ] **Equity chart** in the candidate detail section: candidate vs baseline validation equity from
+      across two calls). (also returns 409 when stored candles no longer match the snapshot;
+      `optimization-equity.test.ts` covers all of it plus persistence-free recompute)
+- [x] **Equity chart** in the candidate detail section: candidate vs baseline validation equity from
       the endpoint above, clearly labelled as validation-fold performance, loaded lazily on trial
-      selection.
-- [ ] Finish: frontend tests for selection behavior and chart-data derivation, then run react-doctor
-      over the new components.
+      selection. (per-fold % return segments with fold boundaries and a crosshair tooltip;
+      responses cached per trial in `use-trial-equity`)
+- [x] Finish: frontend tests for selection behavior and chart-data derivation, then run react-doctor
+      over the new components. (both selection reducers were extracted into
+      `optimize-detail-state.ts` / `optimize-experiments-state.ts` and unit-tested — trial/experiment
+      select-toggle, clear-on-delete/resume, detail caching — alongside tests for the sensitivity and
+      warning derivations; react-doctor scores the changed components 100/100)
 
 ## 8. Testing and reproducibility
 
@@ -457,7 +470,9 @@ Tasks, in order:
       indicator/candle cache existing)
 - [x] Add integration tests for a tiny completed experiment and cancel/resume behavior.
 - [ ] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
-      and explicit holdout confirmation.
+      and explicit holdout confirmation. (leaderboard sorting/filtering, candidate diff, selection
+      behavior, and chart/warning derivations are covered; configuration validation, progress states,
+      and holdout confirmation remain)
 - [ ] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
       workloads.
 
@@ -473,9 +488,10 @@ Tasks, in order:
       constraints, successive halving, caching, and baseline comparisons.
 - [ ] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
       save-as-strategy, and open-in-backtest. (setup/history/progress with cancel/resume/delete, the
-      leaderboard with filters, save-as-strategy, and open-in-backtest are done; the Section 7.1
-      experiment result view — selection instead of the dropdown, charts, candidate detail with the
-      on-demand equity endpoint — and the guided setup wizard are still open)
+      leaderboard with filters, save-as-strategy, open-in-backtest, and the whole Section 7.1 result
+      view — selection, charts, sensitivity small multiples, ablation, rule inclusion, warnings,
+      candidate detail with the on-demand equity endpoint, and the finish pass — are done; still
+      open: the guided setup wizard)
 - [ ] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
       explicit sealed-holdout workflow. (the score-vs-parameter scatter and the ablation chart ship
       early with Section 7.1; the deeper neighborhood/stability tooling stays here)
@@ -498,9 +514,10 @@ Tasks, in order:
       constraints, and a complexity-aware robust score. (costs default to zero until the user
       configures them; the Optimize tab should warn on zero-cost experiments per Section 7)
 - [ ] The UI clearly distinguishes training/validation from the one-time sealed holdout.
-- [ ] The user can understand the diff and evidence, save a candidate as a new normal strategy, and backtest
-      it without mutating the baseline. (saving a candidate and opening it in Backtest work from the
-      leaderboard without touching the baseline; the diff/evidence detail view does not exist yet)
+- [x] The user can understand the diff and evidence, save a candidate as a new normal strategy, and backtest
+      it without mutating the baseline. (selecting a leaderboard row shows the candidate detail with
+      the diff vs baseline, penalty breakdown, ineligibility reasons, fold comparison, and validation
+      equity, plus save/backtest actions that never touch the baseline)
 - [ ] Under an equal evaluation budget, every smarter search method is reported against seeded random
       search; no method is called better based on one strategy or ticker. (a TPE-vs-random equal-budget
       fixture test exists; broader multi-strategy/multi-ticker benchmarks do not)

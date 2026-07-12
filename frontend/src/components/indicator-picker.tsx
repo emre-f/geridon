@@ -4,14 +4,18 @@ import { SearchIcon } from "lucide-react";
 import type { IndicatorDefinition } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 
-interface IndicatorPickerProps {
+interface IndicatorPickerBaseProps {
   open: boolean;
   catalog: IndicatorDefinition[];
-  activeCount?: number;
-  maxCount?: number;
   onAdd: (definition: IndicatorDefinition) => void;
   onClose: () => void;
 }
+
+type IndicatorPickerLimits =
+  | { activeCount: number; maxCount: number }
+  | { activeCount?: never; maxCount?: never };
+
+type IndicatorPickerProps = IndicatorPickerBaseProps & IndicatorPickerLimits;
 
 /**
  * Modal for adding an indicator: a searchable catalog list showing each
@@ -28,7 +32,7 @@ function IndicatorPickerDialog({
   maxCount,
   onAdd,
   onClose,
-}: Omit<IndicatorPickerProps, "open">) {
+}: Omit<IndicatorPickerBaseProps, "open"> & IndicatorPickerLimits) {
   const [query, setQuery] = useState("");
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);

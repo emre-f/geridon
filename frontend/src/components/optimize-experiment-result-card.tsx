@@ -3,12 +3,8 @@ import { XIcon } from "lucide-react";
 
 import type { OptimizationExperimentListItem, StrategyRecord } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import {
-  decompositionRows,
-  foldGroups,
-  nodeLabelsById,
-  objectiveLabels,
-} from "@/lib/optimize-chart-utils";
+import { bestScoredTrial, objectiveLabels } from "@/lib/optimize-chart-utils";
+import { experimentWarnings } from "@/lib/optimize-warning-utils";
 import {
   formatExperimentCreatedAt,
   methodLabels,
@@ -16,34 +12,14 @@ import {
   statusLabels,
 } from "@/lib/optimize-utils";
 import { useOptimizeExperimentDetail } from "@/hooks/use-optimize-experiment-detail";
-import { OptimizeFoldChart } from "@/components/optimize-fold-chart";
-import { OptimizeScoreDecomposition } from "@/components/optimize-score-decomposition";
+import { OptimizeCandidateDetail } from "@/components/optimize-candidate-detail";
+import { OptimizeExperimentWarnings } from "@/components/optimize-experiment-warnings";
+import { OptimizeResultSections } from "@/components/optimize-result-sections";
 import { OptimizeStatTiles } from "@/components/optimize-stat-tiles";
-import { OptimizeTraceChart } from "@/components/optimize-trace-chart";
 import { OptimizeTrialsLeaderboard } from "@/components/optimize-trials-leaderboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-function ChartSection({
-  title,
-  question,
-  children,
-}: {
-  title: string;
-  question: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2" aria-label={title}>
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-muted-foreground text-xs">{question}</p>
-      </div>
-      {children}
-    </section>
-  );
-}
 
 /**
  * Results for one selected experiment, shown below the Strategy Lab card the
@@ -70,31 +46,17 @@ export function OptimizeExperimentResultCard({
   const summary = record?.summary ?? null;
   const objectiveLabel = objectiveLabels[record?.config.scoring?.objective ?? "sharpe"];
 
-  const labelById = useMemo(() => nodeLabelsById(summary?.space ?? []), [summary]);
-  const valuesByTrial = useMemo(
-    () =>
-      new Map(
-        board.trials
-          .filter((trial) => trial.score != null)
-          .map((trial) => [trial.trial_index, trial.values]),
-      ),
-    [board.trials],
-  );
-  const decomposition = useMemo(
-    () => (summary ? decompositionRows(summary, board.trials) : []),
-    [summary, board.trials],
-  );
-  const folds = useMemo(
-    () =>
-      summary
-        ? foldGroups(
-            summary.baseline.foldResults,
-            summary.buy_hold.foldResults,
-            board.selectedTrialDetail?.fold_results ?? null,
-          )
-        : [],
-    [summary, board.selectedTrialDetail],
-  );
+  const warnings = useMemo(() => {
+    const experiment = board.experiment;
+    if (!experiment?.summary) {
+      return [];
+    }
+    return experimentWarnings(
+      experiment,
+      bestScoredTrial(board.trials, experiment.summary.best_trial_index),
+    );
+  }, [board.experiment, board.trials]);
+
   const candidateLabel =
     board.selectedTrialDetail && board.selectedTrial
       ? board.selectedTrial.rank != null
@@ -140,47 +102,28 @@ export function OptimizeExperimentResultCard({
 
         {record && summary ? <OptimizeStatTiles experiment={record} trials={board.trials} /> : null}
 
-        {board.trace.length > 0 ? (
-          <ChartSection title="Search trace" question="Did the search improve on the baseline?">
-            <OptimizeTraceChart
-              points={board.trace}
-              baselineScore={board.baselineScore}
-              valuesByTrial={valuesByTrial}
-              labelById={labelById}
-            />
-          </ChartSection>
-        ) : null}
+        <OptimizeExperimentWarnings warnings={warnings} />
 
-        {decomposition.length > 0 ? (
-          <ChartSection
-            title="Score decomposition"
-            question="Which penalties pull each candidate's score down?"
-          >
-            <OptimizeScoreDecomposition rows={decomposition} />
-          </ChartSection>
-        ) : null}
-
-        {folds.length > 0 ? (
-          <ChartSection
-            title="Fold robustness"
-            question={`Does the ${objectiveLabel} objective survive every validation fold?`}
-          >
-            <OptimizeFoldChart
-              groups={folds}
-              candidateLabel={candidateLabel}
-              objectiveLabel={objectiveLabel}
-            />
-            <p className="text-muted-foreground px-1 text-xs">
-              {board.trialDetailLoading
-                ? "Loading the selected trial's folds…"
-                : candidateLabel == null
-                  ? "Select a scored trial in the leaderboard to compare its folds against the baseline."
-                  : null}
-            </p>
-          </ChartSection>
+        {record && summary ? (
+          <OptimizeResultSections
+            board={board}
+            record={record}
+            summary={summary}
+            candidateLabel={candidateLabel}
+          />
         ) : null}
 
         <OptimizeTrialsLeaderboard board={board} />
+
+        {record && summary && candidateLabel != null ? (
+          <OptimizeCandidateDetail
+            board={board}
+            experimentId={experiment.id}
+            space={summary.space}
+            timeframe={record.config.timeframe}
+            candidateLabel={candidateLabel}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );

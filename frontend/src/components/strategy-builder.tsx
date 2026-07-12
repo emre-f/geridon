@@ -201,7 +201,7 @@ export function StrategyBuilder({
                 size="sm"
                 className="self-start"
                 onClick={() =>
-                  editDraft((current) => ({ ...current, cash: createCashGroup(catalog) }))
+                  editDraft((current) => ({ ...current, cash: createCashGroup() }))
                 }
               >
                 <PlusIcon />

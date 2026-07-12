@@ -14,6 +14,7 @@ import {
 } from "./optimizationExperiments.ts";
 import {
   handleGetExperimentTrial,
+  handleGetTrialEquity,
   handleListExperimentTrials,
   handleSaveTrialStrategy,
 } from "./optimizationTrials.ts";
@@ -64,7 +65,8 @@ export async function routeOptimizationExperiments(
   const trialsMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials$`));
   const trialMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)$`));
   const saveMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)/strategies$`));
-  const experimentPath = (trialsMatch ?? trialMatch ?? saveMatch)?.[1];
+  const equityMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)/equity$`));
+  const experimentPath = (trialsMatch ?? trialMatch ?? saveMatch ?? equityMatch)?.[1];
   if (experimentPath) {
     const resolved = experimentForPath(db, experimentPath);
     if ("failure" in resolved) {
@@ -75,6 +77,9 @@ export async function routeOptimizationExperiments(
     }
     if (trialMatch && method === "GET") {
       return handleGetExperimentTrial(db, resolved.experiment, trialMatch[2]);
+    }
+    if (equityMatch && method === "GET") {
+      return handleGetTrialEquity(db, resolved.experiment, equityMatch[2]);
     }
     if (saveMatch && method === "POST") {
       const body = await readJson(request).catch(() => ({}));

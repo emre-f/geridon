@@ -5,11 +5,10 @@ import {
   getOptimizationTrial,
   listOptimizationTrials,
   saveOptimizationTrialStrategy,
-  type OptimizationExperimentRecord,
-  type OptimizationTrialDetail,
   type OptimizationTrialRecord,
   type StrategyRecord,
 } from "@/lib/api";
+import { detailReducer, initialDetailState } from "@/lib/optimize-detail-state";
 import {
   inLeaderboardOrder,
   matchesTrialFilter,
@@ -20,67 +19,6 @@ import {
 // The API caps both max_trials and the trials page size at 500, so a single
 // request always returns every trial of an experiment.
 const allTrialsLimit = 500;
-
-interface DetailState {
-  experiment: OptimizationExperimentRecord | null;
-  trials: OptimizationTrialRecord[];
-  loading: boolean;
-  filter: TrialFilter;
-  selectedTrialIndex: number | null;
-  trialDetails: Record<number, OptimizationTrialDetail>;
-  trialDetailLoading: boolean;
-  savingIndex: number | null;
-  savedStrategies: Record<number, StrategyRecord>;
-  error: string | null;
-}
-
-type DetailAction =
-  | { type: "loadRequested" }
-  | { type: "loaded"; experiment: OptimizationExperimentRecord; trials: OptimizationTrialRecord[] }
-  | { type: "loadFailed"; message: string }
-  | { type: "filterChanged"; filter: TrialFilter }
-  | { type: "trialSelected"; trialIndex: number | null }
-  | { type: "trialDetailRequested" }
-  | { type: "trialDetailLoaded"; detail: OptimizationTrialDetail }
-  | { type: "trialDetailFailed"; message: string }
-  | { type: "saveStarted"; trialIndex: number }
-  | { type: "saveSucceeded"; trialIndex: number; record: StrategyRecord }
-  | { type: "saveFailed"; message: string };
-
-function reducer(state: DetailState, action: DetailAction): DetailState {
-  switch (action.type) {
-    case "loadRequested":
-      return { ...state, loading: true, error: null };
-    case "loaded":
-      return { ...state, experiment: action.experiment, trials: action.trials, loading: false };
-    case "loadFailed":
-      return { ...state, loading: false, error: action.message };
-    case "filterChanged":
-      return { ...state, filter: action.filter };
-    case "trialSelected":
-      return { ...state, selectedTrialIndex: action.trialIndex };
-    case "trialDetailRequested":
-      return { ...state, trialDetailLoading: true };
-    case "trialDetailLoaded":
-      return {
-        ...state,
-        trialDetailLoading: false,
-        trialDetails: { ...state.trialDetails, [action.detail.trial_index]: action.detail },
-      };
-    case "trialDetailFailed":
-      return { ...state, trialDetailLoading: false, error: action.message };
-    case "saveStarted":
-      return { ...state, savingIndex: action.trialIndex, error: null };
-    case "saveSucceeded":
-      return {
-        ...state,
-        savingIndex: null,
-        savedStrategies: { ...state.savedStrategies, [action.trialIndex]: action.record },
-      };
-    case "saveFailed":
-      return { ...state, savingIndex: null, error: action.message };
-  }
-}
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -102,18 +40,7 @@ export function useOptimizeExperimentDetail({
   onStrategySaved,
   onOpenInBacktest,
 }: DetailOptions) {
-  const [state, dispatch] = useReducer(reducer, {
-    experiment: null,
-    trials: [],
-    loading: true,
-    filter: "all",
-    selectedTrialIndex: null,
-    trialDetails: {},
-    trialDetailLoading: false,
-    savingIndex: null,
-    savedStrategies: {},
-    error: null,
-  });
+  const [state, dispatch] = useReducer(detailReducer, initialDetailState);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,11 +148,7 @@ export function useOptimizeExperimentDetail({
       selectedTrialIndex != null ? (state.trialDetails[selectedTrialIndex] ?? null) : null,
     baselineScore: state.experiment?.summary?.baseline.score.score ?? null,
     setFilter: (filter: TrialFilter) => dispatch({ type: "filterChanged", filter }),
-    selectTrial: (trialIndex: number) =>
-      dispatch({
-        type: "trialSelected",
-        trialIndex: selectedTrialIndex === trialIndex ? null : trialIndex,
-      }),
+    selectTrial: (trialIndex: number) => dispatch({ type: "trialSelected", trialIndex }),
     handleSave,
     handleOpenInBacktest,
   };

@@ -42,6 +42,21 @@ export function setAtPath(strategy: Strategy, path: string[], value: unknown): v
   (node as Record<string, unknown>)[path.at(-1)!] = value;
 }
 
+function describeOperand(operand: StrategyOperand): string {
+  if (operand.type === "price") {
+    return operand.field;
+  }
+  if (operand.type === "value") {
+    return String(operand.value);
+  }
+  const parameters = Object.values(operand.parameters).join(",");
+  return `${operand.kind}(${parameters}).${operand.output}`;
+}
+
+export function describeRule(rule: StrategyRule): string {
+  return `${describeOperand(rule.left)} ${rule.operator} ${describeOperand(rule.right)}`;
+}
+
 export interface LocatedRule {
   path: string[];
   rule: StrategyRule;

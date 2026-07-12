@@ -20,6 +20,7 @@ import { loadLastStrategySelection, saveLastStrategySelection } from "@/lib/char
 import { definitionValueSlots, normalizeLineStyles } from "@/lib/indicator-style";
 import { createStrategyDraft, strategyIndicatorSpecs } from "@/lib/strategy";
 import { draftFromRecord, sameDraft } from "@/lib/strategy-draft";
+import { pendingIndicatorValidation } from "@/lib/strategy-pending";
 import type { TimeWindow } from "@/hooks/chart-display";
 import {
   initialStrategyWorkspaceState,
@@ -64,11 +65,11 @@ export function useStrategyWorkspace({
     }
     if (!selectedRecord) {
       // A pristine (New) draft is not worth warning about; only edits are.
-      return !sameDraft(draft, createStrategyDraft(indicatorCatalog));
+      return !sameDraft(draft, createStrategyDraft());
     }
 
     return !sameDraft(draft, draftFromRecord(selectedRecord));
-  }, [indicatorCatalog, selectedRecord, draft]);
+  }, [selectedRecord, draft]);
   const previewKey = useMemo(
     () => JSON.stringify(previewSpecs.map(({ id, kind, parameters }) => ({ id, kind, parameters }))),
     [previewSpecs],
@@ -131,7 +132,7 @@ export function useStrategyWorkspace({
       remembered === "new"
         ? undefined
         : strategies.find((strategy) => strategy.id === Number(remembered));
-    const nextDraft = record ? draftFromRecord(record) : createStrategyDraft(indicatorCatalog);
+    const nextDraft = record ? draftFromRecord(record) : createStrategyDraft();
     dispatch({
       type: "initialized",
       opened: {
@@ -148,12 +149,13 @@ export function useStrategyWorkspace({
       return;
     }
 
+    const pendingValidation = pendingIndicatorValidation(draft);
     let cancelled = false;
     const timeout = window.setTimeout(async () => {
       dispatch({ type: "validateStarted" });
 
       try {
-        const result = await validateStrategy(draft);
+        const result = pendingValidation ?? (await validateStrategy(draft));
         if (!cancelled) {
           dispatch({
             type: "validated",
@@ -295,7 +297,7 @@ export function useStrategyWorkspace({
   }
 
   function openNew() {
-    const nextDraft = createStrategyDraft(indicatorCatalog);
+    const nextDraft = createStrategyDraft();
     dispatch({
       type: "opened",
       opened: { id: null, draft: nextDraft, previewSpecs: specsFor(nextDraft) },
@@ -342,7 +344,7 @@ export function useStrategyWorkspace({
 
     dispatch({ type: "validateStarted" });
     try {
-      const result = await validateStrategy(draft);
+      const result = pendingIndicatorValidation(draft) ?? (await validateStrategy(draft));
       dispatch({ type: "validated", result, draft, previewSpecs: specsFor(draft) });
       return result;
     } catch (validateError) {
@@ -422,7 +424,7 @@ export function useStrategyWorkspace({
     const resetDraft = selectedRecord
       ? draftFromRecord(selectedRecord)
       : indicatorCatalog.length > 0
-        ? createStrategyDraft(indicatorCatalog)
+        ? createStrategyDraft()
         : null;
     dispatch({ type: "leftStrategiesTab", draft: resetDraft });
     return true;

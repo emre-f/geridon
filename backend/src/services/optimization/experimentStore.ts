@@ -114,6 +114,7 @@ export function persistExperimentResult(
     buy_hold: result.buyHold,
     space: result.space,
     ablation: result.ablation,
+    inclusion: result.inclusion,
     pareto_fronts: result.paretoFronts,
     trial_counts: counts,
     best_trial_index: result.leaderboard[0]?.index ?? null,

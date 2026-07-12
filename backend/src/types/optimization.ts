@@ -190,6 +190,13 @@ export interface AblationEntry {
   scoreDelta: number | null;
 }
 
+export interface RuleInclusionEntry {
+  ruleId: string;
+  summary: string;
+  includedCount: number;
+  topCount: number;
+}
+
 export interface BaselineEvaluation {
   foldResults: FoldEvaluation[];
   score: TrialScore;
@@ -211,6 +218,8 @@ export interface OptimizationResult {
   trials: OptimizationTrial[];
   leaderboard: OptimizationTrial[];
   ablation: AblationEntry[];
+  /** How often each rule is active among the top eligible candidates; empty unless rule structure was searched. */
+  inclusion: RuleInclusionEntry[];
   /** Trial indexes grouped into non-dominated fronts (front 0 is the Pareto set). */
   paretoFronts: number[][];
   stoppedEarly: boolean;

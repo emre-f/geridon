@@ -122,6 +122,13 @@ export interface AblationEntry {
   scoreDelta: number | null;
 }
 
+export interface RuleInclusionEntry {
+  ruleId: string;
+  summary: string;
+  includedCount: number;
+  topCount: number;
+}
+
 export interface BaselineEvaluation {
   foldResults: FoldEvaluation[];
   score: TrialScore;

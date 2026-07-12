@@ -5,6 +5,7 @@ import {
   cloneStrategy,
   collectRules,
   computeComplexity,
+  describeRule,
   pathId,
   setAtPath,
 } from "./strategyPaths.ts";
@@ -14,25 +15,8 @@ import type {
   OptimizationDataset,
   ScoringConfig,
   Strategy,
-  StrategyOperand,
-  StrategyRule,
   TrialScore,
 } from "../../types.ts";
-
-function describeOperand(operand: StrategyOperand): string {
-  if (operand.type === "price") {
-    return operand.field;
-  }
-  if (operand.type === "value") {
-    return String(operand.value);
-  }
-  const parameters = Object.values(operand.parameters).join(",");
-  return `${operand.kind}(${parameters}).${operand.output}`;
-}
-
-function describeRule(rule: StrategyRule): string {
-  return `${describeOperand(rule.left)} ${rule.operator} ${describeOperand(rule.right)}`;
-}
 
 export interface AblationContext {
   datasets: OptimizationDataset[];

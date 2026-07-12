@@ -63,7 +63,6 @@ export function unselectedIndicatorOperand(): StrategyOperand {
 }
 
 export function createRuleNode(
-  _catalog: IndicatorDefinition[],
   operator: ComparisonOperator = "cross_above",
 ): StrategyRule {
   return {
@@ -79,15 +78,15 @@ export function createGroupNode(conditions: StrategyCondition[] = []): StrategyG
   return { id: createNodeId(), type: "group", operator: "and", conditions };
 }
 
-export function createCashGroup(catalog: IndicatorDefinition[]): StrategyGroup {
-  return createGroupNode([createRuleNode(catalog, "lt")]);
+export function createCashGroup(): StrategyGroup {
+  return createGroupNode([createRuleNode("lt")]);
 }
 
-export function createStrategyDraft(catalog: IndicatorDefinition[]): StrategyDraft {
+export function createStrategyDraft(): StrategyDraft {
   return {
     name: "New strategy",
-    entry: createGroupNode([createRuleNode(catalog, "cross_above")]),
-    exit: createGroupNode([createRuleNode(catalog, "cross_below")]),
+    entry: createGroupNode([createRuleNode("cross_above")]),
+    exit: createGroupNode([createRuleNode("cross_below")]),
   };
 }
 
