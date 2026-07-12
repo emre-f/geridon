@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OptimizationTrialDetail } from "@/lib/api-optimization-experiment-types";
+import type {
+  HoldoutEvaluation,
+  OptimizationExperimentRecord,
+  OptimizationTrialDetail,
+} from "@/lib/api-optimization-experiment-types";
 import type { StrategyRecord } from "@/lib/api-strategy-types";
 import { detailReducer, initialDetailState, type DetailState } from "./optimize-detail-state.ts";
 
@@ -77,4 +81,35 @@ test("a failed load surfaces the message and stops the spinner", () => {
   const state: DetailState = { ...initialDetailState, loading: true };
   const failed = detailReducer(state, { type: "loadFailed", message: "boom" });
   assert.deepEqual({ loading: failed.loading, error: failed.error }, { loading: false, error: "boom" });
+});
+
+test("opening the holdout patches the experiment record once it succeeds", () => {
+  const experiment = { id: 1, holdout: null } as OptimizationExperimentRecord;
+  const loaded = detailReducer(initialDetailState, { type: "loaded", experiment, trials: [] });
+
+  const opening = detailReducer(
+    { ...loaded, holdoutError: "old error" },
+    { type: "holdoutOpenStarted" },
+  );
+  assert.deepEqual(
+    { opening: opening.holdoutOpening, error: opening.holdoutError },
+    { opening: true, error: null },
+  );
+
+  const holdout: HoldoutEvaluation = {
+    trial_index: 3,
+    opened_at: "2026-07-11T00:00:00.000Z",
+    candidate: [],
+    baseline: [],
+    buy_hold: [],
+  };
+  const opened = detailReducer(opening, { type: "holdoutOpened", holdout });
+  assert.equal(opened.holdoutOpening, false);
+  assert.deepEqual(opened.experiment?.holdout, holdout);
+
+  const failed = detailReducer(opening, { type: "holdoutOpenFailed", message: "already opened" });
+  assert.deepEqual(
+    { opening: failed.holdoutOpening, error: failed.holdoutError, holdout: failed.experiment?.holdout },
+    { opening: false, error: "already opened", holdout: null },
+  );
 });

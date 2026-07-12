@@ -1,4 +1,5 @@
 import type {
+  HoldoutEvaluation,
   OptimizationExperimentRecord,
   OptimizationTrialDetail,
   OptimizationTrialRecord,
@@ -16,6 +17,8 @@ export interface DetailState {
   trialDetailLoading: boolean;
   savingIndex: number | null;
   savedStrategies: Record<number, StrategyRecord>;
+  holdoutOpening: boolean;
+  holdoutError: string | null;
   error: string | null;
 }
 
@@ -30,7 +33,10 @@ export type DetailAction =
   | { type: "trialDetailFailed"; message: string }
   | { type: "saveStarted"; trialIndex: number }
   | { type: "saveSucceeded"; trialIndex: number; record: StrategyRecord }
-  | { type: "saveFailed"; message: string };
+  | { type: "saveFailed"; message: string }
+  | { type: "holdoutOpenStarted" }
+  | { type: "holdoutOpened"; holdout: HoldoutEvaluation }
+  | { type: "holdoutOpenFailed"; message: string };
 
 export const initialDetailState: DetailState = {
   experiment: null,
@@ -42,6 +48,8 @@ export const initialDetailState: DetailState = {
   trialDetailLoading: false,
   savingIndex: null,
   savedStrategies: {},
+  holdoutOpening: false,
+  holdoutError: null,
   error: null,
 };
 
@@ -82,5 +90,16 @@ export function detailReducer(state: DetailState, action: DetailAction): DetailS
       };
     case "saveFailed":
       return { ...state, savingIndex: null, error: action.message };
+    case "holdoutOpenStarted":
+      return { ...state, holdoutOpening: true, holdoutError: null };
+    case "holdoutOpened":
+      return {
+        ...state,
+        holdoutOpening: false,
+        experiment:
+          state.experiment == null ? null : { ...state.experiment, holdout: action.holdout },
+      };
+    case "holdoutOpenFailed":
+      return { ...state, holdoutOpening: false, holdoutError: action.message };
   }
 }

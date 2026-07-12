@@ -18,13 +18,22 @@ interface OptimizeFormState {
   maxTrials: number;
   maxRuntimeMinutes: number;
   foldCount: number;
+  holdoutPct: number;
   seed: number;
   dates: EditedDates | null;
 }
 
 type EditableField = Pick<
   OptimizeFormState,
-  "strategyId" | "ticker" | "timeframe" | "method" | "maxTrials" | "maxRuntimeMinutes" | "foldCount" | "seed"
+  | "strategyId"
+  | "ticker"
+  | "timeframe"
+  | "method"
+  | "maxTrials"
+  | "maxRuntimeMinutes"
+  | "foldCount"
+  | "holdoutPct"
+  | "seed"
 >;
 
 type OptimizeFormAction =
@@ -62,6 +71,7 @@ export function useOptimizeExperimentForm({
     maxTrials: 50,
     maxRuntimeMinutes: 2,
     foldCount: 4,
+    holdoutPct: 0,
     seed: 1,
     dates: null,
   });
@@ -127,6 +137,7 @@ export function useOptimizeExperimentForm({
     setMaxRuntimeMinutes: (maxRuntimeMinutes: number) =>
       dispatch({ type: "fieldChanged", patch: { maxRuntimeMinutes } }),
     setFoldCount: (foldCount: number) => dispatch({ type: "fieldChanged", patch: { foldCount } }),
+    setHoldoutPct: (holdoutPct: number) => dispatch({ type: "fieldChanged", patch: { holdoutPct } }),
     setSeed: (seed: number) => dispatch({ type: "fieldChanged", patch: { seed } }),
     setStartDate: (nextStartDate: string) =>
       dispatch({ type: "datesEdited", dates: { startDate: nextStartDate, endDate, coverageKey } }),

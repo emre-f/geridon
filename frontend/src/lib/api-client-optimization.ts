@@ -1,5 +1,6 @@
 import { fetchJson } from "@/lib/api-client";
 import type {
+  HoldoutEvaluation,
   OptimizationExperimentConfig,
   OptimizationExperimentListItem,
   OptimizationExperimentRecord,
@@ -90,6 +91,13 @@ export function getOptimizationTrial(experimentId: number, trialIndex: number) {
 export function getOptimizationTrialEquity(experimentId: number, trialIndex: number) {
   return fetchJson<TrialEquityResponse>(
     `${basePath}/${experimentId}/trials/${trialIndex}/equity`,
+  );
+}
+
+export function openOptimizationTrialHoldout(experimentId: number, trialIndex: number) {
+  return fetchJson<HoldoutEvaluation>(
+    `${basePath}/${experimentId}/trials/${trialIndex}/holdout`,
+    { method: "POST" },
   );
 }
 

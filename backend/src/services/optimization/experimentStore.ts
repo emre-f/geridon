@@ -1,5 +1,6 @@
 import type { Database } from "../../db.ts";
 import type {
+  HoldoutEvaluation,
   OptimizationExperimentConfig,
   OptimizationExperimentListItem,
   OptimizationExperimentProgress,
@@ -85,6 +86,12 @@ export function resetExperimentForResume(db: Database, id: number) {
     db.exec("ROLLBACK");
     throw error;
   }
+}
+
+export function setExperimentHoldout(db: Database, id: number, evaluation: HoldoutEvaluation) {
+  db.prepare(
+    "UPDATE optimization_experiments SET holdout = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+  ).run(JSON.stringify(evaluation), id);
 }
 
 export function deleteExperiment(db: Database, id: number): boolean {

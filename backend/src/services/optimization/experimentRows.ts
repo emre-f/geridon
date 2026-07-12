@@ -20,6 +20,7 @@ export function experimentRecord(row: Row): OptimizationExperimentRecord {
     snapshot: JSON.parse(String(row.snapshot)),
     progress: row.progress == null ? null : JSON.parse(String(row.progress)),
     summary: row.summary == null ? null : JSON.parse(String(row.summary)),
+    holdout: row.holdout == null ? null : JSON.parse(String(row.holdout)),
     error: row.error == null ? null : String(row.error),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),

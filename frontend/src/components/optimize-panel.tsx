@@ -53,6 +53,7 @@ export function OptimizePanel({
       max_trials: form.maxTrials,
       max_runtime_ms: Math.round(form.maxRuntimeMinutes * 60_000),
       folds: { foldCount: form.foldCount, mode: "anchored" },
+      ...(form.holdoutPct > 0 ? { holdout: { fraction: form.holdoutPct / 100 } } : {}),
       seed: form.seed,
     });
   }
@@ -85,6 +86,7 @@ export function OptimizePanel({
                 creating={experiments.creating}
                 endDate={form.endDate}
                 foldCount={form.foldCount}
+                holdoutPct={form.holdoutPct}
                 maxRuntimeMinutes={form.maxRuntimeMinutes}
                 maxTrials={form.maxTrials}
                 method={form.method}
@@ -98,6 +100,7 @@ export function OptimizePanel({
                 tickerList={form.tickerList}
                 onEndDateChange={form.setEndDate}
                 onFoldCountChange={form.setFoldCount}
+                onHoldoutPctChange={form.setHoldoutPct}
                 onMaxRuntimeMinutesChange={form.setMaxRuntimeMinutes}
                 onMaxTrialsChange={form.setMaxTrials}
                 onMethodChange={form.setMethod}

@@ -15,6 +15,7 @@ export function OptimizeExperimentForm({
   creating,
   endDate,
   foldCount,
+  holdoutPct,
   maxRuntimeMinutes,
   maxTrials,
   method,
@@ -28,6 +29,7 @@ export function OptimizeExperimentForm({
   tickerList,
   onEndDateChange,
   onFoldCountChange,
+  onHoldoutPctChange,
   onMaxRuntimeMinutesChange,
   onMaxTrialsChange,
   onMethodChange,
@@ -42,6 +44,7 @@ export function OptimizeExperimentForm({
   creating: boolean;
   endDate: string;
   foldCount: number;
+  holdoutPct: number;
   maxRuntimeMinutes: number;
   maxTrials: number;
   method: OptimizationMethod;
@@ -55,6 +58,7 @@ export function OptimizeExperimentForm({
   tickerList: string[];
   onEndDateChange: (value: string) => void;
   onFoldCountChange: (value: number) => void;
+  onHoldoutPctChange: (value: number) => void;
   onMaxRuntimeMinutesChange: (value: number) => void;
   onMaxTrialsChange: (value: number) => void;
   onMethodChange: (value: OptimizationMethod) => void;
@@ -173,6 +177,21 @@ export function OptimizeExperimentForm({
                 step={1}
                 onValueChange={onFoldCountChange}
               />
+            </Field>
+            <Field label="Sealed holdout">
+              <Select
+                value={String(holdoutPct)}
+                aria-label="Sealed holdout percent"
+                className="w-24"
+                onChange={(event) => onHoldoutPctChange(Number(event.target.value))}
+              >
+                <option value="0">None</option>
+                {[10, 15, 20, 25, 30].map((pct) => (
+                  <option key={pct} value={pct}>
+                    {pct}%
+                  </option>
+                ))}
+              </Select>
             </Field>
           </div>
         </div>

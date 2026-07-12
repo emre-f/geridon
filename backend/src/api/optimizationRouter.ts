@@ -12,6 +12,7 @@ import {
   handleListExperiments,
   handleResumeExperiment,
 } from "./optimizationExperiments.ts";
+import { handleOpenTrialHoldout } from "./optimizationHoldout.ts";
 import {
   handleGetExperimentTrial,
   handleGetTrialEquity,
@@ -66,7 +67,8 @@ export async function routeOptimizationExperiments(
   const trialMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)$`));
   const saveMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)/strategies$`));
   const equityMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)/equity$`));
-  const experimentPath = (trialsMatch ?? trialMatch ?? saveMatch ?? equityMatch)?.[1];
+  const holdoutMatch = pathname.match(new RegExp(`^${basePath}/(\\d+)/trials/(\\d+)/holdout$`));
+  const experimentPath = (trialsMatch ?? trialMatch ?? saveMatch ?? equityMatch ?? holdoutMatch)?.[1];
   if (experimentPath) {
     const resolved = experimentForPath(db, experimentPath);
     if ("failure" in resolved) {
@@ -80,6 +82,9 @@ export async function routeOptimizationExperiments(
     }
     if (equityMatch && method === "GET") {
       return handleGetTrialEquity(db, resolved.experiment, equityMatch[2]);
+    }
+    if (holdoutMatch && method === "POST") {
+      return handleOpenTrialHoldout(db, resolved.experiment, holdoutMatch[2]);
     }
     if (saveMatch && method === "POST") {
       const body = await readJson(request).catch(() => ({}));

@@ -20,6 +20,11 @@ import type {
 } from "@/lib/api-optimization-types";
 import type { StrategySnapshot } from "@/lib/api-strategy-types";
 
+/** Seals the last `fraction` of each symbol's candles from search and validation. */
+export interface HoldoutConfig {
+  fraction: number;
+}
+
 export interface OptimizationExperimentConfig {
   strategy_id: number;
   tickers: string[];
@@ -36,6 +41,7 @@ export interface OptimizationExperimentConfig {
   max_runtime_ms: number;
   method: OptimizationMethod;
   folds: FoldsConfig;
+  holdout?: HoldoutConfig;
   scoring?: Partial<ScoringConfig>;
   rule_roles?: Record<string, RuleRole>;
   parameter_overrides?: Record<string, ParameterOverride>;
@@ -46,6 +52,8 @@ export interface ExperimentDatasetSpec {
   candle_count: number;
   first_candle_ms: number;
   last_candle_ms: number;
+  /** Trailing candles sealed from search; absent on experiments without a holdout. */
+  holdout_candle_count?: number;
 }
 
 export interface OptimizationExperimentSnapshot {
@@ -82,6 +90,15 @@ export interface OptimizationExperimentSummary {
   best_trial_index: number | null;
 }
 
+/** The one-time evaluation of a chosen candidate on the sealed holdout window. */
+export interface HoldoutEvaluation {
+  trial_index: number;
+  opened_at: string;
+  candidate: FoldEvaluation[];
+  baseline: FoldEvaluation[];
+  buy_hold: FoldEvaluation[];
+}
+
 export interface OptimizationExperimentRecord {
   id: number;
   status: OptimizationExperimentStatus;
@@ -89,6 +106,7 @@ export interface OptimizationExperimentRecord {
   snapshot: OptimizationExperimentSnapshot;
   progress: OptimizationExperimentProgress | null;
   summary: OptimizationExperimentSummary | null;
+  holdout: HoldoutEvaluation | null;
   error: string | null;
   created_at: string;
   updated_at: string;

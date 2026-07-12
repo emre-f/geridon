@@ -2,6 +2,7 @@ import type { Database } from "../db.ts";
 import { equityOnFolds, type EvaluationSettings } from "../services/optimization/evaluate.ts";
 import { getTrialDetail, listTrials } from "../services/optimization/experimentStore.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
+import { searchDatasets } from "../services/optimization/holdout.ts";
 import { resolveScoringConfig } from "../services/optimization/scoring.ts";
 import type {
   ExperimentDatasetSpec,
@@ -67,7 +68,7 @@ export function handleGetExperimentTrial(
   return { statusCode: 200, body: trial };
 }
 
-function snapshotMismatch(
+export function snapshotMismatch(
   specs: ExperimentDatasetSpec[],
   datasets: OptimizationDataset[],
 ): string | null {
@@ -79,10 +80,23 @@ function snapshotMismatch(
       dataset.candles[0].timestamp_ms === spec.first_candle_ms &&
       dataset.candles[dataset.candles.length - 1].timestamp_ms === spec.last_candle_ms;
     if (!matches) {
-      return `Stored ${spec.ticker} candles no longer match the experiment snapshot, so the equity curves cannot be recomputed faithfully.`;
+      return `Stored ${spec.ticker} candles no longer match the experiment snapshot, so results cannot be recomputed faithfully.`;
     }
   }
   return null;
+}
+
+export function evaluationSettings(
+  config: OptimizationExperimentRecord["config"],
+): EvaluationSettings {
+  return {
+    positionMode: config.position_mode,
+    buyPercent: config.buy_percent,
+    sellPercent: config.sell_percent,
+    initialCapital: config.initial_capital,
+    costs: config.costs,
+    objective: resolveScoringConfig(config.scoring).objective,
+  };
 }
 
 export function handleGetTrialEquity(
@@ -105,27 +119,21 @@ export function handleGetTrialEquity(
     return badRequest("Rejected trials have no candidate strategy to evaluate.");
   }
 
-  let datasets: OptimizationDataset[];
+  let loaded: OptimizationDataset[];
   try {
-    datasets = loadExperimentDatasets(db, experiment.config);
+    loaded = loadExperimentDatasets(db, experiment.config);
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Failed to load experiment data.";
     return { statusCode: 409, body: { detail } };
   }
-  const mismatch = snapshotMismatch(experiment.snapshot.datasets, datasets);
+  const mismatch = snapshotMismatch(experiment.snapshot.datasets, loaded);
   if (mismatch) {
     return { statusCode: 409, body: { detail: mismatch } };
   }
 
   const config = experiment.config;
-  const settings: EvaluationSettings = {
-    positionMode: config.position_mode,
-    buyPercent: config.buy_percent,
-    sellPercent: config.sell_percent,
-    initialCapital: config.initial_capital,
-    costs: config.costs,
-    objective: resolveScoringConfig(config.scoring).objective,
-  };
+  const settings = evaluationSettings(config);
+  const datasets = searchDatasets(loaded, config.holdout);
   const foldsBySymbol = new Map<string, FoldSpec[]>();
   for (const dataset of datasets) {
     foldsBySymbol.set(dataset.symbol, buildFolds(dataset.candles.length, config.folds));

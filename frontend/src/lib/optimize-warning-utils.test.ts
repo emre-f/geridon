@@ -64,6 +64,7 @@ function record(costs: TradeCosts, foldCandles: number[]): OptimizationExperimen
       trial_counts: { total: 10, scored: 8, pruned: 1, rejected: 1 },
       best_trial_index: 0,
     },
+    holdout: null,
     error: null,
     created_at: "",
     updated_at: "",
@@ -158,4 +159,18 @@ test("a missing best trial only yields config-level warnings", () => {
   const warnings = experimentWarnings(record(zeroCosts, [200, 200]), null);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /costs are zero/i);
+});
+
+test("an opened sealed holdout is flagged first", () => {
+  const opened = record(realisticCosts, [200, 200]);
+  opened.holdout = {
+    trial_index: 3,
+    opened_at: "2026-07-11T00:00:00.000Z",
+    candidate: [],
+    baseline: [],
+    buy_hold: [],
+  };
+  const warnings = experimentWarnings(opened, bestTrial());
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /holdout was opened for trial 3/);
 });

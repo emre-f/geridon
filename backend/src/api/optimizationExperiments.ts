@@ -9,6 +9,7 @@ import {
 } from "../services/optimization/experimentStore.ts";
 import { compileSearchSpace } from "../services/optimization/searchSpace.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
+import { searchDatasets, validateHoldoutSize } from "../services/optimization/holdout.ts";
 import type {
   OptimizationExperimentRecord,
   OptimizationExperimentStatus,
@@ -66,7 +67,19 @@ export function handleCreateExperiment(db: Database, runner: ExperimentRunner, b
 
   try {
     const datasets = loadExperimentDatasets(db, config);
-    for (const dataset of datasets) {
+    if (config.holdout) {
+      for (const dataset of datasets) {
+        const holdoutError = validateHoldoutSize(
+          dataset.symbol,
+          dataset.candles.length,
+          config.holdout,
+        );
+        if (holdoutError) {
+          return badRequest(holdoutError);
+        }
+      }
+    }
+    for (const dataset of searchDatasets(datasets, config.holdout)) {
       try {
         buildFolds(dataset.candles.length, config.folds);
       } catch (error) {
@@ -91,7 +104,7 @@ export function handleCreateExperiment(db: Database, runner: ExperimentRunner, b
     const record = insertExperiment(db, config, {
       strategy,
       strategy_name: String(strategyRow.name),
-      datasets: datasetSpecs(datasets),
+      datasets: datasetSpecs(datasets, config.holdout),
     });
     runner.enqueue(record.id);
     return { statusCode: 201, body: record };

@@ -1,13 +1,12 @@
-import type { Database } from "../db.ts";
 import { parseTimeframe } from "../timeframes.ts";
+import { holdoutLimits } from "../services/optimization/holdout.ts";
 import type {
   BacktestPositionMode,
-  ExperimentDatasetSpec,
   FoldsConfig,
-  OptimizationDataset,
+  HoldoutConfig,
   OptimizationExperimentConfig,
 } from "../types.ts";
-import { candlesForTimeframe, parseTradeCosts, responseToCandle, validateTicker } from "./shared.ts";
+import { parseTradeCosts, validateTicker } from "./shared.ts";
 
 export const experimentLimits = {
   maxTickers: 4,
@@ -60,6 +59,24 @@ function parseFolds(raw: unknown): FoldsConfig | string {
     folds.minValidationCandles = minValidation;
   }
   return folds;
+}
+
+function parseHoldout(raw: unknown): HoldoutConfig | null | string {
+  if (raw == null) {
+    return null;
+  }
+  if (!isPlainObject(raw)) {
+    return "holdout must be an object.";
+  }
+  const fraction = Number(raw.fraction);
+  if (
+    !Number.isFinite(fraction) ||
+    fraction < holdoutLimits.minFraction ||
+    fraction > holdoutLimits.maxFraction
+  ) {
+    return `holdout.fraction must be between ${holdoutLimits.minFraction} and ${holdoutLimits.maxFraction}.`;
+  }
+  return { fraction };
 }
 
 export function parseExperimentRequest(
@@ -166,6 +183,11 @@ export function parseExperimentRequest(
     return { error: folds };
   }
 
+  const holdout = parseHoldout(body.holdout);
+  if (typeof holdout === "string") {
+    return { error: holdout };
+  }
+
   for (const key of optionalObjectKeys) {
     if (body[key] != null && !isPlainObject(body[key])) {
       return { error: `${key} must be an object.` };
@@ -188,6 +210,7 @@ export function parseExperimentRequest(
     max_runtime_ms: maxRuntimeMs,
     method,
     folds,
+    ...(holdout ? { holdout } : {}),
     ...(body.scoring ? { scoring: body.scoring as OptimizationExperimentConfig["scoring"] } : {}),
     ...(body.rule_roles
       ? { rule_roles: body.rule_roles as OptimizationExperimentConfig["rule_roles"] }
@@ -210,31 +233,4 @@ export function parseExperimentRequest(
   return { config };
 }
 
-export function loadExperimentDatasets(
-  db: Database,
-  config: OptimizationExperimentConfig,
-): OptimizationDataset[] {
-  const timeframe = parseTimeframe(config.timeframe);
-  return config.tickers.map((ticker) => {
-    const candles = candlesForTimeframe(db, {
-      ticker,
-      timeframe,
-      startMs: config.start_ms,
-      endMs: config.end_ms,
-      limit: 50_000,
-    }).map(responseToCandle);
-    if (candles.length === 0) {
-      throw new Error(`No stored ${timeframe.key} candles for ${ticker} in the requested range.`);
-    }
-    return { symbol: ticker, candles };
-  });
-}
-
-export function datasetSpecs(datasets: OptimizationDataset[]): ExperimentDatasetSpec[] {
-  return datasets.map((dataset) => ({
-    ticker: dataset.symbol,
-    candle_count: dataset.candles.length,
-    first_candle_ms: dataset.candles[0].timestamp_ms,
-    last_candle_ms: dataset.candles[dataset.candles.length - 1].timestamp_ms,
-  }));
-}
+export { datasetSpecs, loadExperimentDatasets } from "./optimizationDatasets.ts";

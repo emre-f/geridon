@@ -225,13 +225,18 @@ For an optimization experiment, the data roles should be:
       the backtest and experiment APIs, stored with each run/experiment, default zero)
 - [ ] Decide whether dividends/splits/adjusted-price behavior is sufficient for the selected data source
       and record that decision in each experiment.
-- [ ] Build chronological train/validation/holdout splits; never randomly shuffle candles.
-      (train/validation folds are done; the sealed holdout split does not exist yet)
+- [x] Build chronological train/validation/holdout splits; never randomly shuffle candles.
+      (optional `holdout: { fraction }` on the experiment config seals the last N% of each
+      symbol's candles; the optimizer worker never receives them and folds are built over the
+      search portion only — see `holdout.ts` and `optimization-holdout.test.ts`)
 - [x] Add anchored and rolling walk-forward validation.
 - [x] Evaluate across multiple symbols and market regimes when the user selects them; aggregate per-fold
       and per-symbol scores instead of concatenating unrelated equity curves. (each symbol/fold gets its
       own backtest and scoring takes medians across all fold evaluations)
-- [ ] Keep one final holdout sealed during search and show a warning after it has been opened.
+- [x] Keep one final holdout sealed during search and show a warning after it has been opened.
+      (the holdout evaluation is persisted with an audit timestamp; the result card shows a
+      permanent "holdout was opened for trial N" warning and the section itself flips to the
+      opened state)
 - [ ] Calculate additional research metrics:
   - downside deviation / Sortino ratio;
   - Calmar ratio or return-to-drawdown;
@@ -261,8 +266,11 @@ For an optimization experiment, the data roles should be:
       positive results in a minimum fraction of folds, and complete data coverage. (first three done;
       data coverage is not checked)
 - [x] Rank with median/robust aggregates rather than choosing the candidate with the single highest fold.
-- [ ] After search, compare the chosen candidate once on the sealed holdout against the untouched baseline
-      and benchmarks. Do not feed that result back into the same experiment.
+- [x] After search, compare the chosen candidate once on the sealed holdout against the untouched baseline
+      and benchmarks. Do not feed that result back into the same experiment. (one POST evaluates
+      candidate, baseline, and buy & hold on the sealed window with warmup from the search
+      portion; the result is stored separately from the summary and a second candidate gets a
+      409 — tests assert the summary and trials are untouched)
 - [ ] Document survivorship bias: testing only today's ticker universe over historical periods can
       overstate results.
 
@@ -336,8 +344,10 @@ The frontend must be a client of the same API; no optimization logic should exis
       saved from its candidates. (added during implementation; was not in the original plan)
 - [x] `GET /api/v1/optimization-experiments/:id/trials` — paginated/sortable leaderboard.
 - [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId` — candidate strategy and fold details.
-- [ ] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
-      evaluation with an audit timestamp.
+- [x] `POST /api/v1/optimization-experiments/:id/trials/:trialId/holdout` — one explicit sealed-holdout
+      evaluation with an audit timestamp. (idempotent for the opened trial, 409 for any other
+      trial afterwards, 400 on experiments created without a holdout, 409 when stored candles
+      drifted from the snapshot; persists nothing except the experiment's `holdout` JSON)
 - [x] `GET /api/v1/optimization-experiments/:id/trials/:trialId/equity` — on-demand recompute of a
       candidate's (and the baseline's) per-fold validation equity curves from the immutable snapshot;
       persists nothing. (serves the Section 7.1 equity chart; 409 when stored candles have drifted
@@ -378,8 +388,8 @@ The frontend must be a client of the same API; no optimization logic should exis
       candidate first, then switches tabs with it preselected in the run form)
 - [x] Make warnings visible when the sample is small, costs are zero, too few trades occurred, results are
       unstable, or the sealed holdout has already been inspected. (amber warning list on the result
-      card covers zero costs, short validation folds, too few trades on the top candidate, and fold
-      instability; the holdout warning waits for Milestone 5's sealed-holdout workflow)
+      card covers zero costs, short validation folds, too few trades on the top candidate, fold
+      instability, and an opened sealed holdout)
 
 ### 7.1 Experiment result view — selection + charts (replaces the expand-row dropdown)
 
@@ -471,8 +481,8 @@ Tasks, in order:
 - [x] Add integration tests for a tiny completed experiment and cancel/resume behavior.
 - [ ] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
       and explicit holdout confirmation. (leaderboard sorting/filtering, candidate diff, selection
-      behavior, and chart/warning derivations are covered; configuration validation, progress states,
-      and holdout confirmation remain)
+      behavior, chart/warning derivations, and the holdout open lifecycle + comparison-row
+      derivations are covered; configuration validation and progress states remain)
 - [ ] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
       workloads.
 
@@ -494,7 +504,9 @@ Tasks, in order:
       open: the guided setup wizard)
 - [ ] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
       explicit sealed-holdout workflow. (the score-vs-parameter scatter and the ablation chart ship
-      early with Section 7.1; the deeper neighborhood/stability tooling stays here)
+      early with Section 7.1; the sealed-holdout workflow — config, sealing, one-time endpoint,
+      result-card section with confirmation, and warnings — is done; the deeper
+      neighborhood/stability tooling and the Pareto view stay here)
 - [ ] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
       Mode C.
 - [ ] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL
@@ -513,7 +525,11 @@ Tasks, in order:
 - [x] Candidate ranking uses walk-forward validation, realistic configured costs, hard eligibility
       constraints, and a complexity-aware robust score. (costs default to zero until the user
       configures them; the Optimize tab should warn on zero-cost experiments per Section 7)
-- [ ] The UI clearly distinguishes training/validation from the one-time sealed holdout.
+- [x] The UI clearly distinguishes training/validation from the one-time sealed holdout. (the
+      leaderboard, charts, and equity are labelled validation evidence; the sealed-holdout section
+      is separate, locked until explicitly opened once, and permanently flagged afterwards — the
+      Section 3 Search/Train/Validation/Sealed Test timeline preview in the setup form is still
+      open)
 - [x] The user can understand the diff and evidence, save a candidate as a new normal strategy, and backtest
       it without mutating the baseline. (selecting a leaderboard row shows the candidate detail with
       the diff vs baseline, penalty breakdown, ineligibility reasons, fold comparison, and validation

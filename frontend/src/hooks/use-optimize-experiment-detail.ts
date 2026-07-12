@@ -4,6 +4,7 @@ import {
   getOptimizationExperiment,
   getOptimizationTrial,
   listOptimizationTrials,
+  openOptimizationTrialHoldout,
   saveOptimizationTrialStrategy,
   type OptimizationTrialRecord,
   type StrategyRecord,
@@ -139,6 +140,19 @@ export function useOptimizeExperimentDetail({
     }
   }
 
+  async function handleOpenHoldout(trial: OptimizationTrialRecord) {
+    dispatch({ type: "holdoutOpenStarted" });
+    try {
+      const holdout = await openOptimizationTrialHoldout(experimentId, trial.trial_index);
+      dispatch({ type: "holdoutOpened", holdout });
+    } catch (error) {
+      dispatch({
+        type: "holdoutOpenFailed",
+        message: errorMessage(error, "Could not open the sealed holdout."),
+      });
+    }
+  }
+
   return {
     ...state,
     trace,
@@ -151,6 +165,7 @@ export function useOptimizeExperimentDetail({
     selectTrial: (trialIndex: number) => dispatch({ type: "trialSelected", trialIndex }),
     handleSave,
     handleOpenInBacktest,
+    handleOpenHoldout,
   };
 }
 

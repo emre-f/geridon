@@ -15,6 +15,7 @@ import {
   updateExperimentProgress,
   updateExperimentStatus,
 } from "./experimentStore.ts";
+import { searchDatasets } from "./holdout.ts";
 
 export type DatasetLoader = (config: OptimizationExperimentConfig) => OptimizationDataset[];
 
@@ -34,7 +35,8 @@ function toEngineConfig(
   const config = record.config;
   return {
     strategy: record.snapshot.strategy,
-    datasets,
+    // The sealed holdout candles must never reach the optimizer.
+    datasets: searchDatasets(datasets, config.holdout),
     positionMode: config.position_mode,
     buyPercent: config.buy_percent,
     sellPercent: config.sell_percent,

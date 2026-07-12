@@ -116,6 +116,7 @@ export function createDb(db: Database): void {
       snapshot TEXT NOT NULL,
       progress TEXT,
       summary TEXT,
+      holdout TEXT,
       error TEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -165,5 +166,13 @@ export function createDb(db: Database): void {
   }
   if (!backtestColumns.includes("costs")) {
     db.exec("ALTER TABLE backtest_runs ADD COLUMN costs TEXT");
+  }
+
+  const experimentColumns = db
+    .prepare("SELECT name FROM pragma_table_info('optimization_experiments')")
+    .all()
+    .map((row) => String(row.name));
+  if (!experimentColumns.includes("holdout")) {
+    db.exec("ALTER TABLE optimization_experiments ADD COLUMN holdout TEXT");
   }
 }

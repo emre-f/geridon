@@ -14,6 +14,7 @@ import {
 import { useOptimizeExperimentDetail } from "@/hooks/use-optimize-experiment-detail";
 import { OptimizeCandidateDetail } from "@/components/optimize-candidate-detail";
 import { OptimizeExperimentWarnings } from "@/components/optimize-experiment-warnings";
+import { OptimizeHoldoutSection } from "@/components/optimize-holdout-section";
 import { OptimizeResultSections } from "@/components/optimize-result-sections";
 import { OptimizeStatTiles } from "@/components/optimize-stat-tiles";
 import { OptimizeTrialsLeaderboard } from "@/components/optimize-trials-leaderboard";
@@ -124,6 +125,8 @@ export function OptimizeExperimentResultCard({
             candidateLabel={candidateLabel}
           />
         ) : null}
+
+        {record && summary ? <OptimizeHoldoutSection board={board} record={record} /> : null}
       </CardContent>
     </Card>
   );

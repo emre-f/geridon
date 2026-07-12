@@ -7,14 +7,21 @@ const minFoldCandles = 60;
 const minTotalTrades = 10;
 
 /**
- * Research-hygiene warnings for a finished experiment: zero costs, thin data,
- * too few trades, and fold-to-fold instability of the top candidate.
+ * Research-hygiene warnings for a finished experiment: an opened sealed
+ * holdout, zero costs, thin data, too few trades, and fold-to-fold
+ * instability of the top candidate.
  */
 export function experimentWarnings(
   record: OptimizationExperimentRecord,
   bestTrial: OptimizationTrialRecord | null,
 ): string[] {
   const warnings: string[] = [];
+
+  if (record.holdout != null) {
+    warnings.push(
+      `The sealed holdout was opened for trial ${record.holdout.trial_index} — it is no longer unseen data, so it cannot vet any other candidate from this experiment.`,
+    );
+  }
 
   const costs = record.config.costs;
   if (
