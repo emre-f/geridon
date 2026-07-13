@@ -159,13 +159,20 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 
 ### Search-budget presets
 
-- [ ] Offer **Quick**, **Standard**, and **Thorough** presets, plus Advanced custom limits.
+- [x] Offer **Quick**, **Standard**, and **Thorough** presets, plus Advanced custom limits. (a Budget
+      select on the experiment form applies preset trials/runtime/folds calibrated from
+      `backend/bench/RESULTS.md`; editing any budget field flips the select to Custom, and the live
+      preflight estimate re-checks the choice on the actual data)
 - [ ] A budget must include `max_trials`, `max_runtime`, worker count, promotion rate, and deterministic
       seed. The first defaults should be calibrated with benchmarks rather than guessed here.
-      (`max_trials`, `max_runtime_ms`, `halving.promotionRate`, and `seed` exist in the config; worker
-      count is hard-coded to one thread and defaults are not benchmark-calibrated)
-- [ ] Show an estimate in “backtest evaluations” and an approximate runtime based on a small preflight
-      benchmark on the selected data.
+      (`max_trials`, `max_runtime_ms`, `halving.promotionRate`, and `seed` exist in the config and the
+      trial/runtime/fold defaults now come from bench-calibrated presets; worker count is still
+      hard-coded to one thread)
+- [x] Show an estimate in “backtest evaluations” and an approximate runtime based on a small preflight
+      benchmark on the selected data. (`POST /api/v1/optimization-experiments/preflight` validates the
+      draft config exactly like creation, counts planned fold backtests through the halving schedule,
+      times the baseline on the selected candles, and warns when the estimate exceeds the runtime cap;
+      the form calls it debounced on every config change)
 - [ ] Allow pause/cancel; retain completed trials and checkpoints. Never leave a request running without
       a visible experiment record. (cancel/resume works, cancelled and interrupted experiments keep
       their scored trials — trials now stream to the database mid-run — and every run has an
@@ -201,8 +208,11 @@ For an optimization experiment, the data roles should be:
    range changes, scoring weights, or the choice among candidates; otherwise it has become another
    validation set and a new test set is needed.
 
-- [ ] Make the UI label these roles explicitly as **Search/Train**, **Validation**, and **Sealed Test**,
-      with date ranges and a timeline preview.
+- [x] Make the UI label these roles explicitly as **Search/Train**, **Validation**, and **Sealed Test**,
+      with date ranges and a timeline preview. (the preflight response carries per-fold train/validation
+      boundaries and the sealed window as timestamps; `OptimizeTimelinePreview` renders them as one row
+      per fold with a legend using those three role names, date-range tooltips, and a dashed sealed-test
+      region)
 - [x] Provide expanding/anchored walk-forward folds first; add rolling fixed-length training windows as
       an option.
 - [x] Never use ordinary shuffled k-fold, random train/test splitting, or random candle sampling.
@@ -398,12 +408,16 @@ The frontend must be a client of the same API; no optimization logic should exis
   4. mark parameters and rules as fixed/tunable/optional and set bounded ranges;
   5. choose objective, penalties, and hard constraints;
   6. choose compute preset, inspect the preflight cost estimate, and start.
-  (steps 1, 3, and 4 exist on the flat form — step 4 via the collapsible "Parameters & rules"
+  (steps 1, 3, 4, and 6 exist on the flat form — step 4 via the collapsible "Parameters & rules"
   section, which loads the compiled search space, offers tune/lock with catalog-bounded ranges and
   required/optional/off per rule, pre-validates impossible configurations, and only sends
-  deviations from the defaults; still open: the explicit A/B/C mode framing, objective/penalty/
-  constraint controls, and presets with a preflight estimate)
-- [ ] Visualize the search-space size/risk before starting, including which choices multiply the space.
+  deviations from the defaults; step 6 via the Budget presets and the live preflight estimate with
+  the data-role timeline; still open: the explicit A/B/C mode framing and objective/penalty/
+  constraint controls)
+- [x] Visualize the search-space size/risk before starting, including which choices multiply the space.
+      (the preflight section shows total combinations and dimension count derived from the edited
+      ranges/roles, names the biggest multipliers with their cardinalities, and warns when the trial
+      budget undersamples the space; derivations unit-tested in `optimize-preflight-utils.test.ts`)
 - [ ] Build an experiment progress view with status, elapsed time, completed/promoted/rejected trial counts,
       current stage, remaining budget, stop/resume controls, and baseline score.
 - [x] Build a leaderboard showing robust validation score, return, drawdown, trade count, turnover,
@@ -560,9 +574,9 @@ Tasks, in order:
       configures them; the Optimize tab should warn on zero-cost experiments per Section 7)
 - [x] The UI clearly distinguishes training/validation from the one-time sealed holdout. (the
       leaderboard, charts, and equity are labelled validation evidence; the sealed-holdout section
-      is separate, locked until explicitly opened once, and permanently flagged afterwards — the
-      Section 3 Search/Train/Validation/Sealed Test timeline preview in the setup form is still
-      open)
+      is separate, locked until explicitly opened once, and permanently flagged afterwards; the
+      setup form's preflight timeline labels Search/Train, Validation, and Sealed Test with date
+      ranges before the experiment starts)
 - [x] The user can understand the diff and evidence, save a candidate as a new normal strategy, and backtest
       it without mutating the baseline. (selecting a leaderboard row shows the candidate detail with
       the diff vs baseline, penalty breakdown, ineligibility reasons, fold comparison, and validation

@@ -4,3 +4,4 @@ export * from "./types/strategies.ts";
 export * from "./types/backtests.ts";
 export * from "./types/optimization.ts";
 export * from "./types/optimizationExperiments.ts";
+export * from "./types/optimizationPreflight.ts";

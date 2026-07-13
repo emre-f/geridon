@@ -1,5 +1,6 @@
 import { fetchJson } from "@/lib/api-client";
 import type {
+  ExperimentPreflight,
   HoldoutEvaluation,
   OptimizationExperimentConfig,
   OptimizationExperimentListItem,
@@ -49,6 +50,14 @@ export function listOptimizationExperiments(options?: {
 
 export function getOptimizationSearchSpace(strategyId: number) {
   return fetchJson<SearchSpacePreview>(`${basePath}/search-space?strategy_id=${strategyId}`);
+}
+
+export function preflightOptimizationExperiment(config: CreateOptimizationExperimentInput) {
+  return fetchJson<ExperimentPreflight>(`${basePath}/preflight`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(config),
+  });
 }
 
 export function getOptimizationExperiment(id: number) {

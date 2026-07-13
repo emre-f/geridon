@@ -3,6 +3,8 @@ import { PlayIcon, RefreshCwIcon } from "lucide-react";
 
 import type { OptimizationMethod, StrategyRecord, SymbolTimeframe } from "@/lib/api";
 import { toDateInputValue } from "@/lib/backtest-utils";
+import type { BudgetPreset, BudgetPresetChoice } from "@/lib/optimize-preflight-utils";
+import { OptimizeBudgetFields } from "@/components/optimize-budget-fields";
 import { SymbolCombobox } from "@/components/symbol-combobox";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -21,6 +23,7 @@ export function OptimizeExperimentForm({
   maxRuntimeMinutes,
   maxTrials,
   method,
+  preset,
   seed,
   startDate,
   startDisabled,
@@ -36,6 +39,7 @@ export function OptimizeExperimentForm({
   onMaxRuntimeMinutesChange,
   onMaxTrialsChange,
   onMethodChange,
+  onPresetChange,
   onSeedChange,
   onStart,
   onStartDateChange,
@@ -52,6 +56,7 @@ export function OptimizeExperimentForm({
   maxRuntimeMinutes: number;
   maxTrials: number;
   method: OptimizationMethod;
+  preset: BudgetPresetChoice;
   seed: number;
   startDate: string;
   startDisabled?: boolean;
@@ -67,6 +72,7 @@ export function OptimizeExperimentForm({
   onMaxRuntimeMinutesChange: (value: number) => void;
   onMaxTrialsChange: (value: number) => void;
   onMethodChange: (value: OptimizationMethod) => void;
+  onPresetChange: (value: BudgetPreset) => void;
   onSeedChange: (value: number) => void;
   onStart: () => void;
   onStartDateChange: (value: string) => void;
@@ -148,58 +154,18 @@ export function OptimizeExperimentForm({
 
         <Separator orientation="vertical" className="hidden h-auto sm:block" />
 
-        <div className="flex flex-col gap-3">
-          <Field label="Method">
-            <Select
-              value={method}
-              aria-label="Search method"
-              className="w-44"
-              onChange={(event) => onMethodChange(event.target.value as OptimizationMethod)}
-            >
-              <option value="random">Seeded random search</option>
-              <option value="tpe">Bayesian (TPE)</option>
-            </Select>
-          </Field>
-          <div className="flex items-end gap-3">
-            <Field label="Total trial budget">
-              <NumberInput
-                className="w-20"
-                aria-label="Total trial budget"
-                value={maxTrials}
-                min={1}
-                max={500}
-                step={1}
-                onValueChange={onMaxTrialsChange}
-              />
-            </Field>
-            <Field label="Folds">
-              <NumberInput
-                className="w-16"
-                aria-label="Fold count"
-                value={foldCount}
-                min={2}
-                max={12}
-                step={1}
-                onValueChange={onFoldCountChange}
-              />
-            </Field>
-            <Field label="Sealed holdout">
-              <Select
-                value={String(holdoutPct)}
-                aria-label="Sealed holdout percent"
-                className="w-24"
-                onChange={(event) => onHoldoutPctChange(Number(event.target.value))}
-              >
-                <option value="0">None</option>
-                {[10, 15, 20, 25, 30].map((pct) => (
-                  <option key={pct} value={pct}>
-                    {pct}%
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-        </div>
+        <OptimizeBudgetFields
+          foldCount={foldCount}
+          holdoutPct={holdoutPct}
+          maxTrials={maxTrials}
+          method={method}
+          preset={preset}
+          onFoldCountChange={onFoldCountChange}
+          onHoldoutPctChange={onHoldoutPctChange}
+          onMaxTrialsChange={onMaxTrialsChange}
+          onMethodChange={onMethodChange}
+          onPresetChange={onPresetChange}
+        />
 
         <Separator orientation="vertical" className="hidden h-auto sm:block" />
 

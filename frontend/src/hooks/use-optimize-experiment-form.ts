@@ -3,6 +3,7 @@ import { useMemo, useReducer } from "react";
 import type { OptimizationMethod, StrategyRecord, SymbolSummary } from "@/lib/api";
 import { toDateInputValue } from "@/lib/backtest-utils";
 import { availableTimeframes, coverageForTimeframe } from "@/lib/chart-options";
+import { budgetPresets, type BudgetPreset, type BudgetPresetChoice } from "@/lib/optimize-preflight-utils";
 
 interface EditedDates {
   startDate: string;
@@ -15,6 +16,7 @@ interface OptimizeFormState {
   ticker: string;
   timeframe: string;
   method: OptimizationMethod;
+  preset: BudgetPresetChoice;
   maxTrials: number;
   maxRuntimeMinutes: number;
   foldCount: number;
@@ -22,6 +24,8 @@ interface OptimizeFormState {
   seed: number;
   dates: EditedDates | null;
 }
+
+const budgetFields = ["maxTrials", "maxRuntimeMinutes", "foldCount"] as const;
 
 type EditableField = Pick<
   OptimizeFormState,
@@ -38,12 +42,17 @@ type EditableField = Pick<
 
 type OptimizeFormAction =
   | { type: "fieldChanged"; patch: Partial<EditableField> }
+  | { type: "presetApplied"; preset: BudgetPreset }
   | { type: "datesEdited"; dates: EditedDates };
 
 function optimizeFormReducer(state: OptimizeFormState, action: OptimizeFormAction): OptimizeFormState {
   switch (action.type) {
-    case "fieldChanged":
-      return { ...state, ...action.patch };
+    case "fieldChanged": {
+      const editsBudget = budgetFields.some((field) => field in action.patch);
+      return { ...state, ...action.patch, ...(editsBudget ? { preset: "custom" as const } : {}) };
+    }
+    case "presetApplied":
+      return { ...state, preset: action.preset, ...budgetPresets[action.preset] };
     case "datesEdited":
       return { ...state, dates: action.dates };
   }
@@ -68,9 +77,8 @@ export function useOptimizeExperimentForm({
     ticker: defaultTicker,
     timeframe: "1d",
     method: "random",
-    maxTrials: 50,
-    maxRuntimeMinutes: 2,
-    foldCount: 4,
+    preset: "standard",
+    ...budgetPresets.standard,
     holdoutPct: 0,
     seed: 1,
     dates: null,
@@ -133,6 +141,7 @@ export function useOptimizeExperimentForm({
     setTimeframe: (nextTimeframe: string) =>
       dispatch({ type: "fieldChanged", patch: { timeframe: nextTimeframe } }),
     setMethod: (method: OptimizationMethod) => dispatch({ type: "fieldChanged", patch: { method } }),
+    setPreset: (preset: BudgetPreset) => dispatch({ type: "presetApplied", preset }),
     setMaxTrials: (maxTrials: number) => dispatch({ type: "fieldChanged", patch: { maxTrials } }),
     setMaxRuntimeMinutes: (maxRuntimeMinutes: number) =>
       dispatch({ type: "fieldChanged", patch: { maxRuntimeMinutes } }),

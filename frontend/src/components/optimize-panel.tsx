@@ -1,11 +1,15 @@
+import { useMemo } from "react";
 import { SearchIcon } from "lucide-react";
 
 import type { StrategyRecord, SymbolSummary } from "@/lib/api";
 import { dayEndMs, dayStartMs } from "@/lib/backtest-utils";
+import { searchSpaceSize } from "@/lib/optimize-preflight-utils";
 import { useOptimizeExperimentForm } from "@/hooks/use-optimize-experiment-form";
 import { useOptimizeExperiments } from "@/hooks/use-optimize-experiments";
+import { useOptimizePreflight } from "@/hooks/use-optimize-preflight";
 import { useOptimizeSearchSpace } from "@/hooks/use-optimize-search-space";
 import { OptimizeExperimentForm } from "@/components/optimize-experiment-form";
+import { OptimizePreflightPanel } from "@/components/optimize-preflight-panel";
 import { OptimizeSearchSpaceEditor } from "@/components/optimize-search-space-editor";
 import { OptimizeExperimentResultCard } from "@/components/optimize-experiment-result-card";
 import { OptimizeExperimentsList } from "@/components/optimize-experiments-list";
@@ -37,16 +41,16 @@ export function OptimizePanel({
   const experiments = useOptimizeExperiments();
   const searchSpace = useOptimizeSearchSpace(form.strategyId);
 
-  async function handleStart() {
-    if (form.strategyId == null || !form.ticker || searchSpace.issue != null) {
-      return;
+  const experimentInput = useMemo(() => {
+    if (form.strategyId == null || !form.ticker || searchSpace.issue != null || !searchSpace.preview) {
+      return null;
     }
     const startMs = dayStartMs(form.startDate);
     const endMs = dayEndMs(form.endDate);
     if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) {
-      return;
+      return null;
     }
-    await experiments.handleCreate({
+    return {
       strategy_id: form.strategyId,
       tickers: [form.ticker],
       timeframe: form.timeframe,
@@ -55,14 +59,46 @@ export function OptimizePanel({
       method: form.method,
       max_trials: form.maxTrials,
       max_runtime_ms: Math.round(form.maxRuntimeMinutes * 60_000),
-      folds: { foldCount: form.foldCount, mode: "anchored" },
+      folds: { foldCount: form.foldCount, mode: "anchored" as const },
       ...(form.holdoutPct > 0 ? { holdout: { fraction: form.holdoutPct / 100 } } : {}),
       seed: form.seed,
       ...(searchSpace.ruleRoles ? { rule_roles: searchSpace.ruleRoles } : {}),
       ...(searchSpace.parameterOverrides
         ? { parameter_overrides: searchSpace.parameterOverrides }
         : {}),
-    });
+    };
+  }, [
+    form.strategyId,
+    form.ticker,
+    form.timeframe,
+    form.startDate,
+    form.endDate,
+    form.method,
+    form.maxTrials,
+    form.maxRuntimeMinutes,
+    form.foldCount,
+    form.holdoutPct,
+    form.seed,
+    searchSpace.issue,
+    searchSpace.preview,
+    searchSpace.ruleRoles,
+    searchSpace.parameterOverrides,
+  ]);
+
+  const preflight = useOptimizePreflight(experimentInput);
+  const spaceSize = useMemo(
+    () =>
+      searchSpace.preview && searchSpace.edits
+        ? searchSpaceSize(searchSpace.preview, searchSpace.edits)
+        : null,
+    [searchSpace.preview, searchSpace.edits],
+  );
+
+  async function handleStart() {
+    if (experimentInput == null) {
+      return;
+    }
+    await experiments.handleCreate(experimentInput);
   }
 
   return (
@@ -97,6 +133,7 @@ export function OptimizePanel({
                 maxRuntimeMinutes={form.maxRuntimeMinutes}
                 maxTrials={form.maxTrials}
                 method={form.method}
+                preset={form.preset}
                 seed={form.seed}
                 startDate={form.startDate}
                 strategies={strategies}
@@ -111,6 +148,7 @@ export function OptimizePanel({
                 onMaxRuntimeMinutesChange={form.setMaxRuntimeMinutes}
                 onMaxTrialsChange={form.setMaxTrials}
                 onMethodChange={form.setMethod}
+                onPresetChange={form.setPreset}
                 onSeedChange={form.setSeed}
                 onStart={handleStart}
                 onStartDateChange={form.setStartDate}
@@ -120,6 +158,14 @@ export function OptimizePanel({
                 startDisabled={searchSpace.issue != null}
               >
                 <OptimizeSearchSpaceEditor searchSpace={searchSpace} />
+                <OptimizePreflightPanel
+                  preflight={preflight.preflight}
+                  loading={preflight.loading}
+                  error={preflight.error}
+                  spaceSize={spaceSize}
+                  maxTrials={form.maxTrials}
+                  timeframe={form.timeframe}
+                />
               </OptimizeExperimentForm>
 
               {experiments.error ? (

@@ -7,20 +7,14 @@ import {
   listExperiments,
   resetExperimentForResume,
 } from "../services/optimization/experimentStore.ts";
-import { compileSearchSpace, searchSpaceVersion } from "../services/optimization/searchSpace.ts";
+import { searchSpaceVersion } from "../services/optimization/searchSpace.ts";
 import { indicatorCatalogVersion } from "../services/indicatorCatalog.ts";
-import { buildFolds } from "../services/optimization/folds.ts";
-import { searchDatasets, validateHoldoutSize } from "../services/optimization/holdout.ts";
 import type {
   OptimizationExperimentRecord,
   OptimizationExperimentStatus,
-  Strategy,
 } from "../types.ts";
-import {
-  datasetSpecs,
-  loadExperimentDatasets,
-  parseExperimentRequest,
-} from "./optimizationRequests.ts";
+import { datasetSpecs, parseExperimentRequest } from "./optimizationRequests.ts";
+import { prepareExperimentInputs } from "./optimizationSetup.ts";
 import { badRequest, parsePositiveId, type ApiResult } from "./shared.ts";
 
 const experimentStatuses: OptimizationExperimentStatus[] = [
@@ -55,66 +49,21 @@ export function handleCreateExperiment(db: Database, runner: ExperimentRunner, b
   }
   const { config } = parsed;
 
-  const strategyRow = db
-    .prepare("SELECT name, definition FROM strategies WHERE id = ?")
-    .get(config.strategy_id);
-  if (!strategyRow) {
-    return { statusCode: 404, body: { detail: `Strategy ${config.strategy_id} was not found.` } };
+  const prepared = prepareExperimentInputs(db, config);
+  if ("failure" in prepared) {
+    return prepared.failure;
   }
-  const strategy = JSON.parse(String(strategyRow.definition)) as Strategy;
-  if (config.position_mode === "three_state" && strategy.cash == null) {
-    return badRequest("three_state needs a strategy that defines a go-to-cash tree.");
-  }
+  const { strategy, strategyName, datasets } = prepared.inputs;
 
-  try {
-    const datasets = loadExperimentDatasets(db, config);
-    if (config.holdout) {
-      for (const dataset of datasets) {
-        const holdoutError = validateHoldoutSize(
-          dataset.symbol,
-          dataset.candles.length,
-          config.holdout,
-        );
-        if (holdoutError) {
-          return badRequest(holdoutError);
-        }
-      }
-    }
-    for (const dataset of searchDatasets(datasets, config.holdout)) {
-      try {
-        buildFolds(dataset.candles.length, config.folds);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return badRequest(`${dataset.symbol}: ${message}`);
-      }
-    }
-
-    const { nodes } = compileSearchSpace({
-      strategy,
-      ruleRoles: config.rule_roles,
-      parameterOverrides: config.parameter_overrides,
-    });
-    const hasEvolutionLibrary =
-      config.method === "evolution" && (config.evolution?.ruleLibrary?.length ?? 0) > 0;
-    if (nodes.length === 0 && !hasEvolutionLibrary) {
-      return badRequest(
-        "The search space is empty: every parameter is locked and no rule is optional.",
-      );
-    }
-
-    const record = insertExperiment(db, config, {
-      strategy,
-      strategy_name: String(strategyRow.name),
-      datasets: datasetSpecs(datasets, config.holdout),
-      catalog_version: indicatorCatalogVersion,
-      search_space_version: searchSpaceVersion,
-    });
-    runner.enqueue(record.id);
-    return { statusCode: 201, body: record };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Invalid experiment configuration.";
-    return badRequest(message);
-  }
+  const record = insertExperiment(db, config, {
+    strategy,
+    strategy_name: strategyName,
+    datasets: datasetSpecs(datasets, config.holdout),
+    catalog_version: indicatorCatalogVersion,
+    search_space_version: searchSpaceVersion,
+  });
+  runner.enqueue(record.id);
+  return { statusCode: 201, body: record };
 }
 
 export function handleListExperiments(db: Database, searchParams: URLSearchParams): ApiResult {
