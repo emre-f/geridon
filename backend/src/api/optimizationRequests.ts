@@ -236,4 +236,4 @@ export function parseExperimentRequest(
   return { config };
 }
 
-export { datasetSpecs, loadExperimentDatasets } from "./optimizationDatasets.ts";
+export { datasetSpecs, loadExperimentDatasets, priceAdjustmentNote } from "./optimizationDatasets.ts";

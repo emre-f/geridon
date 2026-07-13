@@ -7,16 +7,19 @@ import type {
 import type { OptimizeExperimentDetail } from "@/hooks/use-optimize-experiment-detail";
 import { decompositionRows, foldGroups, objectiveLabels } from "@/lib/optimize-chart-utils";
 import { candidateDiff } from "@/lib/optimize-candidate-utils";
+import { paretoChartData } from "@/lib/optimize-pareto-utils";
 import { sensitivityPanels, sensitivityScoreDomain } from "@/lib/optimize-sensitivity-utils";
 import { OptimizeAblationChart } from "@/components/optimize-ablation-chart";
 import { OptimizeFoldChart } from "@/components/optimize-fold-chart";
 import { OptimizeInclusionList } from "@/components/optimize-inclusion-list";
+import { OptimizeParetoChart } from "@/components/optimize-pareto-chart";
 import { OptimizeScoreDecomposition } from "@/components/optimize-score-decomposition";
 import {
   ablationHelp,
   decompositionHelp,
   foldsHelp,
   inclusionHelp,
+  paretoHelp,
   sensitivityHelp,
   traceHelp,
 } from "@/components/optimize-section-help";
@@ -93,6 +96,7 @@ export function OptimizeResultSections({
     () => sensitivityScoreDomain(panels, board.baselineScore),
     [panels, board.baselineScore],
   );
+  const pareto = useMemo(() => paretoChartData(summary, board.trials), [summary, board.trials]);
 
   return (
     <>
@@ -122,6 +126,23 @@ export function OptimizeResultSections({
             help={decompositionHelp(objectiveLabel)}
           >
             <OptimizeScoreDecomposition rows={decomposition} />
+          </ChartSection>
+        </>
+      ) : null}
+
+      {pareto ? (
+        <>
+          <Separator />
+          <ChartSection
+            title="Pareto frontier"
+            question="Which candidates trade return against drawdown best?"
+            help={paretoHelp}
+          >
+            <OptimizeParetoChart
+              data={pareto}
+              objectiveLabel={objectiveLabel}
+              onSelect={board.selectTrial}
+            />
           </ChartSection>
         </>
       ) : null}

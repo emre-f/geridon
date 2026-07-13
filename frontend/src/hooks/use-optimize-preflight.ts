@@ -26,7 +26,9 @@ export function useOptimizePreflight(input: CreateOptimizationExperimentInput | 
     error: null,
   });
   const inputRef = useRef(input);
-  inputRef.current = input;
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
   const key = input == null ? null : JSON.stringify(input);
 
   useEffect(() => {

@@ -116,6 +116,32 @@ export const ablationHelp = (
   </Help>
 );
 
+export const paretoHelp = (
+  <Help>
+    <p>
+      <strong>Each dot</strong> is one scored trial: its median validation objective against its
+      median validation drawdown.
+    </p>
+    <HelpList>
+      <li>
+        <strong>Green dots on the line:</strong> the Pareto front, where no other trial is better
+        on every axis at once
+      </li>
+      <li>
+        <strong>Grey dots:</strong> dominated trials, since some front trial beats them on both
+        axes
+      </li>
+      <li>
+        <strong>Hollow ring:</strong> the baseline strategy
+      </li>
+    </HelpList>
+    <p>
+      <strong>How to use it:</strong> instead of taking the single top score, pick the front trial
+      whose drawdown you can live with. Click a dot to inspect that trial.
+    </p>
+  </Help>
+);
+
 export const inclusionHelp = (
   <Help>
     <p>

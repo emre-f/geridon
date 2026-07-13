@@ -47,7 +47,7 @@ export function OptimizeExperimentRow({
   onResume: (experiment: OptimizationExperimentListItem) => void;
   onDelete: (experiment: OptimizationExperimentListItem) => void;
 }) {
-  const selectable = !canCancel(experiment.status);
+  const active = canCancel(experiment.status);
 
   return (
     <div
@@ -56,21 +56,15 @@ export function OptimizeExperimentRow({
         selected && "bg-muted/60",
       )}
     >
-      {selectable ? (
-        <button
-          type="button"
-          className={cn(experimentsRowGrid, "text-left")}
-          aria-expanded={selected}
-          title={selected ? "Hide results" : "Show results"}
-          onClick={() => onSelect(experiment)}
-        >
-          <RowCells experiment={experiment} />
-        </button>
-      ) : (
-        <div className={experimentsRowGrid}>
-          <RowCells experiment={experiment} />
-        </div>
-      )}
+      <button
+        type="button"
+        className={cn(experimentsRowGrid, "text-left")}
+        aria-expanded={selected}
+        title={selected ? "Hide details" : active ? "Show progress" : "Show results"}
+        onClick={() => onSelect(experiment)}
+      >
+        <RowCells experiment={experiment} />
+      </button>
 
       <div className="flex w-20 shrink-0 items-center">
         <Badge variant={statusBadgeVariant[experiment.status]}>

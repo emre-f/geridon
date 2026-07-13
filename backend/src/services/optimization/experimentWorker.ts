@@ -8,16 +8,11 @@ const { config, cancelBuffer } = workerData as {
   cancelBuffer: SharedArrayBuffer;
 };
 const cancelFlag = new Int32Array(cancelBuffer);
-let lastProgressAtMs = 0;
 
 const result = runOptimization(config, {
   shouldStop: () => Atomics.load(cancelFlag, 0) === 1,
-  onTrialComplete: (completedCount) => {
-    const now = Date.now();
-    if (now - lastProgressAtMs >= 200) {
-      lastProgressAtMs = now;
-      parentPort?.postMessage({ type: "progress", evaluated: completedCount });
-    }
+  onBaseline: (score) => {
+    parentPort?.postMessage({ type: "baseline", baselineScore: score });
   },
   onTrialFinished: (trial) => {
     parentPort?.postMessage({ type: "trial", trial });

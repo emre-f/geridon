@@ -2,10 +2,8 @@ import { Worker } from "node:worker_threads";
 
 import type { Database } from "../../db.ts";
 import type {
-  OptimizationConfig,
   OptimizationDataset,
   OptimizationExperimentConfig,
-  OptimizationExperimentRecord,
   OptimizationExperimentStatus,
   OptimizationResult,
   OptimizationTrial,
@@ -16,7 +14,10 @@ import {
   updateExperimentStatus,
 } from "./experimentStore.ts";
 import { persistExperimentResult, upsertTrialRow } from "./trialStore.ts";
-import { searchDatasets } from "./holdout.ts";
+import { toEngineConfig } from "./engineConfig.ts";
+import { ProgressTracker } from "./progressTracker.ts";
+
+const progressWriteIntervalMs = 200;
 
 export type DatasetLoader = (config: OptimizationExperimentConfig) => OptimizationDataset[];
 
@@ -27,35 +28,6 @@ interface ActiveExperiment {
   cancelRequested: boolean;
   startedAtMs: number;
   finished: boolean;
-}
-
-function toEngineConfig(
-  record: OptimizationExperimentRecord,
-  datasets: OptimizationDataset[],
-): OptimizationConfig {
-  const config = record.config;
-  return {
-    strategy: record.snapshot.strategy,
-    // The sealed holdout candles must never reach the optimizer.
-    datasets: searchDatasets(datasets, config.holdout),
-    positionMode: config.position_mode,
-    buyPercent: config.buy_percent,
-    sellPercent: config.sell_percent,
-    initialCapital: config.initial_capital,
-    costs: config.costs,
-    seed: config.seed,
-    maxTrials: config.max_trials,
-    maxRuntimeMs: config.max_runtime_ms,
-    folds: config.folds,
-    scoring: config.scoring,
-    ruleRoles: config.rule_roles,
-    parameterOverrides: config.parameter_overrides,
-    halving: config.halving,
-    refinement: config.refinement,
-    method: config.method,
-    tpe: config.tpe,
-    evolution: config.evolution,
-  };
 }
 
 export class ExperimentRunner {
@@ -155,11 +127,17 @@ export class ExperimentRunner {
     }
 
     updateExperimentStatus(this.db, experimentId, "running");
-    updateExperimentProgress(this.db, experimentId, {
-      evaluated_trials: 0,
-      max_trials: record.config.max_trials,
-      updated_at_ms: Date.now(),
-    });
+    const tracker = new ProgressTracker(record.config.max_trials, Date.now());
+    updateExperimentProgress(this.db, experimentId, tracker.snapshot(Date.now()));
+    let lastProgressWriteMs = Date.now();
+    const writeProgress = (force: boolean) => {
+      const now = Date.now();
+      if (!force && now - lastProgressWriteMs < progressWriteIntervalMs) {
+        return;
+      }
+      lastProgressWriteMs = now;
+      updateExperimentProgress(this.db, experimentId, tracker.snapshot(now));
+    };
 
     const cancelBuffer = new SharedArrayBuffer(4);
     const worker = new Worker(new URL("./experimentWorker.ts", import.meta.url), {
@@ -177,22 +155,21 @@ export class ExperimentRunner {
 
     worker.on("message", (message: {
       type: string;
-      evaluated?: number;
+      baselineScore?: number;
       trial?: OptimizationTrial;
       result?: OptimizationResult;
     }) => {
-      if (message.type === "progress" && message.evaluated != null) {
-        updateExperimentProgress(this.db, experimentId, {
-          evaluated_trials: message.evaluated,
-          max_trials: record.config.max_trials,
-          updated_at_ms: Date.now(),
-        });
+      if (message.type === "baseline" && message.baselineScore != null) {
+        tracker.recordBaseline(message.baselineScore);
+        writeProgress(true);
         return;
       }
       // Each finished trial lands in SQLite immediately so a crash or
       // restart keeps completed work; the final result pass fills in ranks.
       if (message.type === "trial" && message.trial) {
         upsertTrialRow(this.db, experimentId, message.trial);
+        tracker.recordTrial(message.trial);
+        writeProgress(false);
         return;
       }
       if (message.type === "result" && message.result) {

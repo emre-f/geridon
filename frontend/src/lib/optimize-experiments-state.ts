@@ -1,5 +1,4 @@
 import type { OptimizationExperimentListItem } from "@/lib/api-optimization-experiment-types";
-import { canCancel } from "./optimize-utils.ts";
 
 export interface OptimizeExperimentsState {
   experiments: OptimizationExperimentListItem[];
@@ -48,24 +47,23 @@ export function experimentsReducer(
     case "creating":
       return { ...state, creating: action.creating };
     case "created":
+      // Open the live progress card for the run that was just started.
       return {
         ...state,
         experiments: [action.experiment, ...state.experiments],
         total: state.total + 1,
+        selectedId: action.experiment.id,
       };
     case "actioning":
       return { ...state, actioningId: action.id };
     case "updated":
+      // A resumed experiment stays selected: the card flips to the live
+      // progress view and back to results when the run finishes.
       return {
         ...state,
         experiments: state.experiments.map((experiment) =>
           experiment.id === action.experiment.id ? action.experiment : experiment,
         ),
-        // A resumed experiment is active again and has no results to show.
-        selectedId:
-          action.experiment.id === state.selectedId && canCancel(action.experiment.status)
-            ? null
-            : state.selectedId,
       };
     case "deleted":
       return {

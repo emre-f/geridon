@@ -90,10 +90,17 @@ export function persistExperimentResult(
     trial_counts: counts,
     best_trial_index: result.leaderboard[0]?.index ?? null,
   };
+  const now = Date.now();
   const progress: OptimizationExperimentProgress = {
     evaluated_trials: counts.total,
     max_trials: maxTrials,
-    updated_at_ms: Date.now(),
+    updated_at_ms: now,
+    started_at_ms: now - elapsedMs,
+    scored: counts.scored,
+    pruned: counts.pruned,
+    rejected: counts.rejected,
+    phase: result.trials.some((trial) => trial.phase === "refine") ? "refine" : "search",
+    baseline_score: result.baseline.score.score,
   };
 
   db.exec("BEGIN");

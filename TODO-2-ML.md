@@ -239,8 +239,11 @@ For an optimization experiment, the data roles should be:
 - [x] Add transaction-cost assumptions to the simulator: commission/fees and configurable slippage.
       (fixed per-trade + percent-of-value commission and adverse slippage in basis points; accepted by
       the backtest and experiment APIs, stored with each run/experiment, default zero)
-- [ ] Decide whether dividends/splits/adjusted-price behavior is sufficient for the selected data source
-      and record that decision in each experiment.
+- [x] Decide whether dividends/splits/adjusted-price behavior is sufficient for the selected data source
+      and record that decision in each experiment. (decision: stored candles are evaluated exactly as
+      synced — Yahoo syncs default to split- and dividend-adjusted OHLC via adjclose, Polygon to
+      split-adjusted — which is sufficient for research use; every new experiment snapshot records
+      the `price_adjustment` note plus each dataset's distinct candle `sources`)
 - [x] Build chronological train/validation/holdout splits; never randomly shuffle candles.
       (optional `holdout: { fraction }` on the experiment config seals the last N% of each
       symbol's candles; the optimizer worker never receives them and folds are built over the
@@ -418,13 +421,21 @@ The frontend must be a client of the same API; no optimization logic should exis
       (the preflight section shows total combinations and dimension count derived from the edited
       ranges/roles, names the biggest multipliers with their cardinalities, and warns when the trial
       budget undersamples the space; derivations unit-tested in `optimize-preflight-utils.test.ts`)
-- [ ] Build an experiment progress view with status, elapsed time, completed/promoted/rejected trial counts,
-      current stage, remaining budget, stop/resume controls, and baseline score.
+- [x] Build an experiment progress view with status, elapsed time, completed/promoted/rejected trial counts,
+      current stage, remaining budget, stop/resume controls, and baseline score. (selecting a
+      queued/running experiment row — or starting a new run — opens a live progress card below the
+      Strategy Lab card; the worker streams scored/pruned/rejected counts, the search/refine stage,
+      the start time, and the baseline score into the experiment's progress JSON, and the card shows
+      elapsed time, remaining trial/runtime budget, and a Stop control; when polling sees the run
+      finish, the same selection flips to the result card)
 - [x] Build a leaderboard showing robust validation score, return, drawdown, trade count, turnover,
       complexity, worst fold, and improvement over baseline. (first shipped as an expand-a-row
       dropdown in the history list; Section 7.1 replaces that with the experiment result card)
-- [ ] Add filters for eligible/ineligible/promoted candidates and a Pareto view when supported.
-      (eligible/ineligible/promoted leaderboard filters are done; the Pareto view is not)
+- [x] Add filters for eligible/ineligible/promoted candidates and a Pareto view when supported.
+      (leaderboard filters plus a Pareto frontier chart: median objective vs median validation
+      drawdown for every scored trial, first front from `summary.pareto_fronts` highlighted and
+      connected, baseline marked, click selects the trial; derivations unit-tested in
+      `optimize-pareto-utils.test.ts`)
 - [x] Add **Save as strategy** and **Open in Backtest** actions. Saving always creates a named copy with
       experiment/trial provenance. (both live on each leaderboard row; Open in Backtest saves the
       candidate first, then switches tabs with it preselected in the run form)
@@ -522,11 +533,13 @@ Tasks, in order:
       cache-disabled, and eviction-heavy `runOptimization` results compare byte-for-byte in
       `optimization-cache.test.ts`, plus fold-level identity with asserted hit/miss counts)
 - [x] Add integration tests for a tiny completed experiment and cancel/resume behavior.
-- [ ] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
+- [x] Add frontend tests for configuration validation, progress states, leaderboard sorting, candidate diff,
       and explicit holdout confirmation. (leaderboard sorting/filtering, candidate diff, selection
       behavior, chart/warning derivations, and the holdout open lifecycle + comparison-row
       derivations are covered, and the search-space editor's override/role building and
-      configuration pre-validation are unit-tested; progress states remain)
+      configuration pre-validation are unit-tested; progress states — queued/starting/searching/
+      refining, legacy progress records, and budget clamping — are covered in
+      `optimize-progress-utils.test.ts`)
 - [x] Create benchmark fixtures and record evaluations/second and peak memory for representative 1d and 1h
       workloads. (`backend/bench/optimizationBench.ts` runs seeded 1d and 1h random-walk workloads with
       a MACD+RSI strategy; results — 149 and 56 fold backtests/second, peak RSS under 200 MB — are
@@ -551,8 +564,8 @@ Tasks, in order:
 - [ ] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
       explicit sealed-holdout workflow. (the score-vs-parameter scatter and the ablation chart ship
       early with Section 7.1; the sealed-holdout workflow — config, sealing, one-time endpoint,
-      result-card section with confirmation, and warnings — is done; the deeper
-      neighborhood/stability tooling and the Pareto view stay here)
+      result-card section with confirmation, and warnings — is done, and the Pareto view shipped
+      with Section 7.1's charts; the deeper neighborhood/stability tooling stays here)
 - [ ] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
       Mode C.
 - [ ] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL

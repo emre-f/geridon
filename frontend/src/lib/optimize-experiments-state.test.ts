@@ -22,6 +22,7 @@ function experiment(
     timeframe: "1d",
     method: "random",
     max_trials: 10,
+    max_runtime_ms: 120_000,
     progress: null,
     created_at: "",
     updated_at: "",
@@ -69,12 +70,12 @@ test("deleting another experiment keeps the selection", () => {
   assert.equal(deleted.selectedId, 7);
 });
 
-test("resuming the selected experiment closes its result card", () => {
+test("resuming the selected experiment keeps it selected for the progress view", () => {
   const resumed = experimentsReducer(stateWithSelection(7), {
     type: "updated",
     experiment: experiment(7, "queued"),
   });
-  assert.equal(resumed.selectedId, null);
+  assert.equal(resumed.selectedId, 7);
   assert.equal(resumed.experiments[0].status, "queued");
 });
 
@@ -86,13 +87,13 @@ test("an update that leaves the experiment finished keeps the selection", () => 
   assert.equal(updated.selectedId, 7);
 });
 
-test("a created experiment is prepended without touching the selection", () => {
+test("a created experiment is prepended and selected for the progress view", () => {
   const created = experimentsReducer(stateWithSelection(7), {
     type: "created",
     experiment: experiment(9, "queued"),
   });
   assert.deepEqual(
     { ids: created.experiments.map((entry) => entry.id), total: created.total, selectedId: created.selectedId },
-    { ids: [9, 7], total: 2, selectedId: 7 },
+    { ids: [9, 7], total: 2, selectedId: 9 },
   );
 });

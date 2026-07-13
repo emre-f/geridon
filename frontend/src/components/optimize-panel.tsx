@@ -11,6 +11,7 @@ import { useOptimizeSearchSpace } from "@/hooks/use-optimize-search-space";
 import { OptimizeExperimentForm } from "@/components/optimize-experiment-form";
 import { OptimizePreflightPanel } from "@/components/optimize-preflight-panel";
 import { OptimizeSearchSpaceEditor } from "@/components/optimize-search-space-editor";
+import { OptimizeExperimentProgressCard } from "@/components/optimize-experiment-progress-card";
 import { OptimizeExperimentResultCard } from "@/components/optimize-experiment-result-card";
 import { OptimizeExperimentsList } from "@/components/optimize-experiments-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -193,12 +194,22 @@ export function OptimizePanel({
       </Card>
 
       {experiments.selectedExperiment ? (
-        <OptimizeExperimentResultCard
-          experiment={experiments.selectedExperiment}
-          onClose={experiments.closeSelected}
-          onStrategySaved={onStrategySaved}
-          onOpenInBacktest={onOpenInBacktest}
-        />
+        experiments.selectedExperiment.status === "queued" ||
+        experiments.selectedExperiment.status === "running" ? (
+          <OptimizeExperimentProgressCard
+            experiment={experiments.selectedExperiment}
+            actioning={experiments.actioningId === experiments.selectedExperiment.id}
+            onCancel={experiments.handleCancel}
+            onClose={experiments.closeSelected}
+          />
+        ) : (
+          <OptimizeExperimentResultCard
+            experiment={experiments.selectedExperiment}
+            onClose={experiments.closeSelected}
+            onStrategySaved={onStrategySaved}
+            onOpenInBacktest={onOpenInBacktest}
+          />
+        )
       ) : null}
     </div>
   );

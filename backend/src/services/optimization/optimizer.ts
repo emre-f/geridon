@@ -156,6 +156,7 @@ export function runOptimization(
     score: scoreTrial(baselineFolds, baselineComplexity, scoring),
     complexity: baselineComplexity,
   };
+  control?.onBaseline?.(baseline.score.score);
 
   const buyHoldFolds = evaluateBuyHold(config.datasets, foldsBySymbol, settings);
   const buyHold = {

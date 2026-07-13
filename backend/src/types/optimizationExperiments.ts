@@ -90,6 +90,8 @@ export interface ExperimentDatasetSpec {
   last_candle_ms: number;
   /** Trailing candles sealed from search; absent on experiments without a holdout. */
   holdout_candle_count?: number;
+  /** Distinct sync sources of the stored candles; absent on older experiments. */
+  sources?: string[];
 }
 
 export interface OptimizationExperimentSnapshot {
@@ -99,12 +101,21 @@ export interface OptimizationExperimentSnapshot {
   /** Absent on experiments created before versioning existed. */
   catalog_version?: number;
   search_space_version?: number;
+  /** Recorded dividend/split assumption; absent on older experiments. */
+  price_adjustment?: string;
 }
 
 export interface OptimizationExperimentProgress {
   evaluated_trials: number;
   max_trials: number;
   updated_at_ms: number;
+  /** Fields below are absent on experiments run before the live progress view existed. */
+  started_at_ms?: number;
+  scored?: number;
+  pruned?: number;
+  rejected?: number;
+  phase?: "search" | "refine";
+  baseline_score?: number | null;
 }
 
 export interface OptimizationTrialCounts {
@@ -160,6 +171,7 @@ export interface OptimizationExperimentListItem {
   timeframe: string;
   method: OptimizationMethod;
   max_trials: number;
+  max_runtime_ms: number;
   progress: OptimizationExperimentProgress | null;
   created_at: string;
   updated_at: string;

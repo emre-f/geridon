@@ -39,6 +39,7 @@ export function experimentListItem(row: Row): OptimizationExperimentListItem {
     timeframe: config.timeframe,
     method: config.method,
     max_trials: config.max_trials,
+    max_runtime_ms: config.max_runtime_ms,
     progress: row.progress == null ? null : JSON.parse(String(row.progress)),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),

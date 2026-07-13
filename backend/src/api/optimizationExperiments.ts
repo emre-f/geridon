@@ -13,7 +13,7 @@ import type {
   OptimizationExperimentRecord,
   OptimizationExperimentStatus,
 } from "../types.ts";
-import { datasetSpecs, parseExperimentRequest } from "./optimizationRequests.ts";
+import { datasetSpecs, parseExperimentRequest, priceAdjustmentNote } from "./optimizationRequests.ts";
 import { prepareExperimentInputs } from "./optimizationSetup.ts";
 import { badRequest, parsePositiveId, type ApiResult } from "./shared.ts";
 
@@ -58,9 +58,10 @@ export function handleCreateExperiment(db: Database, runner: ExperimentRunner, b
   const record = insertExperiment(db, config, {
     strategy,
     strategy_name: strategyName,
-    datasets: datasetSpecs(datasets, config.holdout),
+    datasets: datasetSpecs(db, datasets, config.holdout),
     catalog_version: indicatorCatalogVersion,
     search_space_version: searchSpaceVersion,
+    price_adjustment: priceAdjustmentNote,
   });
   runner.enqueue(record.id);
   return { statusCode: 201, body: record };

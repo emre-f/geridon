@@ -194,6 +194,8 @@ export interface OptimizationControl {
   onTrialComplete?: (completedCount: number) => void;
   /** Fires once per finished trial with its final status, score, and folds. */
   onTrialFinished?: (trial: OptimizationTrial) => void;
+  /** Fires once, before search starts, with the baseline's robust score. */
+  onBaseline?: (score: number) => void;
 }
 
 export interface AblationEntry {

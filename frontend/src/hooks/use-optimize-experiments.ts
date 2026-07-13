@@ -26,6 +26,7 @@ function toListItem(record: OptimizationExperimentRecord): OptimizationExperimen
     timeframe: record.config.timeframe,
     method: record.config.method,
     max_trials: record.config.max_trials,
+    max_runtime_ms: record.config.max_runtime_ms,
     progress: record.progress,
     created_at: record.created_at,
     updated_at: record.updated_at,
