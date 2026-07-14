@@ -689,15 +689,33 @@ and never mutates the strategy itself.
       volume 20, and Bollinger %B — and `buildFeatureMatrix` samples them at each event's trigger
       bar, never the fill bar, with nulls during warmup. `featureSetId = "meta-features-v1"` versions
       the set; a test proves truncating all candles after the trigger reproduces every row exactly)
-- [ ] **Walk-forward training loop**: train per fold on past triggers only, with embargo sized from the
+- [x] **Walk-forward training loop**: train per fold on past triggers only, with embargo sized from the
       label horizon; fit preprocessing (scaling, feature selection) on the training portion only and
       apply it frozen to validation (closes Section 3's open preprocessing checkbox for this track).
-- [ ] **Model choice + dependency decision**: start with calibrated logistic regression in TypeScript;
+      (`metaLabeling/walkForward.ts` builds trade events + the causal feature matrix once, then for each
+      chronological fold selects only training events whose exit is resolved before `validStartIndex`
+      minus a label embargo — defaulting to the median label horizon — and scores the events triggered
+      inside the validation window. The standardizer is fit on the training rows alone and applied
+      frozen to validation; a single-class or empty training set defaults every validation trade to a
+      probability of 1 so the overlay can never shrink the baseline it cannot learn from.
+      `meta-labeling-model.test.ts` pins causality, anchored-history growth, embargo monotonicity, the
+      untrained guard, and reproducibility)
+- [x] **Model choice + dependency decision**: start with calibrated logistic regression in TypeScript;
       add small gradient-boosted trees only if a fixture benchmark shows a real gain, and only then
       revisit the TypeScript-vs-Python-worker question from Section 11.
-- [ ] **Probability calibration and trade policy**: calibrate predicted probabilities, then a simple
+      (`metaLabeling/logisticRegression.ts` is a dependency-light full-batch gradient-descent logistic
+      regression with L2 and a numerically stable sigmoid, plus a null-mean-imputing standardizer; from
+      a zero init it trains deterministically. Decision: no gradient-boosted trees or Python worker
+      until a fixture benchmark shows a real gain — the linear model separates the synthetic fixture at
+      >90% and stays fully reproducible)
+- [x] **Probability calibration and trade policy**: calibrate predicted probabilities, then a simple
       policy — take above a threshold, skip below, optional linear sizing between; the threshold is a
       searched/validated value, not hand-picked from test data.
+      (`metaLabeling/tradePolicy.ts` calibrates margins with Platt scaling — the same solver on the
+      single margin feature, fit on a chronological calibration tail of each fold's training window, not
+      the model's own fit rows — and maps the calibrated probability through a take/skip/shrink policy
+      whose size is clamped to [0, 1] so the overlay only removes or shrinks trades. The threshold is a
+      policy parameter meant to be validated per fold, never read from the sealed holdout)
 - [ ] **Guardrails**: refuse or warn when there are too few triggers to learn from (hundreds, not
       dozens), when classes are extremely imbalanced, or when a fold has near-zero triggers; the
       sealed holdout follows the existing one-open rule.
