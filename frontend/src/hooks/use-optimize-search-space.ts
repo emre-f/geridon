@@ -90,6 +90,20 @@ export function useOptimizeSearchSpace(strategyId: number | null) {
     loading: state.loading,
     error: state.error,
     ...derived,
+    resetRoles: () =>
+      setState((previous) =>
+        previous.edits
+          ? {
+              ...previous,
+              edits: {
+                ...previous.edits,
+                roles: Object.fromEntries(
+                  Object.keys(previous.edits.roles).map((ruleId) => [ruleId, "required" as RuleRole]),
+                ),
+              },
+            }
+          : previous,
+      ),
     setRole: (ruleId: string, role: RuleRole) =>
       setState((previous) =>
         previous.edits

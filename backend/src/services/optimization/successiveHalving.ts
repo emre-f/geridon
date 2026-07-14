@@ -1,3 +1,4 @@
+import { takeCheckpointFold } from "./checkpoint.ts";
 import { spreadFoldSubset } from "./folds.ts";
 import { evaluateFold, type EvaluationSettings } from "./evaluate.ts";
 import { compareTrialScores, scoreTrial } from "./scoring.ts";
@@ -47,7 +48,9 @@ function evaluateTrialOnSubset(
       const key = `${trial.hash}:${dataset.symbol}:${fold.index}`;
       let evaluation = cache.get(key);
       if (!evaluation) {
-        evaluation = evaluateFold(trial.strategy, dataset, fold, context.settings);
+        evaluation =
+          takeCheckpointFold(context.settings.checkpoint, trial.hash, dataset.symbol, fold.index) ??
+          evaluateFold(trial.strategy, dataset, fold, context.settings);
         cache.set(key, evaluation);
       }
       results.push(evaluation);

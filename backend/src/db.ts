@@ -143,6 +143,7 @@ export function createDb(db: Database): void {
       strategy TEXT,
       complexity TEXT NOT NULL,
       fold_results TEXT,
+      metrics TEXT,
       CONSTRAINT uq_optimization_trial UNIQUE (experiment_id, trial_index)
     );
 
@@ -174,5 +175,13 @@ export function createDb(db: Database): void {
     .map((row) => String(row.name));
   if (!experimentColumns.includes("holdout")) {
     db.exec("ALTER TABLE optimization_experiments ADD COLUMN holdout TEXT");
+  }
+
+  const trialColumns = db
+    .prepare("SELECT name FROM pragma_table_info('optimization_trials')")
+    .all()
+    .map((row) => String(row.name));
+  if (!trialColumns.includes("metrics")) {
+    db.exec("ALTER TABLE optimization_trials ADD COLUMN metrics TEXT");
   }
 }

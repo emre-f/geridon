@@ -1,9 +1,14 @@
 import { useMemo, useReducer } from "react";
 
-import type { OptimizationMethod, StrategyRecord, SymbolSummary } from "@/lib/api";
+import type { OptimizationMethod, ScoringConfig, StrategyRecord, SymbolSummary } from "@/lib/api";
 import { toDateInputValue } from "@/lib/backtest-utils";
 import { availableTimeframes, coverageForTimeframe } from "@/lib/chart-options";
 import { budgetPresets, type BudgetPreset, type BudgetPresetChoice } from "@/lib/optimize-preflight-utils";
+import { defaultScoring } from "@/lib/optimize-scoring-utils";
+
+/** The explicit Mode A/B/C framing over one experiment config: tune keeps the
+ * tree fixed, prune adds rule roles, explore adds evolution's rule library. */
+export type SearchMode = "tune" | "prune" | "explore";
 
 interface EditedDates {
   startDate: string;
@@ -15,6 +20,7 @@ interface OptimizeFormState {
   strategyId: number | null;
   ticker: string;
   timeframe: string;
+  mode: SearchMode;
   method: OptimizationMethod;
   preset: BudgetPresetChoice;
   maxTrials: number;
@@ -22,6 +28,7 @@ interface OptimizeFormState {
   foldCount: number;
   holdoutPct: number;
   seed: number;
+  scoring: ScoringConfig;
   dates: EditedDates | null;
 }
 
@@ -32,12 +39,14 @@ type EditableField = Pick<
   | "strategyId"
   | "ticker"
   | "timeframe"
+  | "mode"
   | "method"
   | "maxTrials"
   | "maxRuntimeMinutes"
   | "foldCount"
   | "holdoutPct"
   | "seed"
+  | "scoring"
 >;
 
 type OptimizeFormAction =
@@ -76,11 +85,13 @@ export function useOptimizeExperimentForm({
     strategyId: initialStrategyId,
     ticker: defaultTicker,
     timeframe: "1d",
+    mode: "tune" as SearchMode,
     method: "random",
     preset: "standard",
     ...budgetPresets.standard,
     holdoutPct: 0,
     seed: 1,
+    scoring: defaultScoring,
     dates: null,
   });
 
@@ -129,6 +140,7 @@ export function useOptimizeExperimentForm({
     strategyId,
     ticker,
     timeframe,
+    method: form.mode === "explore" ? ("evolution" as const) : form.method,
     startDate,
     endDate,
     selectedSymbol,
@@ -140,7 +152,9 @@ export function useOptimizeExperimentForm({
     setTicker: (nextTicker: string) => dispatch({ type: "fieldChanged", patch: { ticker: nextTicker } }),
     setTimeframe: (nextTimeframe: string) =>
       dispatch({ type: "fieldChanged", patch: { timeframe: nextTimeframe } }),
+    setMode: (mode: SearchMode) => dispatch({ type: "fieldChanged", patch: { mode } }),
     setMethod: (method: OptimizationMethod) => dispatch({ type: "fieldChanged", patch: { method } }),
+    setScoring: (scoring: ScoringConfig) => dispatch({ type: "fieldChanged", patch: { scoring } }),
     setPreset: (preset: BudgetPreset) => dispatch({ type: "presetApplied", preset }),
     setMaxTrials: (maxTrials: number) => dispatch({ type: "fieldChanged", patch: { maxTrials } }),
     setMaxRuntimeMinutes: (maxRuntimeMinutes: number) =>

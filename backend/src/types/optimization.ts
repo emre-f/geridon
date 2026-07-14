@@ -167,6 +167,12 @@ export interface IndicatorCacheConfig {
   maxValues?: number;
 }
 
+/** Fold evaluations persisted by an interrupted run, reusable on resume. */
+export interface CheckpointTrialFolds {
+  hash: string;
+  foldResults: FoldEvaluation[];
+}
+
 export interface OptimizationConfig {
   strategy: Strategy;
   datasets: OptimizationDataset[];
@@ -188,6 +194,7 @@ export interface OptimizationConfig {
   tpe?: Partial<TpeConfig>;
   evolution?: Partial<EvolutionSearchConfig>;
   cache?: IndicatorCacheConfig;
+  checkpoint?: CheckpointTrialFolds[];
 }
 
 export interface OptimizationControl {
@@ -226,6 +233,19 @@ export interface BuyHoldEvaluation {
   medianObjective: number;
 }
 
+/**
+ * How the best candidate's neighborhood in one search dimension scored:
+ * a robust region keeps scoring well nearby, a lucky spike does not.
+ */
+export interface ParameterStabilityEntry {
+  nodeId: string;
+  bestValue: number;
+  bestScore: number;
+  neighborCount: number;
+  neighborScoreMedian: number | null;
+  neighborScoreMin: number | null;
+}
+
 export interface OptimizationResult {
   scoringVersion: string;
   seed: number;
@@ -240,5 +260,9 @@ export interface OptimizationResult {
   inclusion: RuleInclusionEntry[];
   /** Trial indexes grouped into non-dominated fronts (front 0 is the Pareto set). */
   paretoFronts: number[][];
+  /** Neighborhood stability of the best candidate per numeric/curated dimension. */
+  stability: ParameterStabilityEntry[];
+  /** Fold evaluations reused from a resume checkpoint instead of recomputed. */
+  checkpointFoldsReused: number;
   stoppedEarly: boolean;
 }

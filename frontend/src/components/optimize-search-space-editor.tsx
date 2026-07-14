@@ -16,9 +16,11 @@ type SearchSpaceHook = ReturnType<typeof useOptimizeSearchSpace>;
 function RuleGroup({
   group,
   searchSpace,
+  rolesEditable,
 }: {
   group: RuleParameterGroup;
   searchSpace: SearchSpaceHook;
+  rolesEditable: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { edits } = searchSpace;
@@ -60,16 +62,18 @@ function RuleGroup({
                   ? "no parameters"
                   : `${tuned}/${group.nodes.length} tuned`}
             </span>
-            <Select
-              value={role}
-              aria-label={`Role for rule ${rule.id}`}
-              className="w-28"
-              onChange={(event) => searchSpace.setRole(rule.id, event.target.value as RuleRole)}
-            >
-              <option value="required">Required</option>
-              <option value="optional">Optional</option>
-              <option value="off">Off</option>
-            </Select>
+            {rolesEditable ? (
+              <Select
+                value={role}
+                aria-label={`Role for rule ${rule.id}`}
+                className="w-28"
+                onChange={(event) => searchSpace.setRole(rule.id, event.target.value as RuleRole)}
+              >
+                <option value="required">Required</option>
+                <option value="optional">Optional</option>
+                <option value="off">Off</option>
+              </Select>
+            ) : null}
           </>
         ) : (
           <>
@@ -95,9 +99,16 @@ function RuleGroup({
  * Mode A/B controls for the new-experiment form: per-rule required/optional/off
  * roles with each rule's tunable parameters grouped beneath it. Defaults need
  * no editing: every rule stays required and every parameter is tuned over a
- * conservative range around its current value.
+ * conservative range around its current value. In Mode A (tune parameters)
+ * roles are hidden and every rule stays as it is in the strategy.
  */
-export function OptimizeSearchSpaceEditor({ searchSpace }: { searchSpace: SearchSpaceHook }) {
+export function OptimizeSearchSpaceEditor({
+  searchSpace,
+  rolesEditable = true,
+}: {
+  searchSpace: SearchSpaceHook;
+  rolesEditable?: boolean;
+}) {
   const { preview, edits, loading, error, issue, summary } = searchSpace;
 
   const headerNote = loading
@@ -120,7 +131,12 @@ export function OptimizeSearchSpaceEditor({ searchSpace }: { searchSpace: Search
           <div className="relative grid gap-x-12 gap-y-0.5 lg:grid-cols-2">
             <div className="bg-border absolute inset-y-0 left-1/2 hidden w-px lg:block" aria-hidden />
             {ruleParameterGroups(preview).map((group) => (
-              <RuleGroup key={group.rule?.id ?? "strategy"} group={group} searchSpace={searchSpace} />
+              <RuleGroup
+                key={group.rule?.id ?? "strategy"}
+                group={group}
+                searchSpace={searchSpace}
+                rolesEditable={rolesEditable}
+              />
             ))}
           </div>
           {issue ? <p className="text-destructive text-xs">{issue}</p> : null}

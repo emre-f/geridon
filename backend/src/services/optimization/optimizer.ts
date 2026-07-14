@@ -1,34 +1,28 @@
 import { SeededRandom } from "./random.ts";
 import { compileSearchSpace } from "./searchSpace.ts";
-import { sampleValues, applyValues } from "./sampler.ts";
 import { strategyHash } from "./canonical.ts";
+import { createFoldCheckpoint } from "./checkpoint.ts";
 import { buildFolds } from "./folds.ts";
 import { evaluateBuyHold, evaluateOnFolds, type EvaluationSettings } from "./evaluate.ts";
 import { createIndicatorSeriesCache } from "./indicatorCache.ts";
 import { compareTrialScores, median, resolveScoringConfig, scoreTrial, scoringVersion } from "./scoring.ts";
-import { resolveHalvingConfig, runSuccessiveHalving } from "./successiveHalving.ts";
-import { refineSearchSpace, resolveRefinementConfig } from "./coarseToFine.ts";
+import { resolveHalvingConfig } from "./successiveHalving.ts";
+import { resolveRefinementConfig } from "./coarseToFine.ts";
 import { runAblation } from "./ablation.ts";
 import { computeRuleInclusion } from "./inclusion.ts";
+import { computeParameterStability } from "./stability.ts";
 import { computeComplexity } from "./strategyPaths.ts";
 import { computeParetoFronts } from "./pareto.ts";
 import { resolveTpeConfig, runTpeSearch } from "./tpe.ts";
 import { resolveEvolutionConfig, runEvolutionSearch } from "./evolution.ts";
-import {
-  createTrial,
-  createTrialFactory,
-  evaluateTrialFully,
-  type FullEvaluationContext,
-  type TrialFactory,
-} from "./trials.ts";
+import { runRandomSearch, runRefinement, type SearchContext } from "./searchPhases.ts";
+import { createTrialFactory } from "./trials.ts";
 import type {
   FoldSpec,
   OptimizationConfig,
   OptimizationControl,
   OptimizationResult,
   OptimizationTrial,
-  SearchSpaceNode,
-  Strategy,
 } from "../../types.ts";
 
 function validateConfig(config: OptimizationConfig) {
@@ -43,75 +37,6 @@ function validateConfig(config: OptimizationConfig) {
   }
 }
 
-interface SearchContext {
-  config: OptimizationConfig;
-  baseStrategy: Strategy;
-  nodes: SearchSpaceNode[];
-  factory: TrialFactory;
-  evaluation: FullEvaluationContext;
-  random: SeededRandom;
-  stopRequested: () => boolean;
-}
-
-function runRandomSearch(
-  context: SearchContext,
-  maxTrials: number,
-): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
-  const { config, baseStrategy, nodes, factory, random } = context;
-  const trials: OptimizationTrial[] = [];
-  for (let attempt = 0; attempt < maxTrials; attempt += 1) {
-    const values = sampleValues(nodes, random);
-    const trial = createTrial(factory, applyValues(baseStrategy, nodes, values), values, "search");
-    trials.push(trial);
-    if (trial.status === "rejected") {
-      context.evaluation.onTrialComplete?.(trial);
-    }
-  }
-
-  const { stoppedEarly } = runSuccessiveHalving(trials, {
-    datasets: config.datasets,
-    foldsBySymbol: context.evaluation.foldsBySymbol,
-    settings: context.evaluation.settings,
-    scoring: context.evaluation.scoring,
-    halving: resolveHalvingConfig(config.halving),
-    stopRequested: context.stopRequested,
-    onTrialComplete: context.evaluation.onTrialComplete,
-  });
-  return { trials, stoppedEarly };
-}
-
-function runRefinement(
-  context: SearchContext,
-  trials: OptimizationTrial[],
-  scoredSorted: OptimizationTrial[],
-  maxTrials: number,
-) {
-  const refinement = resolveRefinementConfig(context.config.refinement, context.config.maxTrials);
-  if (!refinement.enabled || maxTrials < 1 || scoredSorted.length === 0) {
-    return false;
-  }
-  const refined = refineSearchSpace(context.nodes, scoredSorted.slice(0, refinement.topCount));
-  for (let i = 0; i < maxTrials; i += 1) {
-    if (context.stopRequested()) {
-      return true;
-    }
-    const values = { ...refined.frozenValues, ...sampleValues(refined.nodes, context.random) };
-    const trial = createTrial(
-      context.factory,
-      applyValues(context.baseStrategy, context.nodes, values),
-      values,
-      "refine",
-    );
-    trials.push(trial);
-    if (trial.status !== "rejected") {
-      evaluateTrialFully(trial, context.evaluation);
-    } else {
-      context.evaluation.onTrialComplete?.(trial);
-    }
-  }
-  return false;
-}
-
 export function runOptimization(
   config: OptimizationConfig,
   control?: OptimizationControl,
@@ -119,6 +44,7 @@ export function runOptimization(
   validateConfig(config);
   const method = config.method ?? "random";
   const scoring = resolveScoringConfig(config.scoring);
+  const checkpoint = createFoldCheckpoint(config.checkpoint);
   const settings: EvaluationSettings = {
     positionMode: config.positionMode,
     buyPercent: config.buyPercent,
@@ -130,6 +56,7 @@ export function runOptimization(
       config.cache?.enabled === false
         ? undefined
         : createIndicatorSeriesCache(config.cache?.maxValues),
+    checkpoint,
   };
   const deadlineMs = config.maxRuntimeMs != null ? Date.now() + config.maxRuntimeMs : undefined;
   const stopRequested = () =>
@@ -242,6 +169,8 @@ export function runOptimization(
     ablation,
     inclusion,
     paretoFronts: computeParetoFronts(trials),
+    stability: computeParameterStability(nodes, leaderboard, best),
+    checkpointFoldsReused: checkpoint?.hits ?? 0,
     stoppedEarly,
   };
 }

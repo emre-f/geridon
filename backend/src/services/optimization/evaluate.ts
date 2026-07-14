@@ -1,4 +1,5 @@
 import { runBacktest } from "../backtest.ts";
+import type { FoldCheckpoint } from "./checkpoint.ts";
 import type { IndicatorSeriesCache } from "./indicatorCache.ts";
 import type {
   BacktestMetrics,
@@ -20,6 +21,7 @@ export interface EvaluationSettings {
   costs?: TradeCosts;
   objective: OptimizationObjective;
   cache?: IndicatorSeriesCache;
+  checkpoint?: FoldCheckpoint;
 }
 
 export function objectiveFromMetrics(

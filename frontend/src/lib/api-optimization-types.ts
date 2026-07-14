@@ -129,6 +129,19 @@ export interface RuleInclusionEntry {
   topCount: number;
 }
 
+/**
+ * How the best candidate's neighborhood in one search dimension scored:
+ * a robust region keeps scoring well nearby, a lucky spike does not.
+ */
+export interface ParameterStabilityEntry {
+  nodeId: string;
+  bestValue: number;
+  bestScore: number;
+  neighborCount: number;
+  neighborScoreMedian: number | null;
+  neighborScoreMin: number | null;
+}
+
 export interface BaselineEvaluation {
   foldResults: FoldEvaluation[];
   score: TrialScore;

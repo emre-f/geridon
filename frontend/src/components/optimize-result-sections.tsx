@@ -9,6 +9,7 @@ import { decompositionRows, foldGroups, objectiveLabels } from "@/lib/optimize-c
 import { candidateDiff } from "@/lib/optimize-candidate-utils";
 import { paretoChartData } from "@/lib/optimize-pareto-utils";
 import { sensitivityPanels, sensitivityScoreDomain } from "@/lib/optimize-sensitivity-utils";
+import { stabilityRows } from "@/lib/optimize-stability-utils";
 import { OptimizeAblationChart } from "@/components/optimize-ablation-chart";
 import { OptimizeFoldChart } from "@/components/optimize-fold-chart";
 import { OptimizeInclusionList } from "@/components/optimize-inclusion-list";
@@ -21,9 +22,11 @@ import {
   inclusionHelp,
   paretoHelp,
   sensitivityHelp,
+  stabilityHelp,
   traceHelp,
 } from "@/components/optimize-section-help";
 import { OptimizeSensitivityChart } from "@/components/optimize-sensitivity-chart";
+import { OptimizeStabilityList } from "@/components/optimize-stability-list";
 import { OptimizeTraceChart } from "@/components/optimize-trace-chart";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Separator } from "@/components/ui/separator";
@@ -97,6 +100,10 @@ export function OptimizeResultSections({
     [panels, board.baselineScore],
   );
   const pareto = useMemo(() => paretoChartData(summary, board.trials), [summary, board.trials]);
+  const stability = useMemo(
+    () => stabilityRows(summary.stability ?? [], summary.space, board.baselineScore),
+    [summary, board.baselineScore],
+  );
 
   return (
     <>
@@ -180,6 +187,19 @@ export function OptimizeResultSections({
             help={sensitivityHelp}
           >
             <OptimizeSensitivityChart panels={panels} domain={scoreDomain} />
+          </ChartSection>
+        </>
+      ) : null}
+
+      {stability.length > 0 ? (
+        <>
+          <Separator />
+          <ChartSection
+            title="Parameter stability"
+            question="Do values near the winner keep scoring well?"
+            help={stabilityHelp}
+          >
+            <OptimizeStabilityList rows={stability} baselineScore={board.baselineScore} />
           </ChartSection>
         </>
       ) : null}

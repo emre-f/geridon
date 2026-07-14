@@ -1,8 +1,9 @@
 import { strategyHash } from "./canonical.ts";
 import { cheapRejectionReason } from "./cheapRejection.ts";
+import { hasCheckpointFolds, takeCheckpointFold } from "./checkpoint.ts";
 import { validateCandidate } from "./searchSpace.ts";
 import { entrySignalFires } from "../signals.ts";
-import { evaluateOnFolds, type EvaluationSettings } from "./evaluate.ts";
+import { evaluateFold, type EvaluationSettings } from "./evaluate.ts";
 import { scoreTrial } from "./scoring.ts";
 import { computeComplexity } from "./strategyPaths.ts";
 import type {
@@ -101,19 +102,26 @@ function isSignalStarved(trial: OptimizationTrial, context: FullEvaluationContex
 }
 
 export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvaluationContext) {
-  if (isSignalStarved(trial, context)) {
+  const checkpoint = context.settings.checkpoint;
+  // A candidate with checkpointed folds passed the starvation probe before
+  // the interruption, so only unseen candidates need it re-run.
+  const checkpointed = hasCheckpointFolds(checkpoint, trial.hash, context.foldsBySymbol);
+  if (!checkpointed && isSignalStarved(trial, context)) {
     trial.status = "rejected";
     trial.rejectionReason = "signal-starved: the entry condition never fires on any fold window";
     context.onTrialComplete?.(trial);
     return;
   }
   trial.stageReached = context.finalStage;
-  trial.foldResults = evaluateOnFolds(
-    trial.strategy,
-    context.datasets,
-    context.foldsBySymbol,
-    context.settings,
-  );
+  trial.foldResults = [];
+  for (const dataset of context.datasets) {
+    for (const fold of context.foldsBySymbol.get(dataset.symbol) ?? []) {
+      trial.foldResults.push(
+        takeCheckpointFold(checkpoint, trial.hash, dataset.symbol, fold.index) ??
+          evaluateFold(trial.strategy, dataset, fold, context.settings),
+      );
+    }
+  }
   trial.score = scoreTrial(trial.foldResults, trial.complexity, context.scoring);
   trial.status = "scored";
   context.onTrialComplete?.(trial);

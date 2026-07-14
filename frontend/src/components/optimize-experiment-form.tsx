@@ -4,7 +4,9 @@ import { PlayIcon, RefreshCwIcon } from "lucide-react";
 import type { OptimizationMethod, StrategyRecord, SymbolTimeframe } from "@/lib/api";
 import { toDateInputValue } from "@/lib/backtest-utils";
 import type { BudgetPreset, BudgetPresetChoice } from "@/lib/optimize-preflight-utils";
+import type { SearchMode } from "@/hooks/use-optimize-experiment-form";
 import { OptimizeBudgetFields } from "@/components/optimize-budget-fields";
+import { OptimizeModeField } from "@/components/optimize-mode-field";
 import { SymbolCombobox } from "@/components/symbol-combobox";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -23,6 +25,7 @@ export function OptimizeExperimentForm({
   maxRuntimeMinutes,
   maxTrials,
   method,
+  mode,
   preset,
   seed,
   startDate,
@@ -39,6 +42,7 @@ export function OptimizeExperimentForm({
   onMaxRuntimeMinutesChange,
   onMaxTrialsChange,
   onMethodChange,
+  onModeChange,
   onPresetChange,
   onSeedChange,
   onStart,
@@ -56,6 +60,7 @@ export function OptimizeExperimentForm({
   maxRuntimeMinutes: number;
   maxTrials: number;
   method: OptimizationMethod;
+  mode: SearchMode;
   preset: BudgetPresetChoice;
   seed: number;
   startDate: string;
@@ -72,6 +77,7 @@ export function OptimizeExperimentForm({
   onMaxRuntimeMinutesChange: (value: number) => void;
   onMaxTrialsChange: (value: number) => void;
   onMethodChange: (value: OptimizationMethod) => void;
+  onModeChange: (value: SearchMode) => void;
   onPresetChange: (value: BudgetPreset) => void;
   onSeedChange: (value: number) => void;
   onStart: () => void;
@@ -98,6 +104,7 @@ export function OptimizeExperimentForm({
               ))}
             </Select>
           </Field>
+          <OptimizeModeField mode={mode} onModeChange={onModeChange} />
           <Field label="Symbol">
             <SymbolCombobox
               value={ticker}

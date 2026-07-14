@@ -81,6 +81,10 @@ export function trialRecord(row: Row): OptimizationTrialRecord {
     values: JSON.parse(String(row.trial_values)),
     complexity: JSON.parse(String(row.complexity)),
     metrics:
-      row.fold_results == null ? null : trialMetrics(JSON.parse(String(row.fold_results))),
+      row.metrics != null
+        ? JSON.parse(String(row.metrics))
+        : row.fold_results == null
+          ? null
+          : trialMetrics(JSON.parse(String(row.fold_results))),
   };
 }

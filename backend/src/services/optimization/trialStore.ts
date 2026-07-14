@@ -1,5 +1,6 @@
 import type { Database } from "../../db.ts";
 import type {
+  CheckpointTrialFolds,
   OptimizationExperimentProgress,
   OptimizationExperimentStatus,
   OptimizationExperimentSummary,
@@ -8,14 +9,18 @@ import type {
   OptimizationTrialDetail,
   OptimizationTrialRecord,
 } from "../../types.ts";
-import { trialRecord, type Row } from "./experimentRows.ts";
+import { trialMetrics, trialRecord, type Row } from "./experimentRows.ts";
+
+/** Per-fold detail is kept only for leaderboard ranks up to this; the trial
+ * detail endpoint recomputes trimmed trials on demand from the snapshot. */
+export const fullDetailRankLimit = 10;
 
 const upsertTrialSql = `
   INSERT INTO optimization_trials (
     experiment_id, trial_index, hash, phase, status, rejection_reason, stage_reached,
     leaderboard_rank, eligible, score, score_detail, trial_values, strategy, complexity,
-    fold_results
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    fold_results, metrics
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(experiment_id, trial_index) DO UPDATE SET
     status = excluded.status,
     rejection_reason = excluded.rejection_reason,
@@ -25,15 +30,18 @@ const upsertTrialSql = `
     score = excluded.score,
     score_detail = excluded.score_detail,
     strategy = excluded.strategy,
-    fold_results = excluded.fold_results
+    fold_results = excluded.fold_results,
+    metrics = excluded.metrics
 `;
 
 function trialRowParams(
   experimentId: number,
   trial: OptimizationTrial,
   rank: number | null,
+  keepFoldDetail: boolean,
 ): Array<number | string | null> {
   const rejected = trial.status === "rejected";
+  const metrics = rejected ? null : trialMetrics(trial.foldResults);
   return [
     experimentId,
     trial.index,
@@ -49,7 +57,8 @@ function trialRowParams(
     JSON.stringify(trial.values),
     rejected ? null : JSON.stringify(trial.strategy),
     JSON.stringify(trial.complexity),
-    rejected ? null : JSON.stringify(trial.foldResults),
+    rejected || !keepFoldDetail ? null : JSON.stringify(trial.foldResults),
+    metrics == null ? null : JSON.stringify(metrics),
   ];
 }
 
@@ -59,7 +68,28 @@ function trialRowParams(
  * persistExperimentResult pass upserts the same rows to fill in ranks.
  */
 export function upsertTrialRow(db: Database, experimentId: number, trial: OptimizationTrial) {
-  db.prepare(upsertTrialSql).run(...trialRowParams(experimentId, trial, null));
+  db.prepare(upsertTrialSql).run(...trialRowParams(experimentId, trial, null, true));
+}
+
+/**
+ * Fold evaluations streamed by an earlier interrupted/cancelled run, reusable
+ * as a resume checkpoint. Rows whose fold detail was trimmed are skipped.
+ */
+export function loadCheckpointFolds(db: Database, experimentId: number): CheckpointTrialFolds[] {
+  const rows = db
+    .prepare(
+      `SELECT hash, fold_results FROM optimization_trials
+       WHERE experiment_id = ? AND fold_results IS NOT NULL AND status IN ('scored', 'pruned')`,
+    )
+    .all(experimentId) as Array<{ hash: string; fold_results: string }>;
+  return rows.map((row) => ({
+    hash: String(row.hash),
+    foldResults: JSON.parse(String(row.fold_results)),
+  }));
+}
+
+export function clearTrialRows(db: Database, experimentId: number) {
+  db.prepare("DELETE FROM optimization_trials WHERE experiment_id = ?").run(experimentId);
 }
 
 export function persistExperimentResult(
@@ -87,6 +117,10 @@ export function persistExperimentResult(
     ablation: result.ablation,
     inclusion: result.inclusion,
     pareto_fronts: result.paretoFronts,
+    stability: result.stability,
+    ...(result.checkpointFoldsReused > 0
+      ? { checkpoint_folds_reused: result.checkpointFoldsReused }
+      : {}),
     trial_counts: counts,
     best_trial_index: result.leaderboard[0]?.index ?? null,
   };
@@ -111,8 +145,14 @@ export function persistExperimentResult(
        WHERE id = ?`,
     ).run(status, JSON.stringify(summary), JSON.stringify(progress), id);
     const upsert = db.prepare(upsertTrialSql);
+    const fullFoldCount = result.baseline.foldResults.length;
     for (const trial of result.trials) {
-      upsert.run(...trialRowParams(id, trial, ranks.get(trial.index) ?? null));
+      const rank = ranks.get(trial.index) ?? null;
+      const recomputable =
+        trial.status === "scored" && trial.foldResults.length === fullFoldCount;
+      const keepFoldDetail =
+        !recomputable || (rank != null && rank <= fullDetailRankLimit);
+      upsert.run(...trialRowParams(id, trial, rank, keepFoldDetail));
     }
     db.exec("COMMIT");
   } catch (error) {

@@ -41,6 +41,10 @@ test("an experiment runs to completion and persists ranked trials", async () => 
   assert.equal(experiment.snapshot.datasets[0].candle_count, 400);
   assert.equal(experiment.snapshot.catalog_version, 1);
   assert.equal(experiment.snapshot.search_space_version, 1);
+  assert.deepEqual(experiment.config.scoring, {
+    objective: "total_return",
+    constraints: { minTotalTrades: 2, maxDrawdownPct: 90, minPositiveFoldFraction: 0.5 },
+  });
   assert.ok(experiment.progress && experiment.progress.evaluated_trials > 0);
   assert.equal(experiment.progress?.evaluated_trials, experiment.config.max_trials);
   assert.equal(experiment.progress?.max_trials, experiment.config.max_trials);
@@ -104,6 +108,16 @@ test("invalid configurations return structured errors", async () => {
     [experimentBody(strategyId, { folds: { foldCount: 4, embargoCandles: -1 } }), 400],
     [experimentBody(strategyId, { folds: { foldCount: 4, embargoCandles: 251 } }), 400],
     [experimentBody(strategyId, { folds: { foldCount: 4, embargoCandles: 79 } }), 400],
+    [experimentBody(strategyId, { scoring: { objective: "sortino" } }), 400],
+    [experimentBody(strategyId, { scoring: { penalties: { drawdown: -0.1 } } }), 400],
+    [experimentBody(strategyId, { scoring: { penalties: { volatility: 1 } } }), 400],
+    [experimentBody(strategyId, { scoring: { constraints: { minTotalTrades: 2.5 } } }), 400],
+    [experimentBody(strategyId, { scoring: { constraints: { maxDrawdownPct: 140 } } }), 400],
+    [
+      experimentBody(strategyId, { scoring: { constraints: { minPositiveFoldFraction: 1.5 } } }),
+      400,
+    ],
+    [experimentBody(strategyId, { scoring: { weights: {} } }), 400],
   ];
   for (const [body, statusCode] of cases) {
     assert.equal(handleCreateExperiment(db, runner, body).statusCode, statusCode);

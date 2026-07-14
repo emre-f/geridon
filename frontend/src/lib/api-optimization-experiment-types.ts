@@ -8,6 +8,7 @@ import type {
   OptimizationExperimentStatus,
   OptimizationMethod,
   ParameterOverride,
+  ParameterStabilityEntry,
   RuleInclusionEntry,
   RuleRole,
   ScoringConfig,
@@ -121,6 +122,10 @@ export interface OptimizationExperimentSummary {
   /** Absent on experiments that finished before inclusion reporting existed. */
   inclusion?: RuleInclusionEntry[];
   pareto_fronts: number[][];
+  /** Absent on experiments that finished before stability reporting existed. */
+  stability?: ParameterStabilityEntry[];
+  /** Fold evaluations reused from the resume checkpoint; absent when none were. */
+  checkpoint_folds_reused?: number;
   trial_counts: OptimizationTrialCounts;
   best_trial_index: number | null;
 }

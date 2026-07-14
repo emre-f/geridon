@@ -1,4 +1,5 @@
 import type {
+  CheckpointTrialFolds,
   OptimizationConfig,
   OptimizationDataset,
   OptimizationExperimentRecord,
@@ -8,6 +9,7 @@ import { searchDatasets } from "./holdout.ts";
 export function toEngineConfig(
   record: OptimizationExperimentRecord,
   datasets: OptimizationDataset[],
+  checkpoint?: CheckpointTrialFolds[],
 ): OptimizationConfig {
   const config = record.config;
   return {
@@ -31,5 +33,6 @@ export function toEngineConfig(
     method: config.method,
     tpe: config.tpe,
     evolution: config.evolution,
+    ...(checkpoint && checkpoint.length > 0 ? { checkpoint } : {}),
   };
 }

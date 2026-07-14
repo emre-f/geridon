@@ -142,6 +142,28 @@ export const paretoHelp = (
   </Help>
 );
 
+export const stabilityHelp = (
+  <Help>
+    <p>
+      <strong>One row per searched dimension</strong> of the best candidate, judged by the
+      trials that sampled nearby values (within 15% of the range).
+    </p>
+    <HelpList>
+      <li>
+        <strong>Robust region:</strong> the neighborhood&apos;s median score still beats the
+        baseline
+      </li>
+      <li>
+        <strong>Lucky spike?:</strong> nearby values fall back to the baseline or below
+      </li>
+      <li>
+        <strong>Few nearby samples:</strong> not enough trials landed close to judge
+      </li>
+    </HelpList>
+    <p>Prefer winners whose neighborhoods stay strong; a lone spike rarely survives new data.</p>
+  </Help>
+);
+
 export const inclusionHelp = (
   <Help>
     <p>

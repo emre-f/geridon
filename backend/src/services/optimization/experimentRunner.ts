@@ -13,7 +13,12 @@ import {
   updateExperimentProgress,
   updateExperimentStatus,
 } from "./experimentStore.ts";
-import { persistExperimentResult, upsertTrialRow } from "./trialStore.ts";
+import {
+  clearTrialRows,
+  loadCheckpointFolds,
+  persistExperimentResult,
+  upsertTrialRow,
+} from "./trialStore.ts";
 import { toEngineConfig } from "./engineConfig.ts";
 import { ProgressTracker } from "./progressTracker.ts";
 
@@ -139,9 +144,13 @@ export class ExperimentRunner {
       updateExperimentProgress(this.db, experimentId, tracker.snapshot(now));
     };
 
+    // Trial rows left by an interrupted run become the resume checkpoint,
+    // then clear so the resumed run streams a fresh, consistent set.
+    const checkpoint = loadCheckpointFolds(this.db, experimentId);
+    clearTrialRows(this.db, experimentId);
     const cancelBuffer = new SharedArrayBuffer(4);
     const worker = new Worker(new URL("./experimentWorker.ts", import.meta.url), {
-      workerData: { config: toEngineConfig(record, datasets), cancelBuffer },
+      workerData: { config: toEngineConfig(record, datasets, checkpoint), cancelBuffer },
     });
     const active: ActiveExperiment = {
       id: experimentId,

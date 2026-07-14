@@ -1,5 +1,9 @@
 import type { Database } from "../db.ts";
-import { equityOnFolds, type EvaluationSettings } from "../services/optimization/evaluate.ts";
+import {
+  equityOnFolds,
+  evaluateOnFolds,
+  type EvaluationSettings,
+} from "../services/optimization/evaluate.ts";
 import { getTrialDetail, listTrials } from "../services/optimization/trialStore.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
 import { searchDatasets } from "../services/optimization/holdout.ts";
@@ -49,6 +53,36 @@ export function handleListExperimentTrials(
   return { statusCode: 200, body: { total, limit, offset, trials } };
 }
 
+interface FoldContext {
+  datasets: OptimizationDataset[];
+  foldsBySymbol: Map<string, FoldSpec[]>;
+}
+
+/** Search-window datasets and folds for recomputing a candidate from the
+ * immutable snapshot; a 409 failure when stored candles have drifted. */
+function loadFoldContext(
+  db: Database,
+  experiment: OptimizationExperimentRecord,
+): FoldContext | { failure: ApiResult } {
+  let loaded: OptimizationDataset[];
+  try {
+    loaded = loadExperimentDatasets(db, experiment.config);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Failed to load experiment data.";
+    return { failure: { statusCode: 409, body: { detail } } };
+  }
+  const mismatch = snapshotMismatch(experiment.snapshot.datasets, loaded);
+  if (mismatch) {
+    return { failure: { statusCode: 409, body: { detail: mismatch } } };
+  }
+  const datasets = searchDatasets(loaded, experiment.config.holdout);
+  const foldsBySymbol = new Map<string, FoldSpec[]>();
+  for (const dataset of datasets) {
+    foldsBySymbol.set(dataset.symbol, buildFolds(dataset.candles.length, experiment.config.folds));
+  }
+  return { datasets, foldsBySymbol };
+}
+
 export function handleGetExperimentTrial(
   db: Database,
   experiment: OptimizationExperimentRecord,
@@ -64,6 +98,18 @@ export function handleGetExperimentTrial(
       statusCode: 404,
       body: { detail: `Trial ${trialIndex} was not found in experiment ${experiment.id}.` },
     };
+  }
+  if (trial.status === "scored" && trial.fold_results.length === 0 && trial.strategy) {
+    const context = loadFoldContext(db, experiment);
+    if ("failure" in context) {
+      return context.failure;
+    }
+    trial.fold_results = evaluateOnFolds(
+      trial.strategy,
+      context.datasets,
+      context.foldsBySymbol,
+      evaluationSettings(experiment.config),
+    );
   }
   return { statusCode: 200, body: trial };
 }
@@ -119,30 +165,17 @@ export function handleGetTrialEquity(
     return badRequest("Rejected trials have no candidate strategy to evaluate.");
   }
 
-  let loaded: OptimizationDataset[];
-  try {
-    loaded = loadExperimentDatasets(db, experiment.config);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : "Failed to load experiment data.";
-    return { statusCode: 409, body: { detail } };
+  const context = loadFoldContext(db, experiment);
+  if ("failure" in context) {
+    return context.failure;
   }
-  const mismatch = snapshotMismatch(experiment.snapshot.datasets, loaded);
-  if (mismatch) {
-    return { statusCode: 409, body: { detail: mismatch } };
-  }
-
-  const config = experiment.config;
-  const settings = evaluationSettings(config);
-  const datasets = searchDatasets(loaded, config.holdout);
-  const foldsBySymbol = new Map<string, FoldSpec[]>();
-  for (const dataset of datasets) {
-    foldsBySymbol.set(dataset.symbol, buildFolds(dataset.candles.length, config.folds));
-  }
+  const { datasets, foldsBySymbol } = context;
+  const settings = evaluationSettings(experiment.config);
   return {
     statusCode: 200,
     body: {
       trial_index: trialIndex,
-      initial_capital: config.initial_capital,
+      initial_capital: experiment.config.initial_capital,
       candidate: equityOnFolds(trial.strategy, datasets, foldsBySymbol, settings),
       baseline: equityOnFolds(experiment.snapshot.strategy, datasets, foldsBySymbol, settings),
     },

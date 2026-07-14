@@ -2,8 +2,8 @@ import type { OptimizeExperimentDetail } from "@/hooks/use-optimize-experiment-d
 import type { TrialFilter } from "@/lib/optimize-detail-utils";
 import { leaderboardHelp } from "@/components/optimize-section-help";
 import { OptimizeTrialRow, trialsRowGrid } from "@/components/optimize-trial-row";
-import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help-tip";
+import { SlashTabs } from "@/components/ui/slash-tabs";
 
 const filterOptions: Array<{ value: TrialFilter; label: string }> = [
   { value: "all", label: "All" },
@@ -42,21 +42,13 @@ export function OptimizeTrialsLeaderboard({ board }: { board: OptimizeExperiment
       </div>
 
       <div className="bg-muted/30 flex flex-col gap-2 rounded-md p-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-1">
-            {filterOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                size="sm"
-                variant={board.filter === option.value ? "secondary" : "ghost"}
-                className="h-6 px-2 text-xs"
-                onClick={() => board.setFilter(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+          <SlashTabs
+            options={filterOptions}
+            value={board.filter}
+            onValueChange={(value) => board.setFilter(value as TrialFilter)}
+            aria-label="Trial filter"
+          />
           <span className="text-muted-foreground text-xs">
             {board.baselineScore != null
               ? `Baseline score ${board.baselineScore.toFixed(2)} · ${board.trials.length} trials`

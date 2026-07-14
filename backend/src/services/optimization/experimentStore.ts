@@ -67,21 +67,17 @@ export function updateExperimentProgress(
   ).run(JSON.stringify(progress), id);
 }
 
+/**
+ * Existing trial rows are kept: the runner reads them as the resume checkpoint
+ * and clears them right before the resumed run starts streaming fresh rows.
+ */
 export function resetExperimentForResume(db: Database, id: number) {
-  db.exec("BEGIN");
-  try {
-    db.prepare("DELETE FROM optimization_trials WHERE experiment_id = ?").run(id);
-    db.prepare(
-      `UPDATE optimization_experiments
-       SET status = 'queued', progress = NULL, summary = NULL, error = NULL,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-    ).run(id);
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+  db.prepare(
+    `UPDATE optimization_experiments
+     SET status = 'queued', progress = NULL, summary = NULL, error = NULL,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+  ).run(id);
 }
 
 export function setExperimentHoldout(db: Database, id: number, evaluation: HoldoutEvaluation) {

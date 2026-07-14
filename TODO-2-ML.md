@@ -189,11 +189,13 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
       draft config exactly like creation, counts planned fold backtests through the halving schedule,
       times the baseline on the selected candles, and warns when the estimate exceeds the runtime cap;
       the form calls it debounced on every config change)
-- [ ] Allow pause/cancel; retain completed trials and checkpoints. Never leave a request running without
+- [x] Allow pause/cancel; retain completed trials and checkpoints. Never leave a request running without
       a visible experiment record. (cancel/resume works, cancelled and interrupted experiments keep
-      their scored trials — trials now stream to the database mid-run — and every run has an
-      experiment record; there are no mid-run checkpoints — resume restarts deterministically from
-      the snapshot)
+      their scored trials — trials stream to the database mid-run — and every run has an experiment
+      record. Those streamed rows now double as the resume checkpoint: a resumed run replays the
+      deterministic candidate sequence but reuses every persisted fold evaluation instead of
+      re-backtesting it, byte-identical to an uninterrupted run — `checkpoint.ts`, reuse count in
+      `summary.checkpoint_folds_reused`, proven in `optimization-checkpoint.test.ts`)
 
 ## 3. Validation and scoring — required before optimization
 
@@ -272,7 +274,7 @@ For an optimization experiment, the data roles should be:
       (the holdout evaluation is persisted with an audit timestamp; the result card shows a
       permanent "holdout was opened for trial N" warning and the section itself flips to the
       opened state)
-- [ ] Calculate additional research metrics:
+- [x] Calculate additional research metrics:
   - downside deviation / Sortino ratio;
   - Calmar ratio or return-to-drawdown;
   - exposure and time in market;
@@ -281,9 +283,11 @@ For an optimization experiment, the data roles should be:
   - worst-fold return and drawdown;
   - stability of nearby parameter values;
   - active rule and unique-indicator count.
-  (all computed except the parameter-stability metric, which belongs with Milestone 5's sensitivity
-  work; Sortino, Calmar, exposure, turnover, and average holding period live in `BacktestMetrics`,
-  and per-fold exposure/turnover are recorded on new trial fold results)
+  (all computed; Sortino, Calmar, exposure, turnover, and average holding period live in
+  `BacktestMetrics`, per-fold exposure/turnover are recorded on trial fold results, and the
+  parameter-stability metric — the score median/min of trials sampled within 15% of each dimension's
+  range around the best value — is computed in `stability.ts`, persisted as `summary.stability`, and
+  shown as the result card's "Parameter stability" section with robust-region/lucky-spike verdicts)
 - [x] Define a versioned default robust score. Proposed shape (exact weights need fixture-based tuning):
 
   `median validation score - drawdown penalty - instability penalty - turnover penalty - complexity penalty`
@@ -351,8 +355,10 @@ For an optimization experiment, the data roles should be:
 - [x] Generate valid seeded samples for Phase 1 random search.
 - [x] Implement cheap candidate rejection and record the reason rather than silently dropping it.
 - [x] Implement chronological folds and multi-symbol aggregation.
-- [ ] Implement scoring, constraints, successive-halving promotion, checkpointing, and cancellation.
-      (all done except checkpointing: an interrupted run restarts deterministically from its snapshot)
+- [x] Implement scoring, constraints, successive-halving promotion, checkpointing, and cancellation.
+      (checkpointing reuses the fold evaluations an interrupted run already streamed to SQLite —
+      keyed by candidate hash, symbol, and fold — while the deterministic replay guarantees the
+      resumed result is byte-identical to an uninterrupted run)
 - [x] Run CPU-heavy trials in a bounded worker-thread pool so HTTP requests and the UI remain responsive.
       (one worker thread per experiment, experiments run sequentially)
 - [ ] Default worker count conservatively and allow the user to lower it; optimization must not consume
@@ -367,9 +373,12 @@ For an optimization experiment, the data roles should be:
       finished trial is upserted to SQLite the moment the worker reports it, so a crash or restart
       keeps completed work; the final pass fills in leaderboard ranks. No equity curves are persisted
       for any trial)
-- [ ] Persist full detail only for promoted/top candidates and recompute a selected candidate on demand
-      from its immutable snapshot when appropriate. (currently the strategy JSON and fold results are
-      stored for every non-rejected trial)
+- [x] Persist full detail only for promoted/top candidates and recompute a selected candidate on demand
+      from its immutable snapshot when appropriate. (per-fold results are kept for the top 10 ranked
+      trials and for partially evaluated pruned trials, which cannot be recomputed faithfully; other
+      scored trials store summary metrics only and the trial-detail endpoint recomputes their folds on
+      demand from the snapshot, with a 409 when stored candles drifted. Strategy JSON stays for every
+      non-rejected trial because evolution candidates cannot be rebuilt from sampled values)
 - [x] Benchmark and profile signal evaluation before adding dependencies or a second language/runtime.
       (`npm run bench` measures 56–149 fold backtests/second single-threaded on representative 1d/1h
       workloads — a maximum 500-trial experiment finishes in minutes, far inside the runtime cap, so
@@ -420,19 +429,20 @@ The frontend must be a client of the same API; no optimization logic should exis
 - [x] Build an Optimize landing page with experiment history and a **New experiment** action. (the
       experiment history list with cancel/resume/delete and progress polling is done; the "new
       experiment" action is a single flat form rather than the guided multi-step wizard below)
-- [ ] Build a guided experiment form:
+- [x] Build a guided experiment form:
   1. choose a saved baseline strategy;
   2. choose Mode A, B, or advanced C;
   3. choose symbols, timeframe, date range, folds, and sealed holdout;
   4. mark parameters and rules as fixed/tunable/optional and set bounded ranges;
   5. choose objective, penalties, and hard constraints;
   6. choose compute preset, inspect the preflight cost estimate, and start.
-  (steps 1, 3, 4, and 6 exist on the flat form — step 4 via the collapsible "Parameters & rules"
-  section, which loads the compiled search space, offers tune/lock with catalog-bounded ranges and
-  required/optional/off per rule, pre-validates impossible configurations, and only sends
-  deviations from the defaults; step 6 via the Budget presets and the live preflight estimate with
-  the data-role timeline; still open: the explicit A/B/C mode framing and objective/penalty/
-  constraint controls)
+  (all six steps exist on the sectioned single form rather than a multi-step wizard. Step 2 is the
+  explicit "Search mode" control: A hides rule roles and never sends them, B exposes
+  required/optional/off per rule, C forces the evolution method plus the rule-library section, and
+  the Method select narrows to random/TPE. Step 5 is the collapsible "Objective & constraints"
+  section with the objective select, the four penalty weights, and the three hard constraints;
+  defaults mirror the backend, only deviations are sent, and the API now validates `scoring` with
+  structured errors instead of casting it unchecked)
 - [x] Visualize the search-space size/risk before starting, including which choices multiply the space.
       (the preflight section shows total combinations and dimension count derived from the edited
       ranges/roles, names the biggest multipliers with their cardinalities, and warns when the trial
@@ -567,26 +577,29 @@ Tasks, in order:
       scoring, data snapshots, and tests. (the parameter-stability metric is deferred to Milestone 5's
       sensitivity tooling; everything else is done)
 - [x] **Milestone 2 — Backend experiment skeleton:** types, tables, CRUD/lifecycle API, worker pool,
-      checkpoints, cancellation, and a no-op/deterministic trial fixture. (checkpoints became
-      deterministic restart-from-snapshot rather than mid-run checkpoints)
+      checkpoints, cancellation, and a no-op/deterministic trial fixture. (checkpoints are the
+      streamed trial rows themselves: resume replays deterministically from the snapshot and reuses
+      every persisted fold evaluation)
 - [x] **Milestone 3 — Useful optimizer MVP:** Mode A seeded random search, rule toggles for Mode B,
       constraints, successive halving, caching, and baseline comparisons.
-- [ ] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
+- [x] **Milestone 4 — Optimize tab MVP:** experiment setup/history/progress, leaderboard, candidate detail,
       save-as-strategy, and open-in-backtest. (setup/history/progress with cancel/resume/delete, the
       leaderboard with filters, save-as-strategy, open-in-backtest, and the whole Section 7.1 result
       view — selection, charts, sensitivity small multiples, ablation, rule inclusion, warnings,
-      candidate detail with the on-demand equity endpoint, and the finish pass — are done; still
-      open: the guided setup wizard)
-- [ ] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
-      explicit sealed-holdout workflow. (the score-vs-parameter scatter and the ablation chart ship
+      candidate detail with the on-demand equity endpoint, and the finish pass — are done; the guided
+      setup completed as a sectioned single form with the explicit A/B/C mode control and the
+      objective/penalty/constraint section, see Section 7's guided-form note)
+- [x] **Milestone 5 — Robustness tools:** sensitivity maps, inclusion frequency, ablation, Pareto view, and
+      explicit sealed-holdout workflow. (the score-vs-parameter scatter and the ablation chart shipped
       early with Section 7.1; the sealed-holdout workflow — config, sealing, one-time endpoint,
-      result-card section with confirmation, and warnings — is done, and the Pareto view shipped
-      with Section 7.1's charts; the deeper neighborhood/stability tooling stays here)
+      result-card section with confirmation, and warnings — is done, the Pareto view shipped with
+      Section 7.1's charts, and the neighborhood/stability tooling landed as the per-dimension
+      parameter-stability metric and result-card section described in Section 3)
 - [x] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
       Mode C. (TPE must match or beat random under equal budgets on the deterministic fixture; Mode C is
       complete end-to-end — seeded rule library, user approval UI, insertion points, caps, cheap
-      rejection. The broader multi-strategy/multi-ticker method comparison stays with Section 10's last
-      criterion)
+      rejection. The broader multi-strategy/multi-ticker method comparison landed with Section 10's
+      last criterion)
 - [ ] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL
       environment if the simpler, explainable system has demonstrated its limits. First deliverable:
       the meta-labeling overlay in Section 12.
@@ -614,9 +627,14 @@ Tasks, in order:
       it without mutating the baseline. (selecting a leaderboard row shows the candidate detail with
       the diff vs baseline, penalty breakdown, ineligibility reasons, fold comparison, and validation
       equity, plus save/backtest actions that never touch the baseline)
-- [ ] Under an equal evaluation budget, every smarter search method is reported against seeded random
-      search; no method is called better based on one strategy or ticker. (a TPE-vs-random equal-budget
-      fixture test exists; broader multi-strategy/multi-ticker benchmarks do not)
+- [x] Under an equal evaluation budget, every smarter search method is reported against seeded random
+      search; no method is called better based on one strategy or ticker.
+      (`optimization-method-comparison.test.ts` runs TPE and evolution against random under equal
+      trial budgets across a 3-dataset × 3-seed matrix — triangle, three-regime, and a two-symbol
+      basket — on both a tunable and a structurally blocked strategy, asserting only aggregate
+      claims: mean best score at least random's, and wins-or-ties in at least two thirds of cells.
+      Each smarter method loses individual regime cells, which is exactly why no single-cell claim
+      is made)
 
 ## 11. Decisions to discuss before implementation
 

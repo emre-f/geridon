@@ -39,11 +39,12 @@ export function OptimizeBudgetFields({
             value={method}
             aria-label="Search method"
             className="w-44"
+            disabled={method === "evolution"}
             onChange={(event) => onMethodChange(event.target.value as OptimizationMethod)}
           >
             <option value="random">Seeded random search</option>
             <option value="tpe">Bayesian (TPE)</option>
-            <option value="evolution">Evolution (bounded new rules)</option>
+            {method === "evolution" ? <option value="evolution">Evolution</option> : null}
           </Select>
         </Field>
         <Field label="Budget">
