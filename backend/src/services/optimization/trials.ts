@@ -1,5 +1,7 @@
 import { strategyHash } from "./canonical.ts";
+import { cheapRejectionReason } from "./cheapRejection.ts";
 import { validateCandidate } from "./searchSpace.ts";
+import { entrySignalFires } from "../signals.ts";
 import { evaluateOnFolds, type EvaluationSettings } from "./evaluate.ts";
 import { scoreTrial } from "./scoring.ts";
 import { computeComplexity } from "./strategyPaths.ts";
@@ -53,7 +55,10 @@ export function createTrial(
     return trial;
   }
   const validationError =
-    validateCandidate(strategy, factory.positionMode) ?? extraValidation?.(strategy) ?? null;
+    validateCandidate(strategy, factory.positionMode) ??
+    cheapRejectionReason(strategy) ??
+    extraValidation?.(strategy) ??
+    null;
   if (validationError) {
     trial.status = "rejected";
     trial.rejectionReason = validationError;
@@ -72,7 +77,36 @@ export interface FullEvaluationContext {
   onTrialComplete?: (trial: OptimizationTrial) => void;
 }
 
+/**
+ * One early-exit signal pass per fold window instead of full backtests; a
+ * candidate whose entry never fires anywhere can only ever score zero trades.
+ * Indicator series computed here land in the shared cache scope, so a
+ * surviving candidate's fold backtests reuse them.
+ */
+function isSignalStarved(trial: OptimizationTrial, context: FullEvaluationContext): boolean {
+  for (const dataset of context.datasets) {
+    for (const fold of context.foldsBySymbol.get(dataset.symbol) ?? []) {
+      const slice = dataset.candles.slice(fold.trainStartIndex, fold.validEndIndex + 1);
+      const shared = context.settings.cache?.scope(
+        dataset.symbol,
+        fold.trainStartIndex,
+        fold.validEndIndex,
+      );
+      if (entrySignalFires(trial.strategy, slice, shared)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvaluationContext) {
+  if (isSignalStarved(trial, context)) {
+    trial.status = "rejected";
+    trial.rejectionReason = "signal-starved: the entry condition never fires on any fold window";
+    context.onTrialComplete?.(trial);
+    return;
+  }
   trial.stageReached = context.finalStage;
   trial.foldResults = evaluateOnFolds(
     trial.strategy,

@@ -1,6 +1,7 @@
 import type { Database } from "../db.ts";
 import { catalogByKind } from "../services/indicatorCatalog.ts";
 import { compileSearchSpace } from "../services/optimization/searchSpace.ts";
+import { describeRuleLabel } from "../services/optimization/ruleLabels.ts";
 import {
   collectRules,
   describeRule,
@@ -58,6 +59,7 @@ export function handleGetSearchSpacePreview(
       id: pathId(path),
       side: path[0] as "entry" | "exit" | "cash",
       summary: describeRule(rule),
+      label: describeRuleLabel(rule),
       enabled: rule.enabled !== false,
     })),
     nodes: nodes.map((node) => ({ ...node, ...hardBounds(strategy, node) })),

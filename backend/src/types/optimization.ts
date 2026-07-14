@@ -158,6 +158,7 @@ export interface EvolutionSearchConfig {
   maxNewRulesPerSide: number;
   maxActiveRulesPerSide: number;
   maxUniqueIndicatorsPerSide: number;
+  maxTreeDepth: number;
 }
 
 export interface IndicatorCacheConfig {

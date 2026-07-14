@@ -1,5 +1,5 @@
 import { applyValues, sampleNumeric, snapToStep } from "./sampler.ts";
-import { collectRules, getAtPath, pathId, setAtPath } from "./strategyPaths.ts";
+import { collectRules, conditionDepth, getAtPath, pathId, setAtPath } from "./strategyPaths.ts";
 import { pruneDisabledConditions } from "../signals.ts";
 import { comparisonOperators } from "../strategyValidationHelpers.ts";
 import type { SeededRandom } from "./random.ts";
@@ -190,6 +190,22 @@ function uniqueIndicatorCount(condition: StrategyCondition): number {
   return keys.size;
 }
 
+/** Per-side complexity maxima of the baseline, so default caps never exclude it. */
+export function sideComplexityCeiling(strategy: Strategy) {
+  const ceiling = { activeRules: 0, uniqueIndicators: 0, depth: 0 };
+  for (const side of ["entry", "exit", "cash"] as const) {
+    const condition = strategy[side];
+    const pruned = condition ? pruneDisabledConditions(condition) : null;
+    if (!pruned) {
+      continue;
+    }
+    ceiling.activeRules = Math.max(ceiling.activeRules, countRules(pruned));
+    ceiling.uniqueIndicators = Math.max(ceiling.uniqueIndicators, uniqueIndicatorCount(pruned));
+    ceiling.depth = Math.max(ceiling.depth, conditionDepth(pruned));
+  }
+  return ceiling;
+}
+
 export function validateCaps(strategy: Strategy, config: EvolutionSearchConfig): string | null {
   for (const side of ["entry", "exit", "cash"] as const) {
     const condition = strategy[side];
@@ -204,6 +220,10 @@ export function validateCaps(strategy: Strategy, config: EvolutionSearchConfig):
     const indicators = uniqueIndicatorCount(pruned);
     if (indicators > config.maxUniqueIndicatorsPerSide) {
       return `${side}: ${indicators} unique indicators exceeds the cap of ${config.maxUniqueIndicatorsPerSide}`;
+    }
+    const depth = conditionDepth(pruned);
+    if (depth > config.maxTreeDepth) {
+      return `${side}: tree depth ${depth} exceeds the cap of ${config.maxTreeDepth}`;
     }
   }
   return null;

@@ -43,6 +43,7 @@ export function OptimizeBudgetFields({
           >
             <option value="random">Seeded random search</option>
             <option value="tpe">Bayesian (TPE)</option>
+            <option value="evolution">Evolution (bounded new rules)</option>
           </Select>
         </Field>
         <Field label="Budget">

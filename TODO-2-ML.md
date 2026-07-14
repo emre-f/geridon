@@ -138,24 +138,40 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 
 ### Mode C — Explore bounded new rules (advanced)
 
-- [ ] The user supplies or approves a finite candidate-rule library rather than allowing every possible
-      indicator/operator/value combination.
-- [ ] Seed the library with templates such as:
+- [x] The user supplies or approves a finite candidate-rule library rather than allowing every possible
+      indicator/operator/value combination. (the Evolution method's "Candidate rule library" section in
+      the experiment form starts with nothing approved; `evolution.ruleLibrary` is validated at the API —
+      catalog-valid single rules, no degenerate rules, no duplicates, at most 24 — instead of being cast
+      unchecked)
+- [x] Seed the library with templates such as:
   - indicator crosses another compatible indicator/output;
   - oscillator crosses or compares with one of a small set of thresholds;
   - price crosses a moving average/band;
   - relative volume or volatility acts as a confirmation/filter.
-- [ ] Let the optimizer enable, disable, or insert candidates only at user-approved locations/groups.
-- [ ] Require explicit caps, initially suggested as:
+  (`GET /api/v1/optimization-experiments/rule-library?strategy_id=N` serves ~19 curated rules across
+  trend-cross, price-vs-MA, oscillator-threshold, band-touch, and volume-filter templates, minus any
+  rule the strategy already contains, plus the strategy's approvable insertion points and cap bounds)
+- [x] Let the optimizer enable, disable, or insert candidates only at user-approved locations/groups.
+      (insertion points are validated against the strategy — enabled and/or groups only — and the form
+      exposes them as checkboxes; the engine already refused to insert anywhere else)
+- [x] Require explicit caps, initially suggested as:
   - at most 2 newly added rules per entry/exit/cash side;
   - at most 6 active rules per side;
   - at most 4 unique indicator configurations per side;
   - tree depth at most 3;
   - a small threshold menu or bounded threshold range per oscillator.
-- [ ] Reject duplicate, contradictory, always-true/always-false, invalid, or signal-starved candidates
-      before spending a full backtest on them.
-- [ ] Keep `and`/`or`/`not` tree rewrites out of the first structural-search release; begin with optional
-      rules inside existing groups and user-approved insertion points.
+  (these are the defaults — a new `maxTreeDepth` cap joined the existing three — editable in the form
+  within hard API bounds; defaults never exclude the baseline itself, and a baseline that violates
+  explicitly lowered caps is a structured 400. Oscillator templates use a fixed threshold menu)
+- [x] Reject duplicate, contradictory, always-true/always-false, invalid, or signal-starved candidates
+      before spending a full backtest on them. (duplicates by canonical hash as before; `cheapRejection.ts`
+      structurally rejects self-comparisons, duplicate rules in one group, and impossible threshold/cross
+      combinations in `and` groups for every method; full-evaluation methods also probe entry signals
+      fold-by-fold with early exit and reject candidates whose entry never fires, before any backtest)
+- [x] Keep `and`/`or`/`not` tree rewrites out of the first structural-search release; begin with optional
+      rules inside existing groups and user-approved insertion points. (holds by construction: mutations
+      only toggle rules, nudge values, change operators/`at_least` counts, or append approved library
+      rules to approved groups; no operator rewrites or regrouping exist)
 
 ### Search-budget presets
 
@@ -566,10 +582,14 @@ Tasks, in order:
       early with Section 7.1; the sealed-holdout workflow — config, sealing, one-time endpoint,
       result-card section with confirmation, and warnings — is done, and the Pareto view shipped
       with Section 7.1's charts; the deeper neighborhood/stability tooling stays here)
-- [ ] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
-      Mode C.
+- [x] **Milestone 6 — Smarter search:** TPE benchmarked against random search, then bounded evolutionary
+      Mode C. (TPE must match or beat random under equal budgets on the deterministic fixture; Mode C is
+      complete end-to-end — seeded rule library, user approval UI, insertion points, caps, cheap
+      rejection. The broader multi-strategy/multi-ticker method comparison stays with Section 10's last
+      criterion)
 - [ ] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL
-      environment if the simpler, explainable system has demonstrated its limits.
+      environment if the simpler, explainable system has demonstrated its limits. First deliverable:
+      the meta-labeling overlay in Section 12.
 
 ## 10. MVP completion criteria
 
@@ -615,3 +635,40 @@ Tasks, in order:
 - [ ] Calibrate Quick/Standard/Thorough budgets on the actual machine and representative stored data.
 - [ ] Decide whether Phase 2 TPE should remain dependency-light in TypeScript or use a separately managed
       Python worker only if the measured benefit justifies the operational cost.
+
+## 12. Meta-labeling overlay (Milestone 7, first deliverable)
+
+A supervised model that filters and sizes an existing strategy's trades instead of predicting the
+market. The saved strategy stays the primary model (direction + timing); a walk-forward classifier
+learns "given this trigger and this market context, did the trade work" and outputs a probability
+used to take, skip, or shrink each trade. It can only remove or shrink bad trades relative to the
+baseline, is evaluated with the exact same folds/holdout/cost harness as optimization experiments,
+and never mutates the strategy itself.
+
+- [ ] **Trade-event dataset builder**: run the baseline strategy over the search window and emit one
+      row per entry trigger with entry/exit timestamps and net PnL after configured costs; the label
+      is binary (trade cleared costs) with the label horizon recorded per row.
+- [ ] **Feature matrix at trigger time**: reuse the indicator engine for features (oscillator levels,
+      trend slope, volatility, relative volume, position of price vs bands) computed only from candles
+      at or before the trigger; store a versioned feature-set id so old models stay interpretable.
+- [ ] **Walk-forward training loop**: train per fold on past triggers only, with embargo sized from the
+      label horizon; fit preprocessing (scaling, feature selection) on the training portion only and
+      apply it frozen to validation (closes Section 3's open preprocessing checkbox for this track).
+- [ ] **Model choice + dependency decision**: start with calibrated logistic regression in TypeScript;
+      add small gradient-boosted trees only if a fixture benchmark shows a real gain, and only then
+      revisit the TypeScript-vs-Python-worker question from Section 11.
+- [ ] **Probability calibration and trade policy**: calibrate predicted probabilities, then a simple
+      policy — take above a threshold, skip below, optional linear sizing between; the threshold is a
+      searched/validated value, not hand-picked from test data.
+- [ ] **Guardrails**: refuse or warn when there are too few triggers to learn from (hundreds, not
+      dozens), when classes are extremely imbalanced, or when a fold has near-zero triggers; the
+      sealed holdout follows the existing one-open rule.
+- [ ] **Evaluation vs honest baselines**: score the filtered strategy with the existing robust score
+      and compare against the unfiltered baseline, a take-everything policy, and a random-skip policy
+      at the same skip rate; report per-fold precision/recall and trades kept vs skipped.
+- [ ] **Persistence and reproducibility**: store the model coefficients/artifact, feature-set version,
+      label definition, calibration, threshold, and seed on the experiment record so a saved overlay
+      reproduces exactly.
+- [ ] **UI**: a Meta-label section/method in the Optimize tab showing kept-vs-skipped trades, the
+      score delta vs baseline, per-fold evidence, and a clear "overlay on strategy X" framing; saving
+      produces a strategy + overlay pair, never a mutated strategy.

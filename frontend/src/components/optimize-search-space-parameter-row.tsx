@@ -20,7 +20,7 @@ export function OptimizeSearchSpaceParameterRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2 py-0.5">
-      <span className="w-32 truncate text-xs" title={nodeLabel(node)}>
+      <span className="w-24 truncate text-xs" title={nodeLabel(node)}>
         {paramName}
       </span>
       <span className="text-muted-foreground w-16 text-xs">now {node.current}</span>

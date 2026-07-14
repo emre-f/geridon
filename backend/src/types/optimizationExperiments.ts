@@ -67,6 +67,8 @@ export interface SearchSpacePreviewRule {
   id: string;
   side: "entry" | "exit" | "cash";
   summary: string;
+  /** Human-readable form of summary; consumers fall back to summary. */
+  label?: string;
   enabled: boolean;
 }
 

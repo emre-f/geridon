@@ -18,6 +18,7 @@ import type {
   TrialStatus,
   TrialValues,
 } from "@/lib/api-optimization-types";
+import type { EvolutionSearchSettings } from "@/lib/api-optimization-rule-library-types";
 import type { StrategySnapshot } from "@/lib/api-strategy-types";
 
 /** Seals the last `fraction` of each symbol's candles from search and validation. */
@@ -45,12 +46,15 @@ export interface OptimizationExperimentConfig {
   scoring?: Partial<ScoringConfig>;
   rule_roles?: Record<string, RuleRole>;
   parameter_overrides?: Record<string, ParameterOverride>;
+  evolution?: EvolutionSearchSettings;
 }
 
 export interface SearchSpacePreviewRule {
   id: string;
   side: "entry" | "exit" | "cash";
   summary: string;
+  /** Human-readable form of summary; fall back to summary when absent. */
+  label?: string;
   enabled: boolean;
 }
 

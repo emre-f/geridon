@@ -173,6 +173,25 @@ export function pruneDisabledConditions(condition: StrategyCondition): StrategyC
   return { ...condition, conditions };
 }
 
+/** Early-exit probe used to reject signal-starved candidates before backtesting. */
+export function entrySignalFires(
+  strategy: Strategy,
+  candles: Candle[],
+  shared?: SharedSeriesScope,
+): boolean {
+  const entry = pruneDisabledConditions(strategy.entry);
+  if (!entry) {
+    return false;
+  }
+  const context: SeriesContext = { candles, cache: new Map(), shared };
+  for (let index = 0; index < candles.length; index += 1) {
+    if (evaluateCondition(entry, context, index)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function evaluateSignals(
   strategy: Strategy,
   candles: Candle[],

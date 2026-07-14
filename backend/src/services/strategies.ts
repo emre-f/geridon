@@ -137,6 +137,20 @@ function validateCondition(
   return null;
 }
 
+/** Validates one standalone rule, e.g. an entry in an evolution rule library. */
+export function validateRule(
+  raw: unknown,
+  path: string,
+): { rule: StrategyCondition | null; errors: StrategyValidationIssue[] } {
+  const context: ValidationContext = { errors: [], rules: 0 };
+  const condition = validateCondition(raw, path, 1, context);
+  if (condition != null && condition.type !== "rule") {
+    issue(context, path, "Must be a single rule, not a group.");
+    return { rule: null, errors: context.errors };
+  }
+  return { rule: condition, errors: context.errors };
+}
+
 export function validateStrategy(raw: unknown): {
   strategy: Strategy | null;
   errors: StrategyValidationIssue[];

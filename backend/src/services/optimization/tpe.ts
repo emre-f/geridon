@@ -195,7 +195,10 @@ export function runTpeSearch(
     }
 
     evaluateTrialFully(trial, context.evaluation);
-    sampler.observe(values, trial.score!.score);
+    if (trial.status !== "scored" || trial.score == null) {
+      continue;
+    }
+    sampler.observe(values, trial.score.score);
     evaluated += 1;
   }
 

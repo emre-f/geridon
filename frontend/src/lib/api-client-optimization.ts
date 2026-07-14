@@ -8,6 +8,7 @@ import type {
   OptimizationExperimentStatus,
   OptimizationTrialDetail,
   OptimizationTrialRecord,
+  RuleLibraryResponse,
   SearchSpacePreview,
   TrialEquityResponse,
 } from "@/lib/api-types";
@@ -50,6 +51,10 @@ export function listOptimizationExperiments(options?: {
 
 export function getOptimizationSearchSpace(strategyId: number) {
   return fetchJson<SearchSpacePreview>(`${basePath}/search-space?strategy_id=${strategyId}`);
+}
+
+export function getOptimizationRuleLibrary(strategyId: number) {
+  return fetchJson<RuleLibraryResponse>(`${basePath}/rule-library?strategy_id=${strategyId}`);
 }
 
 export function preflightOptimizationExperiment(config: CreateOptimizationExperimentInput) {

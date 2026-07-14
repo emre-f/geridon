@@ -9,6 +9,7 @@ import { OptimizeSearchSpaceParameterRow } from "@/components/optimize-search-sp
 import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Select } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 type SearchSpaceHook = ReturnType<typeof useOptimizeSearchSpace>;
 
@@ -28,7 +29,7 @@ function RuleGroup({
   const showParameters = expanded && !off && group.nodes.length > 0;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex min-w-0 flex-col">
       <div className="flex items-center gap-2 py-0.5">
         <button
           type="button"
@@ -49,7 +50,9 @@ function RuleGroup({
             <Badge variant="outline" className="w-14 justify-center">
               {rule.side}
             </Badge>
-            <code className="min-w-0 flex-1 truncate font-mono text-xs">{rule.summary}</code>
+            <span className="min-w-0 flex-1 truncate text-xs" title={rule.summary}>
+              {rule.label ?? rule.summary}
+            </span>
             <span className="text-muted-foreground shrink-0 text-xs">
               {off
                 ? "removed from search"
@@ -89,13 +92,12 @@ function RuleGroup({
 }
 
 /**
- * Collapsible Mode A/B controls for the new-experiment form: per-rule
- * required/optional/off roles with each rule's tunable parameters grouped
- * beneath it. Defaults need no editing: every rule stays required and every
- * parameter is tuned over a conservative range around its current value.
+ * Mode A/B controls for the new-experiment form: per-rule required/optional/off
+ * roles with each rule's tunable parameters grouped beneath it. Defaults need
+ * no editing: every rule stays required and every parameter is tuned over a
+ * conservative range around its current value.
  */
 export function OptimizeSearchSpaceEditor({ searchSpace }: { searchSpace: SearchSpaceHook }) {
-  const [open, setOpen] = useState(false);
   const { preview, edits, loading, error, issue, summary } = searchSpace;
 
   const headerNote = loading
@@ -105,37 +107,24 @@ export function OptimizeSearchSpaceEditor({ searchSpace }: { searchSpace: Search
       : summary;
 
   return (
-    <section className="rounded-md border">
-      <button
-        type="button"
-        aria-expanded={open}
-        className="hover:bg-muted/50 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm"
-        onClick={() => setOpen((previous) => !previous)}
-      >
-        {open ? (
-          <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
-        ) : (
-          <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
-        )}
-        <span className="font-medium">Parameters &amp; rules</span>
+    <section className="flex flex-col gap-2">
+      <Separator />
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-medium">Parameters &amp; rules</h3>
+        <HelpTip ariaLabel="How rule roles and parameter ranges work">{searchSpaceHelp}</HelpTip>
         <span className="text-muted-foreground ml-auto min-w-0 truncate text-xs">{headerNote}</span>
-      </button>
+      </div>
 
-      {open && preview && edits ? (
-        <div className="flex flex-col gap-2 border-t px-3 pt-3 pb-3">
-          <div className="flex items-center gap-2">
-            <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              Rules
-            </h4>
-            <HelpTip ariaLabel="How rule roles and parameter ranges work">
-              {searchSpaceHelp}
-            </HelpTip>
+      {preview && edits ? (
+        <>
+          <div className="relative grid gap-x-12 gap-y-0.5 lg:grid-cols-2">
+            <div className="bg-border absolute inset-y-0 left-1/2 hidden w-px lg:block" aria-hidden />
+            {ruleParameterGroups(preview).map((group) => (
+              <RuleGroup key={group.rule?.id ?? "strategy"} group={group} searchSpace={searchSpace} />
+            ))}
           </div>
-          {ruleParameterGroups(preview).map((group) => (
-            <RuleGroup key={group.rule?.id ?? "strategy"} group={group} searchSpace={searchSpace} />
-          ))}
           {issue ? <p className="text-destructive text-xs">{issue}</p> : null}
-        </div>
+        </>
       ) : null}
     </section>
   );

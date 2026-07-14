@@ -199,3 +199,28 @@ export const searchSpaceHelp = (
     </p>
   </Help>
 );
+
+export const ruleLibraryHelp = (
+  <Help>
+    <p>
+      <strong>Bounded exploration:</strong> the search may insert rules from this library into the
+      groups you approve, never anywhere else. Nothing is added unless you approve it here.
+    </p>
+    <HelpList>
+      <li>
+        <strong>Library:</strong> curated templates such as crosses, oscillator thresholds, and
+        volume filters
+      </li>
+      <li>
+        <strong>Insertion points:</strong> the and/or groups where an approved rule may be tried
+      </li>
+      <li>
+        <strong>Caps:</strong> hard limits on added rules, active rules, indicators, and tree depth
+      </li>
+    </HelpList>
+    <p>
+      Candidates that are duplicates, contradictory, or never fire are rejected before spending a
+      backtest. Every added rule still pays the complexity penalty, so it must earn its place.
+    </p>
+  </Help>
+);

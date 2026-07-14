@@ -14,6 +14,7 @@ import {
 } from "./optimizationExperiments.ts";
 import { handleOpenTrialHoldout } from "./optimizationHoldout.ts";
 import { handlePreflightExperiment } from "./optimizationPreflight.ts";
+import { handleGetRuleLibrary } from "./optimizationRuleLibrary.ts";
 import { handleGetSearchSpacePreview } from "./optimizationSearchSpace.ts";
 import {
   handleGetExperimentTrial,
@@ -49,6 +50,10 @@ export async function routeOptimizationExperiments(
 
   if (pathname === `${basePath}/search-space` && method === "GET") {
     return handleGetSearchSpacePreview(db, url.searchParams.get("strategy_id"));
+  }
+
+  if (pathname === `${basePath}/rule-library` && method === "GET") {
+    return handleGetRuleLibrary(db, url.searchParams.get("strategy_id"));
   }
 
   if (pathname === `${basePath}/preflight` && method === "POST") {

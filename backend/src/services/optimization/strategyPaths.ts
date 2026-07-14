@@ -109,7 +109,7 @@ function activeIndicatorOperands(condition: StrategyCondition): IndicatorOperand
   return operands;
 }
 
-function conditionDepth(condition: StrategyCondition): number {
+export function conditionDepth(condition: StrategyCondition): number {
   if (condition.type === "rule") {
     return 1;
   }

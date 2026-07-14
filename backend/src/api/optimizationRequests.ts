@@ -6,6 +6,7 @@ import type {
   HoldoutConfig,
   OptimizationExperimentConfig,
 } from "../types.ts";
+import { parseEvolutionConfig } from "./optimizationEvolutionInputs.ts";
 import { parseParameterOverrides, parseRuleRoles } from "./optimizationSearchInputs.ts";
 import { parseTradeCosts, validateTicker } from "./shared.ts";
 
@@ -195,6 +196,14 @@ export function parseExperimentRequest(
     }
   }
 
+  if (body.evolution != null && method !== "evolution") {
+    return { error: "evolution settings require method to be evolution." };
+  }
+  const evolution = parseEvolutionConfig(body.evolution);
+  if ("error" in evolution) {
+    return { error: evolution.error };
+  }
+
   const ruleRoles = parseRuleRoles(body.rule_roles);
   if ("error" in ruleRoles) {
     return { error: ruleRoles.error };
@@ -229,9 +238,7 @@ export function parseExperimentRequest(
       ? { refinement: body.refinement as OptimizationExperimentConfig["refinement"] }
       : {}),
     ...(body.tpe ? { tpe: body.tpe as OptimizationExperimentConfig["tpe"] } : {}),
-    ...(body.evolution
-      ? { evolution: body.evolution as OptimizationExperimentConfig["evolution"] }
-      : {}),
+    ...(evolution.evolution ? { evolution: evolution.evolution } : {}),
   };
   return { config };
 }

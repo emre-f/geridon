@@ -9,6 +9,7 @@ import {
 } from "@/lib/optimize-preflight-utils";
 import { OptimizeExperimentWarnings } from "@/components/optimize-experiment-warnings";
 import { OptimizeTimelinePreview } from "@/components/optimize-timeline-preview";
+import { Separator } from "@/components/ui/separator";
 
 function spaceSummary(size: SearchSpaceSize): string {
   const count = size.dimensions.length;
@@ -66,6 +67,7 @@ export function OptimizePreflightPanel({
 
   return (
     <section className="flex flex-col gap-2" aria-label="Preflight estimate">
+      <Separator />
       <h4 className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
         Preflight
         {loading ? <RefreshCwIcon className="size-3 animate-spin" aria-label="Estimating" /> : null}

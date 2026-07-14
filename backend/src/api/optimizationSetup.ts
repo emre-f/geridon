@@ -1,4 +1,6 @@
 import type { Database } from "../db.ts";
+import { isInsertableGroup, resolveEvolutionConfig } from "../services/optimization/evolution.ts";
+import { validateCaps } from "../services/optimization/evolutionGenome.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
 import { searchDatasets, validateHoldoutSize } from "../services/optimization/holdout.ts";
 import { compileSearchSpace } from "../services/optimization/searchSpace.ts";
@@ -47,6 +49,23 @@ export function prepareExperimentInputs(
   const strategy = JSON.parse(String(strategyRow.definition)) as Strategy;
   if (config.position_mode === "three_state" && strategy.cash == null) {
     return { failure: badRequest("three_state needs a strategy that defines a go-to-cash tree.") };
+  }
+  if (config.method === "evolution" && config.evolution) {
+    for (const point of config.evolution.insertionPoints ?? []) {
+      if (!isInsertableGroup(strategy, point)) {
+        return {
+          failure: badRequest(
+            `evolution.insertionPoints: "${point}" is not an enabled and/or group in the strategy.`,
+          ),
+        };
+      }
+    }
+    const capError = validateCaps(strategy, resolveEvolutionConfig(config.evolution, strategy));
+    if (capError) {
+      return {
+        failure: badRequest(`The baseline strategy already exceeds the evolution caps (${capError}).`),
+      };
+    }
   }
 
   try {

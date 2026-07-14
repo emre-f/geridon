@@ -2,6 +2,7 @@ import {
   identityGenome,
   materializeGenome,
   mutateGenome,
+  sideComplexityCeiling,
   validateCaps,
   type EvolutionGenome,
 } from "./evolutionGenome.ts";
@@ -15,16 +16,26 @@ import type {
   Strategy,
 } from "../../types.ts";
 
-const defaultEvolutionConfig: Omit<EvolutionSearchConfig, "insertionPoints"> = {
-  populationSize: 12,
-  eliteCount: 4,
-  ruleLibrary: [],
+/** The plan's suggested caps; applied when the user does not set explicit ones. */
+export const evolutionCapDefaults = {
   maxNewRulesPerSide: 2,
   maxActiveRulesPerSide: 6,
   maxUniqueIndicatorsPerSide: 4,
+  maxTreeDepth: 3,
 };
 
-function isInsertableGroup(strategy: Strategy, pointId: string): boolean {
+/** Hard ceilings for user-supplied evolution settings. */
+export const evolutionLimits = {
+  maxRuleLibrary: 24,
+  maxInsertionPoints: 12,
+  maxNewRulesPerSide: 4,
+  maxActiveRulesPerSide: 12,
+  maxUniqueIndicatorsPerSide: 8,
+  maxTreeDepth: 7,
+  maxPopulation: 64,
+};
+
+export function isInsertableGroup(strategy: Strategy, pointId: string): boolean {
   let node: unknown = strategy;
   for (const segment of pointId.split(".")) {
     if (node == null || typeof node !== "object") {
@@ -32,8 +43,29 @@ function isInsertableGroup(strategy: Strategy, pointId: string): boolean {
     }
     node = (node as Record<string, unknown>)[segment];
   }
-  const group = node as { type?: string; operator?: string } | undefined;
-  return group?.type === "group" && (group.operator === "and" || group.operator === "or");
+  const group = node as { type?: string; operator?: string; enabled?: boolean } | undefined;
+  return (
+    group?.type === "group" &&
+    (group.operator === "and" || group.operator === "or") &&
+    group.enabled !== false
+  );
+}
+
+/** Suggested caps raised where needed so they never exclude the baseline itself. */
+export function baselineEvolutionCaps(strategy: Strategy) {
+  const ceiling = sideComplexityCeiling(strategy);
+  return {
+    maxNewRulesPerSide: evolutionCapDefaults.maxNewRulesPerSide,
+    maxActiveRulesPerSide: Math.max(
+      evolutionCapDefaults.maxActiveRulesPerSide,
+      ceiling.activeRules,
+    ),
+    maxUniqueIndicatorsPerSide: Math.max(
+      evolutionCapDefaults.maxUniqueIndicatorsPerSide,
+      ceiling.uniqueIndicators,
+    ),
+    maxTreeDepth: Math.max(evolutionCapDefaults.maxTreeDepth, ceiling.depth),
+  };
 }
 
 export function resolveEvolutionConfig(
@@ -43,7 +75,14 @@ export function resolveEvolutionConfig(
   const requested =
     partial?.insertionPoints ?? (["entry", "exit", "cash"] as const).map(String);
   const insertionPoints = requested.filter((pointId) => isInsertableGroup(strategy, pointId));
-  return { ...defaultEvolutionConfig, ...partial, insertionPoints };
+  return {
+    populationSize: 12,
+    eliteCount: 4,
+    ruleLibrary: [],
+    ...baselineEvolutionCaps(strategy),
+    ...partial,
+    insertionPoints,
+  };
 }
 
 export interface EvolutionSearchContext {
@@ -97,6 +136,9 @@ export function runEvolutionSearch(
     }
 
     evaluateTrialFully(trial, evaluation);
+    if (trial.status !== "scored") {
+      continue;
+    }
     evaluated += 1;
     population.push({ trial, genome });
   }
