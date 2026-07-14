@@ -11,6 +11,7 @@ import type {
   OptimizationObjective,
   Strategy,
   TradeCosts,
+  TrialSizing,
 } from "../../types.ts";
 
 export interface EvaluationSettings {
@@ -22,6 +23,21 @@ export interface EvaluationSettings {
   objective: OptimizationObjective;
   cache?: IndicatorSeriesCache;
   checkpoint?: FoldCheckpoint;
+}
+
+/** Evaluation settings with one candidate's sampled sizing applied. */
+export function withSizing(
+  settings: EvaluationSettings,
+  sizing?: TrialSizing,
+): EvaluationSettings {
+  if (!sizing || (sizing.buyPercent == null && sizing.sellPercent == null)) {
+    return settings;
+  }
+  return {
+    ...settings,
+    buyPercent: sizing.buyPercent ?? settings.buyPercent,
+    sellPercent: sizing.sellPercent ?? settings.sellPercent,
+  };
 }
 
 export function objectiveFromMetrics(

@@ -40,7 +40,7 @@ test("an experiment runs to completion and persists ranked trials", async () => 
   assert.notEqual(experiment.summary.best_trial_index, null);
   assert.equal(experiment.snapshot.datasets[0].candle_count, 400);
   assert.equal(experiment.snapshot.catalog_version, 1);
-  assert.equal(experiment.snapshot.search_space_version, 1);
+  assert.equal(experiment.snapshot.search_space_version, 2);
   assert.deepEqual(experiment.config.scoring, {
     objective: "total_return",
     constraints: { minTotalTrades: 2, maxDrawdownPct: 90, minPositiveFoldFraction: 0.5 },

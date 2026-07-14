@@ -4,11 +4,13 @@ import { getOptimizationSearchSpace, type RuleRole, type SearchSpacePreview } fr
 import {
   buildParameterOverrides,
   buildRuleRoles,
+  buildStructureSearch,
   editsIssue,
   editsSummary,
   initialEdits,
   type ParameterEdit,
   type SearchSpaceEdits,
+  type SizingEdit,
 } from "@/lib/optimize-search-space-utils";
 
 interface SearchSpaceState {
@@ -74,11 +76,18 @@ export function useOptimizeSearchSpace(strategyId: number | null) {
 
   const derived = useMemo(() => {
     if (!preview || !edits) {
-      return { ruleRoles: undefined, parameterOverrides: undefined, issue: null, summary: "" };
+      return {
+        ruleRoles: undefined,
+        parameterOverrides: undefined,
+        structureSearch: undefined,
+        issue: null,
+        summary: "",
+      };
     }
     return {
       ruleRoles: buildRuleRoles(edits),
       parameterOverrides: buildParameterOverrides(preview, edits),
+      structureSearch: buildStructureSearch(edits),
       issue: editsIssue(preview, edits),
       summary: editsSummary(preview, edits),
     };
@@ -100,6 +109,50 @@ export function useOptimizeSearchSpace(strategyId: number | null) {
                 roles: Object.fromEntries(
                   Object.keys(previous.edits.roles).map((ruleId) => [ruleId, "required" as RuleRole]),
                 ),
+                operators: Object.fromEntries(
+                  Object.keys(previous.edits.operators).map((ruleId) => [ruleId, false]),
+                ),
+                atLeast: Object.fromEntries(
+                  Object.keys(previous.edits.atLeast).map((groupId) => [groupId, false]),
+                ),
+              },
+            }
+          : previous,
+      ),
+    setSizing: (nodeId: string, patch: Partial<SizingEdit>) =>
+      setState((previous) => {
+        const edit = previous.edits?.sizing[nodeId];
+        if (!previous.edits || !edit) {
+          return previous;
+        }
+        return {
+          ...previous,
+          edits: {
+            ...previous.edits,
+            sizing: { ...previous.edits.sizing, [nodeId]: { ...edit, ...patch } },
+          },
+        };
+      }),
+    setOperatorSearch: (ruleId: string, searched: boolean) =>
+      setState((previous) =>
+        previous.edits && ruleId in previous.edits.operators
+          ? {
+              ...previous,
+              edits: {
+                ...previous.edits,
+                operators: { ...previous.edits.operators, [ruleId]: searched },
+              },
+            }
+          : previous,
+      ),
+    setAtLeastSearch: (groupId: string, searched: boolean) =>
+      setState((previous) =>
+        previous.edits && groupId in previous.edits.atLeast
+          ? {
+              ...previous,
+              edits: {
+                ...previous.edits,
+                atLeast: { ...previous.edits.atLeast, [groupId]: searched },
               },
             }
           : previous,

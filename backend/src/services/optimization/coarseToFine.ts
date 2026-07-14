@@ -1,5 +1,6 @@
 import type {
   NumericSearchNode,
+  OperatorSearchNode,
   OptimizationTrial,
   RefinementConfig,
   SearchSpaceNode,
@@ -72,6 +73,16 @@ export function refineSearchSpace(
 
     if (node.kind === "categorical") {
       const seen = [...new Set(values as number[])];
+      if (seen.length > 1) {
+        refined.push({ ...node, choices: seen });
+      } else {
+        frozenValues[node.id] = seen[0];
+      }
+      continue;
+    }
+
+    if (node.kind === "operator") {
+      const seen = [...new Set(values as OperatorSearchNode["choices"])];
       if (seen.length > 1) {
         refined.push({ ...node, choices: seen });
       } else {

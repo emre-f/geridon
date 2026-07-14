@@ -51,7 +51,10 @@ test("search-space preview lists rules and nodes with catalog bounds", () => {
   const db = makeDb();
   const strategyId = insertMacdStrategy(db);
 
-  const result = handleGetSearchSpacePreview(db, String(strategyId));
+  const result = handleGetSearchSpacePreview(
+    db,
+    new URLSearchParams({ strategy_id: String(strategyId) }),
+  );
   assert.equal(result.statusCode, 200);
   const preview = result.body as SearchSpacePreview;
 
@@ -78,9 +81,11 @@ test("search-space preview lists rules and nodes with catalog bounds", () => {
 
 test("search-space preview validates the strategy id", () => {
   const db = makeDb();
-  assert.equal(handleGetSearchSpacePreview(db, "abc").statusCode, 400);
-  assert.equal(handleGetSearchSpacePreview(db, null).statusCode, 400);
-  assert.equal(handleGetSearchSpacePreview(db, "999").statusCode, 404);
+  const preview = (params: Record<string, string>) =>
+    handleGetSearchSpacePreview(db, new URLSearchParams(params));
+  assert.equal(preview({ strategy_id: "abc" }).statusCode, 400);
+  assert.equal(preview({}).statusCode, 400);
+  assert.equal(preview({ strategy_id: "999" }).statusCode, 404);
 });
 
 test("invalid rule roles and parameter overrides return structured errors", () => {

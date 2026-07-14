@@ -1,6 +1,10 @@
 import { catalogByKind } from "../indicatorCatalog.ts";
+import { comparisonOperators } from "../strategyValidationHelpers.ts";
+import { indicatorParameterNodes, valueThresholdNode } from "./searchSpaceNodes.ts";
+import { sizingSearchNodes, type SizingSpaceInputs } from "./sizingSpace.ts";
 import {
   cloneStrategy,
+  collectAtLeastGroups,
   collectRules,
   hasActiveRule,
   pathId,
@@ -8,117 +12,64 @@ import {
 } from "./strategyPaths.ts";
 import type {
   BacktestPositionMode,
-  CategoricalSearchNode,
-  IndicatorOperand,
   NumericSearchNode,
+  OperatorSearchNode,
   ParameterOverride,
   RuleRole,
   SearchSpaceNode,
   Strategy,
-  StrategyRule,
+  StructureSearchConfig,
   ToggleSearchNode,
 } from "../../types.ts";
+
+export { sizingFromValues, sizingHardBounds, sizingNodeIds, sizingSearchNodes } from "./sizingSpace.ts";
 
 /**
  * Bump when compilation changes the nodes produced from the same strategy
  * and overrides (range defaults, toggle rules, validation).
  */
-export const searchSpaceVersion = 1;
+export const searchSpaceVersion = 2;
 
 export interface CompiledSearchSpace {
   baseStrategy: Strategy;
   nodes: SearchSpaceNode[];
 }
 
-export interface SearchSpaceInputs {
+export interface SearchSpaceInputs extends SizingSpaceInputs {
   strategy: Strategy;
   ruleRoles?: Record<string, RuleRole>;
   parameterOverrides?: Record<string, ParameterOverride>;
+  structure?: StructureSearchConfig;
 }
 
-function roundToStep(value: number, min: number, step: number): number {
-  const snapped = min + Math.round((value - min) / step) * step;
-  return Number(snapped.toFixed(10));
-}
-
-function conservativeRange(current: number, min: number, max: number, step: number) {
-  const halfSpan = Math.max(Math.abs(current) * 0.5, step * 4);
-  const lo = Math.max(min, roundToStep(current - halfSpan, min, step));
-  const hi = Math.min(max, roundToStep(current + halfSpan, min, step));
-  if (lo >= hi) {
-    return { min, max: Math.min(max, min + step * 8) };
-  }
-  return { min: lo, max: hi };
-}
-
-function numericNode(
-  path: string[],
-  current: number,
-  min: number,
-  max: number,
-  step: number,
-  override: ParameterOverride | undefined,
-): NumericSearchNode | CategoricalSearchNode {
-  if (override?.choices && override.choices.length > 0) {
-    return { id: pathId(path), kind: "categorical", path, choices: override.choices, current };
-  }
-  const range = conservativeRange(current, min, max, step);
-  const finalMin = override?.min ?? range.min;
-  const finalMax = override?.max ?? range.max;
-  const finalStep = override?.step ?? step;
-  return {
-    id: pathId(path),
-    kind: "numeric",
-    path,
-    valueType: Number.isInteger(finalStep) && Number.isInteger(finalMin) ? "integer" : "decimal",
-    min: finalMin,
-    max: Math.max(finalMax, finalMin + finalStep),
-    step: finalStep,
-    scale: finalMin > 0 && finalMax / finalMin >= 10 ? "log" : "linear",
-    current,
-  };
-}
-
-function indicatorParameterNodes(
-  operand: IndicatorOperand,
-  operandPath: string[],
-  overrides: Record<string, ParameterOverride>,
-): SearchSpaceNode[] {
-  const implementation = catalogByKind.get(operand.kind);
-  if (!implementation) {
+function atLeastCountNodes(
+  baseStrategy: Strategy,
+  structure: StructureSearchConfig | undefined,
+): NumericSearchNode[] {
+  const requested = structure?.atLeast;
+  if (!requested || requested.length === 0) {
     return [];
   }
-  const nodes: SearchSpaceNode[] = [];
-  for (const definition of implementation.parameters) {
-    const current = operand.parameters[definition.key] ?? definition.default_value;
-    const path = [...operandPath, "parameters", definition.key];
-    const override = overrides[pathId(path)];
-    if (override?.locked) {
+  const nodes: NumericSearchNode[] = [];
+  for (const { path, group } of collectAtLeastGroups(baseStrategy)) {
+    const groupId = pathId(path);
+    if (!requested.includes(groupId) || group.enabled === false || group.conditions.length < 2) {
       continue;
     }
-    nodes.push(numericNode(path, current, definition.min, definition.max, definition.step, override));
+    const countPath = [...path, "count"];
+    nodes.push({
+      id: pathId(countPath),
+      kind: "numeric",
+      path: countPath,
+      valueType: "integer",
+      min: 1,
+      max: group.conditions.length,
+      step: 1,
+      scale: "linear",
+      current: group.count ?? group.conditions.length,
+    });
   }
   return nodes;
-}
-
-function valueThresholdNode(
-  rule: StrategyRule,
-  side: "left" | "right",
-  rulePath: string[],
-  overrides: Record<string, ParameterOverride>,
-): SearchSpaceNode | null {
-  const operand = rule[side];
-  if (operand.type !== "value") {
-    return null;
-  }
-  const path = [...rulePath, side, "value"];
-  const override = overrides[pathId(path)];
-  if (override?.locked) {
-    return null;
-  }
-  const span = Math.max(Math.abs(operand.value) * 0.5, 1);
-  const step = span >= 20 ? 1 : Number((span / 20).toPrecision(1));
-  return numericNode(path, operand.value, operand.value - span, operand.value + span, step, override);
 }
 
 export function compileSearchSpace(inputs: SearchSpaceInputs): CompiledSearchSpace {
@@ -154,7 +105,21 @@ export function compileSearchSpace(inputs: SearchSpaceInputs): CompiledSearchSpa
     if (threshold) {
       nodes.push(threshold);
     }
+    if (inputs.structure?.operators?.includes(ruleId)) {
+      const operatorPath = [...path, "operator"];
+      const operatorNode: OperatorSearchNode = {
+        id: pathId(operatorPath),
+        kind: "operator",
+        path: operatorPath,
+        choices: [...comparisonOperators],
+        current: rule.operator,
+      };
+      nodes.push(operatorNode);
+    }
   }
+
+  nodes.push(...atLeastCountNodes(baseStrategy, inputs.structure));
+  nodes.push(...sizingSearchNodes(inputs));
 
   return { baseStrategy, nodes };
 }

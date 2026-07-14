@@ -5,6 +5,7 @@ import type { SearchSpacePreview } from "@/lib/api-optimization-experiment-types
 import {
   buildParameterOverrides,
   buildRuleRoles,
+  buildStructureSearch,
   editsIssue,
   editsSummary,
   initialEdits,
@@ -48,6 +49,22 @@ function preview(): SearchSpacePreview {
         hard_max: null,
       },
     ],
+    sizing_nodes: [
+      {
+        id: "sizing.buyPercent",
+        kind: "numeric",
+        path: ["sizing", "buyPercent"],
+        valueType: "integer",
+        min: 50,
+        max: 100,
+        step: 5,
+        scale: "linear",
+        current: 100,
+        hard_min: 1,
+        hard_max: 100,
+      },
+    ],
+    at_least_groups: [{ id: "entry", size: 3, count: 2 }],
   };
 }
 
@@ -141,5 +158,63 @@ test("locking everything with no optional rules is an issue", () => {
   assert.match(editsIssue(data, edits)!, /nothing left to search/);
 
   edits.roles["entry.conditions.1"] = "optional";
+  assert.equal(editsIssue(data, edits), null);
+});
+
+test("sizing dimensions default to locked and send an override only when tuned", () => {
+  const data = preview();
+  const edits = initialEdits(data);
+  assert.deepEqual(edits.sizing, { "sizing.buyPercent": { tuned: false, min: 50, max: 100 } });
+  assert.equal(buildParameterOverrides(data, edits), undefined);
+
+  edits.sizing["sizing.buyPercent"] = { tuned: true, min: 40, max: 100 };
+  assert.deepEqual(buildParameterOverrides(data, edits), {
+    "sizing.buyPercent": { min: 40, max: 100 },
+  });
+  assert.equal(editsSummary(data, edits), "2 of 2 parameters searched · 1 sizing");
+});
+
+test("tuned sizing ranges are validated like parameter ranges", () => {
+  const data = preview();
+  const edits = initialEdits(data);
+  edits.sizing["sizing.buyPercent"] = { tuned: true, min: 90, max: 40 };
+  assert.match(editsIssue(data, edits)!, /min below max/);
+
+  edits.sizing["sizing.buyPercent"] = { tuned: true, min: 0, max: 100 };
+  assert.match(editsIssue(data, edits)!, /within 1–100/);
+
+  edits.sizing["sizing.buyPercent"] = { tuned: false, min: 0, max: 100 };
+  assert.equal(editsIssue(data, edits), null);
+});
+
+test("structure search collects only opted-in operators and at_least counts", () => {
+  const edits = initialEdits(preview());
+  assert.equal(buildStructureSearch(edits), undefined);
+
+  edits.operators["entry.conditions.0"] = true;
+  edits.atLeast.entry = true;
+  assert.deepEqual(buildStructureSearch(edits), {
+    operators: ["entry.conditions.0"],
+    at_least: ["entry"],
+  });
+
+  edits.operators["entry.conditions.0"] = false;
+  assert.deepEqual(buildStructureSearch(edits), { at_least: ["entry"] });
+  assert.equal(editsSummary(preview(), edits), "2 of 2 parameters searched · 1 at-least count");
+});
+
+test("a tuned sizing or opted-in structure dimension keeps the space non-empty", () => {
+  const data = preview();
+  const edits = initialEdits(data);
+  for (const id of Object.keys(edits.parameters)) {
+    edits.parameters[id] = { ...edits.parameters[id], locked: true };
+  }
+  assert.match(editsIssue(data, edits)!, /nothing left to search/);
+
+  edits.operators.exit = true;
+  assert.equal(editsIssue(data, edits), null);
+
+  edits.operators.exit = false;
+  edits.sizing["sizing.buyPercent"] = { tuned: true, min: 50, max: 100 };
   assert.equal(editsIssue(data, edits), null);
 });

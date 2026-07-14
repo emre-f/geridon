@@ -28,6 +28,7 @@ export function toEngineConfig(
     scoring: config.scoring,
     ruleRoles: config.rule_roles,
     parameterOverrides: config.parameter_overrides,
+    structure: config.structure_search,
     halving: config.halving,
     refinement: config.refinement,
     method: config.method,

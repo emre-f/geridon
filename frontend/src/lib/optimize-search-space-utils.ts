@@ -4,6 +4,7 @@ import type {
   RuleRole,
   SearchSpacePreview,
   SearchSpacePreviewRule,
+  StructureSearchConfig,
 } from "@/lib/api";
 
 export interface ParameterEdit {
@@ -12,9 +13,21 @@ export interface ParameterEdit {
   max: number;
 }
 
+export interface SizingEdit {
+  tuned: boolean;
+  min: number;
+  max: number;
+}
+
 export interface SearchSpaceEdits {
   roles: Record<string, RuleRole>;
   parameters: Record<string, ParameterEdit>;
+  /** Opt-in buy/sell percent dimensions, keyed by sizing node id. */
+  sizing: Record<string, SizingEdit>;
+  /** Rule ids whose comparison operator is searched (Mode B opt-in). */
+  operators: Record<string, boolean>;
+  /** at_least group ids whose count is searched (Mode B opt-in). */
+  atLeast: Record<string, boolean>;
 }
 
 export type NumericPreviewNode = NumericSearchNode & {
@@ -28,6 +41,12 @@ export function numericNodes(preview: SearchSpacePreview): NumericPreviewNode[] 
   );
 }
 
+export function sizingNodes(preview: SearchSpacePreview): NumericPreviewNode[] {
+  return (preview.sizing_nodes ?? []).filter(
+    (node): node is NumericPreviewNode => node.kind === "numeric",
+  );
+}
+
 export function initialEdits(preview: SearchSpacePreview): SearchSpaceEdits {
   return {
     roles: Object.fromEntries(preview.rules.map((rule) => [rule.id, "required" as RuleRole])),
@@ -36,6 +55,16 @@ export function initialEdits(preview: SearchSpacePreview): SearchSpaceEdits {
         node.id,
         { locked: false, min: node.min, max: node.max },
       ]),
+    ),
+    sizing: Object.fromEntries(
+      sizingNodes(preview).map((node) => [
+        node.id,
+        { tuned: false, min: node.min, max: node.max },
+      ]),
+    ),
+    operators: Object.fromEntries(preview.rules.map((rule) => [rule.id, false])),
+    atLeast: Object.fromEntries(
+      (preview.at_least_groups ?? []).map((group) => [group.id, false]),
     ),
   };
 }
@@ -61,7 +90,36 @@ export function buildParameterOverrides(
       overrides[node.id] = { min: edit.min, max: edit.max };
     }
   }
+  for (const node of sizingNodes(preview)) {
+    const edit = edits.sizing[node.id];
+    if (edit?.tuned) {
+      overrides[node.id] = { min: edit.min, max: edit.max };
+    }
+  }
   return Object.keys(overrides).length > 0 ? overrides : undefined;
+}
+
+function optedInIds(entries: Record<string, boolean>): string[] {
+  const ids: string[] = [];
+  for (const [id, searched] of Object.entries(entries)) {
+    if (searched) {
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/** The opt-in operator/at_least dimensions, in preview order; undefined when none. */
+export function buildStructureSearch(edits: SearchSpaceEdits): StructureSearchConfig | undefined {
+  const operators = optedInIds(edits.operators);
+  const atLeast = optedInIds(edits.atLeast);
+  if (operators.length === 0 && atLeast.length === 0) {
+    return undefined;
+  }
+  return {
+    ...(operators.length > 0 ? { operators } : {}),
+    ...(atLeast.length > 0 ? { at_least: atLeast } : {}),
+  };
 }
 
 export interface RuleParameterGroup {
@@ -103,6 +161,14 @@ export function searchedNodes(
   );
 }
 
+function searchedStructureCount(edits: SearchSpaceEdits): number {
+  return (
+    Object.values(edits.sizing).filter((edit) => edit.tuned).length +
+    Object.values(edits.operators).filter(Boolean).length +
+    Object.values(edits.atLeast).filter(Boolean).length
+  );
+}
+
 export function editsIssue(preview: SearchSpacePreview, edits: SearchSpaceEdits): string | null {
   const sides = new Set(preview.rules.map((rule) => rule.side));
   for (const side of sides) {
@@ -128,8 +194,27 @@ export function editsIssue(preview: SearchSpacePreview, edits: SearchSpaceEdits)
       return `Range for ${node.id} must stay within ${node.hard_min}–${node.hard_max}.`;
     }
   }
+  for (const node of sizingNodes(preview)) {
+    const edit = edits.sizing[node.id];
+    if (!edit?.tuned) {
+      continue;
+    }
+    if (edit.min >= edit.max) {
+      return `Range for ${node.id} needs min below max.`;
+    }
+    if (
+      (node.hard_min != null && edit.min < node.hard_min) ||
+      (node.hard_max != null && edit.max > node.hard_max)
+    ) {
+      return `Range for ${node.id} must stay within ${node.hard_min}–${node.hard_max}.`;
+    }
+  }
   const optionalRules = Object.values(edits.roles).filter((role) => role === "optional").length;
-  if (searchedNodes(preview, edits).length === 0 && optionalRules === 0) {
+  if (
+    searchedNodes(preview, edits).length === 0 &&
+    optionalRules === 0 &&
+    searchedStructureCount(edits) === 0
+  ) {
     return "Everything is locked, so there is nothing left to search.";
   }
   return null;
@@ -146,6 +231,18 @@ export function editsSummary(preview: SearchSpacePreview, edits: SearchSpaceEdit
   }
   if (off > 0) {
     parts.push(`${off} ${off === 1 ? "rule" : "rules"} off`);
+  }
+  const sizing = Object.values(edits.sizing).filter((edit) => edit.tuned).length;
+  if (sizing > 0) {
+    parts.push(`${sizing} sizing`);
+  }
+  const operators = Object.values(edits.operators).filter(Boolean).length;
+  if (operators > 0) {
+    parts.push(`${operators} ${operators === 1 ? "operator" : "operators"}`);
+  }
+  const atLeast = Object.values(edits.atLeast).filter(Boolean).length;
+  if (atLeast > 0) {
+    parts.push(`${atLeast} at-least ${atLeast === 1 ? "count" : "counts"}`);
   }
   return parts.join(" · ");
 }

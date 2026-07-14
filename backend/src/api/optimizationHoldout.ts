@@ -1,5 +1,6 @@
 import type { Database } from "../db.ts";
-import { evaluateBuyHold, evaluateOnFolds } from "../services/optimization/evaluate.ts";
+import { evaluateBuyHold, evaluateOnFolds, withSizing } from "../services/optimization/evaluate.ts";
+import { sizingFromValues } from "../services/optimization/searchSpace.ts";
 import { setExperimentHoldout } from "../services/optimization/experimentStore.ts";
 import { getTrialDetail } from "../services/optimization/trialStore.ts";
 import { holdoutCandleCount, holdoutFoldSpec } from "../services/optimization/holdout.ts";
@@ -80,7 +81,12 @@ export function handleOpenTrialHoldout(
   const evaluation: HoldoutEvaluation = {
     trial_index: trialIndex,
     opened_at: new Date().toISOString(),
-    candidate: evaluateOnFolds(trial.strategy, datasets, foldsBySymbol, settings),
+    candidate: evaluateOnFolds(
+      trial.strategy,
+      datasets,
+      foldsBySymbol,
+      withSizing(settings, sizingFromValues(trial.values)),
+    ),
     baseline: evaluateOnFolds(experiment.snapshot.strategy, datasets, foldsBySymbol, settings),
     buy_hold: evaluateBuyHold(datasets, foldsBySymbol, settings),
   };

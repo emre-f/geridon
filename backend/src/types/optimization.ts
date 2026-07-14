@@ -1,4 +1,11 @@
-import type { BacktestPositionMode, Candle, Strategy, StrategyRule, TradeCosts } from "../types.ts";
+import type {
+  BacktestPositionMode,
+  Candle,
+  ComparisonOperator,
+  Strategy,
+  StrategyRule,
+  TradeCosts,
+} from "../types.ts";
 
 export interface NumericSearchNode {
   id: string;
@@ -27,12 +34,36 @@ export interface ToggleSearchNode {
   current: boolean;
 }
 
-export type SearchSpaceNode = NumericSearchNode | CategoricalSearchNode | ToggleSearchNode;
+export interface OperatorSearchNode {
+  id: string;
+  kind: "operator";
+  path: string[];
+  choices: ComparisonOperator[];
+  current: ComparisonOperator;
+}
 
-export type SampledValue = number | boolean;
+export type SearchSpaceNode =
+  | NumericSearchNode
+  | CategoricalSearchNode
+  | ToggleSearchNode
+  | OperatorSearchNode;
+
+export type SampledValue = number | boolean | string;
 export type TrialValues = Record<string, SampledValue>;
 
 export type RuleRole = "required" | "optional" | "off";
+
+/** Buy/sell percent sampled for one candidate; only searchable in long_only. */
+export interface TrialSizing {
+  buyPercent?: number;
+  sellPercent?: number;
+}
+
+/** Opt-in structural dimensions: which rule operators and group counts to search. */
+export interface StructureSearchConfig {
+  operators?: string[];
+  atLeast?: string[];
+}
 
 export interface ParameterOverride {
   locked?: boolean;
@@ -126,6 +157,8 @@ export interface OptimizationTrial {
   strategy: Strategy;
   status: TrialStatus;
   rejectionReason?: string;
+  /** Present when sizing was searched and this candidate's values deviate from config. */
+  sizing?: TrialSizing;
   stageReached: number;
   foldResults: FoldEvaluation[];
   score: TrialScore | null;
@@ -188,6 +221,7 @@ export interface OptimizationConfig {
   scoring?: Partial<ScoringConfig>;
   ruleRoles?: Record<string, RuleRole>;
   parameterOverrides?: Record<string, ParameterOverride>;
+  structure?: StructureSearchConfig;
   halving?: Partial<SuccessiveHalvingConfig>;
   refinement?: Partial<RefinementConfig>;
   method?: "random" | "tpe" | "evolution";

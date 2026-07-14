@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { pruneDisabledConditions } from "../signals.ts";
-import type { Strategy, StrategyCondition } from "../../types.ts";
+import type { Strategy, StrategyCondition, TrialSizing } from "../../types.ts";
 
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -34,4 +34,17 @@ export function canonicalStrategyJson(strategy: Strategy): string {
 
 export function strategyHash(strategy: Strategy): string {
   return createHash("sha256").update(canonicalStrategyJson(strategy)).digest("hex");
+}
+
+/**
+ * Dedup hash for one candidate. Sizing joins the strategy tree in the hash so
+ * two candidates that differ only in sampled buy/sell percent stay distinct;
+ * without sizing this is exactly strategyHash.
+ */
+export function candidateHash(strategy: Strategy, sizing?: TrialSizing): string {
+  const hash = createHash("sha256").update(canonicalStrategyJson(strategy));
+  if (sizing && (sizing.buyPercent != null || sizing.sellPercent != null)) {
+    hash.update(`|sizing:${sizing.buyPercent ?? ""},${sizing.sellPercent ?? ""}`);
+  }
+  return hash.digest("hex");
 }

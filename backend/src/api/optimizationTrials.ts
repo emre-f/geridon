@@ -2,8 +2,10 @@ import type { Database } from "../db.ts";
 import {
   equityOnFolds,
   evaluateOnFolds,
+  withSizing,
   type EvaluationSettings,
 } from "../services/optimization/evaluate.ts";
+import { sizingFromValues } from "../services/optimization/searchSpace.ts";
 import { getTrialDetail, listTrials } from "../services/optimization/trialStore.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
 import { searchDatasets } from "../services/optimization/holdout.ts";
@@ -108,7 +110,7 @@ export function handleGetExperimentTrial(
       trial.strategy,
       context.datasets,
       context.foldsBySymbol,
-      evaluationSettings(experiment.config),
+      withSizing(evaluationSettings(experiment.config), sizingFromValues(trial.values)),
     );
   }
   return { statusCode: 200, body: trial };
@@ -176,7 +178,12 @@ export function handleGetTrialEquity(
     body: {
       trial_index: trialIndex,
       initial_capital: experiment.config.initial_capital,
-      candidate: equityOnFolds(trial.strategy, datasets, foldsBySymbol, settings),
+      candidate: equityOnFolds(
+        trial.strategy,
+        datasets,
+        foldsBySymbol,
+        withSizing(settings, sizingFromValues(trial.values)),
+      ),
       baseline: equityOnFolds(experiment.snapshot.strategy, datasets, foldsBySymbol, settings),
     },
   };

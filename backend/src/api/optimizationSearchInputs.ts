@@ -3,6 +3,7 @@ import type {
   ParameterOverride,
   RuleRole,
   ScoringConfig,
+  StructureSearchConfig,
 } from "../types.ts";
 
 const ruleRoleValues: RuleRole[] = ["required", "optional", "off"];
@@ -176,6 +177,43 @@ export function parseScoringConfig(
     scoring.constraints = constraints as ScoringConfig["constraints"];
   }
   return Object.keys(scoring).length > 0 ? { scoring } : {};
+}
+
+const structureKeys: Record<string, keyof StructureSearchConfig> = {
+  operators: "operators",
+  at_least: "atLeast",
+};
+const maxStructureIds = 64;
+
+export function parseStructureSearch(
+  raw: unknown,
+): { structure?: StructureSearchConfig } | { error: string } {
+  if (raw == null) {
+    return {};
+  }
+  if (!isPlainObject(raw)) {
+    return { error: "structure_search must be an object." };
+  }
+  const structure: StructureSearchConfig = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const target = structureKeys[key];
+    if (!target) {
+      return { error: `structure_search.${key} is not a valid structure-search field.` };
+    }
+    if (!Array.isArray(value) || value.some((id) => typeof id !== "string" || !id.trim())) {
+      return { error: `structure_search.${key} must be an array of non-empty strings.` };
+    }
+    if (value.length > maxStructureIds) {
+      return { error: `structure_search.${key} must contain at most ${maxStructureIds} ids.` };
+    }
+    if (new Set(value).size !== value.length) {
+      return { error: `structure_search.${key} contains duplicate ids.` };
+    }
+    if (value.length > 0) {
+      structure[target] = value as string[];
+    }
+  }
+  return Object.keys(structure).length > 0 ? { structure } : {};
 }
 
 export function parseParameterOverrides(

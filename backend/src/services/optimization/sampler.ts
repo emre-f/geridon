@@ -29,8 +29,8 @@ export function sampleValues(nodes: SearchSpaceNode[], random: SeededRandom): Tr
   for (const node of nodes) {
     if (node.kind === "numeric") {
       values[node.id] = sampleNumeric(node, random);
-    } else if (node.kind === "categorical") {
-      values[node.id] = random.pick(node.choices);
+    } else if (node.kind === "categorical" || node.kind === "operator") {
+      values[node.id] = random.pick<number | string>(node.choices);
     } else {
       values[node.id] = random.nextBoolean();
     }
@@ -54,7 +54,8 @@ export function applyValues(
   const candidate = cloneStrategy(baseStrategy);
   for (const node of nodes) {
     const value = values[node.id];
-    if (value === undefined) {
+    // Sizing dimensions live on the evaluation settings, not the strategy tree.
+    if (value === undefined || node.path[0] === "sizing") {
       continue;
     }
     setAtPath(candidate, node.path, value);

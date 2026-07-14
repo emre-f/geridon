@@ -14,6 +14,7 @@ import type {
   ScoringConfig,
   SearchSpaceNode,
   StrategyComplexity,
+  StructureSearchConfig,
   TradeCosts,
   TrialScore,
   TrialStatus,
@@ -47,6 +48,7 @@ export interface OptimizationExperimentConfig {
   scoring?: Partial<ScoringConfig>;
   rule_roles?: Record<string, RuleRole>;
   parameter_overrides?: Record<string, ParameterOverride>;
+  structure_search?: StructureSearchConfig;
   evolution?: EvolutionSearchSettings;
 }
 
@@ -65,11 +67,21 @@ export type SearchSpacePreviewNode = SearchSpaceNode & {
   hard_max: number | null;
 };
 
+export interface SearchSpacePreviewAtLeastGroup {
+  id: string;
+  size: number;
+  count: number;
+}
+
 /** Default-compiled search space for one strategy, served to the experiment form. */
 export interface SearchSpacePreview {
   strategy_id: number;
   rules: SearchSpacePreviewRule[];
   nodes: SearchSpacePreviewNode[];
+  /** Opt-in sizing dimensions with their default ranges; empty unless long_only. */
+  sizing_nodes: SearchSpacePreviewNode[];
+  /** at_least groups whose count can be searched when the user opts in. */
+  at_least_groups: SearchSpacePreviewAtLeastGroup[];
 }
 
 export interface ExperimentDatasetSpec {

@@ -3,7 +3,8 @@ import { isInsertableGroup, resolveEvolutionConfig } from "../services/optimizat
 import { validateCaps } from "../services/optimization/evolutionGenome.ts";
 import { buildFolds } from "../services/optimization/folds.ts";
 import { searchDatasets, validateHoldoutSize } from "../services/optimization/holdout.ts";
-import { compileSearchSpace } from "../services/optimization/searchSpace.ts";
+import { compileSearchSpace, sizingNodeIds } from "../services/optimization/searchSpace.ts";
+import { collectAtLeastGroups, collectRules, pathId } from "../services/optimization/strategyPaths.ts";
 import type {
   FoldSpec,
   OptimizationDataset,
@@ -31,6 +32,51 @@ export interface ExperimentInputs {
  * space. Shared by experiment creation and the preflight estimate so both
  * accept and reject exactly the same configurations.
  */
+function sizingOverridesError(config: OptimizationExperimentConfig): string | null {
+  const knownIds = new Set<string>(Object.values(sizingNodeIds));
+  const sizingIds = Object.keys(config.parameter_overrides ?? {}).filter((id) =>
+    id.startsWith("sizing."),
+  );
+  for (const id of sizingIds) {
+    if (!knownIds.has(id)) {
+      return `parameter_overrides.${id}: unknown sizing dimension; use ${[...knownIds].join(" or ")}.`;
+    }
+  }
+  if (sizingIds.length > 0 && config.position_mode !== "long_only") {
+    return "Backtest sizing is only searchable in long_only; the other position modes always trade the whole account.";
+  }
+  return null;
+}
+
+function structureSearchError(
+  config: OptimizationExperimentConfig,
+  strategy: Strategy,
+): string | null {
+  const structure = config.structure_search;
+  if (!structure) {
+    return null;
+  }
+  const ruleIds = new Set(collectRules(strategy).map(({ path }) => pathId(path)));
+  for (const ruleId of structure.operators ?? []) {
+    if (!ruleIds.has(ruleId)) {
+      return `structure_search.operators: "${ruleId}" is not a rule in the strategy.`;
+    }
+  }
+  const groups = new Map(
+    collectAtLeastGroups(strategy).map(({ path, group }) => [pathId(path), group]),
+  );
+  for (const groupId of structure.atLeast ?? []) {
+    const group = groups.get(groupId);
+    if (!group) {
+      return `structure_search.at_least: "${groupId}" is not an at_least group in the strategy.`;
+    }
+    if (group.conditions.length < 2) {
+      return `structure_search.at_least: "${groupId}" needs at least 2 conditions to search its count.`;
+    }
+  }
+  return null;
+}
+
 export function prepareExperimentInputs(
   db: Database,
   config: OptimizationExperimentConfig,
@@ -49,6 +95,14 @@ export function prepareExperimentInputs(
   const strategy = JSON.parse(String(strategyRow.definition)) as Strategy;
   if (config.position_mode === "three_state" && strategy.cash == null) {
     return { failure: badRequest("three_state needs a strategy that defines a go-to-cash tree.") };
+  }
+  const sizingError = sizingOverridesError(config);
+  if (sizingError) {
+    return { failure: badRequest(sizingError) };
+  }
+  const structureError = structureSearchError(config, strategy);
+  if (structureError) {
+    return { failure: badRequest(structureError) };
   }
   if (config.method === "evolution" && config.evolution) {
     for (const point of config.evolution.insertionPoints ?? []) {
@@ -97,6 +151,10 @@ export function prepareExperimentInputs(
       strategy,
       ruleRoles: config.rule_roles,
       parameterOverrides: config.parameter_overrides,
+      structure: config.structure_search,
+      positionMode: config.position_mode,
+      buyPercent: config.buy_percent,
+      sellPercent: config.sell_percent,
     });
     const hasEvolutionLibrary =
       config.method === "evolution" && (config.evolution?.ruleLibrary?.length ?? 0) > 0;

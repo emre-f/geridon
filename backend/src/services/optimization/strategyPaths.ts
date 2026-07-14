@@ -4,6 +4,7 @@ import type {
   Strategy,
   StrategyComplexity,
   StrategyCondition,
+  StrategyGroup,
   StrategyOperand,
   StrategyRule,
 } from "../../types.ts";
@@ -68,6 +69,33 @@ export function collectRules(strategy: Strategy): LocatedRule[] {
     if (condition.type === "rule") {
       located.push({ path, rule: condition });
       return;
+    }
+    condition.conditions.forEach((child, index) =>
+      visit(child, [...path, "conditions", String(index)]),
+    );
+  };
+  for (const side of strategySides) {
+    const condition = strategy[side];
+    if (condition) {
+      visit(condition, [side]);
+    }
+  }
+  return located;
+}
+
+export interface LocatedAtLeastGroup {
+  path: string[];
+  group: StrategyGroup;
+}
+
+export function collectAtLeastGroups(strategy: Strategy): LocatedAtLeastGroup[] {
+  const located: LocatedAtLeastGroup[] = [];
+  const visit = (condition: StrategyCondition, path: string[]) => {
+    if (condition.type === "rule") {
+      return;
+    }
+    if (condition.operator === "at_least") {
+      located.push({ path, group: condition });
     }
     condition.conditions.forEach((child, index) =>
       visit(child, [...path, "conditions", String(index)]),

@@ -3,7 +3,7 @@ import { compileSearchSpace } from "./searchSpace.ts";
 import { strategyHash } from "./canonical.ts";
 import { createFoldCheckpoint } from "./checkpoint.ts";
 import { buildFolds } from "./folds.ts";
-import { evaluateBuyHold, evaluateOnFolds, type EvaluationSettings } from "./evaluate.ts";
+import { evaluateBuyHold, evaluateOnFolds, withSizing, type EvaluationSettings } from "./evaluate.ts";
 import { createIndicatorSeriesCache } from "./indicatorCache.ts";
 import { compareTrialScores, median, resolveScoringConfig, scoreTrial, scoringVersion } from "./scoring.ts";
 import { resolveHalvingConfig } from "./successiveHalving.ts";
@@ -149,7 +149,7 @@ export function runOptimization(
     ? runAblation(best.strategy, best.score!, {
         datasets: config.datasets,
         foldsBySymbol,
-        settings,
+        settings: withSizing(settings, best.sizing),
         scoring,
       })
     : [];

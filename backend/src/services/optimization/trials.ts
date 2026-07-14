@@ -1,9 +1,9 @@
-import { strategyHash } from "./canonical.ts";
+import { candidateHash } from "./canonical.ts";
 import { cheapRejectionReason } from "./cheapRejection.ts";
 import { hasCheckpointFolds, takeCheckpointFold } from "./checkpoint.ts";
-import { validateCandidate } from "./searchSpace.ts";
+import { sizingFromValues, validateCandidate } from "./searchSpace.ts";
 import { entrySignalFires } from "../signals.ts";
-import { evaluateFold, type EvaluationSettings } from "./evaluate.ts";
+import { evaluateFold, withSizing, type EvaluationSettings } from "./evaluate.ts";
 import { scoreTrial } from "./scoring.ts";
 import { computeComplexity } from "./strategyPaths.ts";
 import type {
@@ -36,13 +36,15 @@ export function createTrial(
   phase: "search" | "refine",
   extraValidation?: (strategy: Strategy) => string | null,
 ): OptimizationTrial {
-  const hash = strategyHash(strategy);
+  const sizing = sizingFromValues(values);
+  const hash = candidateHash(strategy, sizing);
   const trial: OptimizationTrial = {
     index: factory.nextIndex++,
     hash,
     values,
     strategy,
     status: "pending",
+    ...(sizing ? { sizing } : {}),
     stageReached: -1,
     foldResults: [],
     score: null,
@@ -114,11 +116,12 @@ export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvalua
   }
   trial.stageReached = context.finalStage;
   trial.foldResults = [];
+  const settings = withSizing(context.settings, trial.sizing);
   for (const dataset of context.datasets) {
     for (const fold of context.foldsBySymbol.get(dataset.symbol) ?? []) {
       trial.foldResults.push(
         takeCheckpointFold(checkpoint, trial.hash, dataset.symbol, fold.index) ??
-          evaluateFold(trial.strategy, dataset, fold, context.settings),
+          evaluateFold(trial.strategy, dataset, fold, settings),
       );
     }
   }

@@ -6,6 +6,7 @@ import {
   parseParameterOverrides,
   parseRuleRoles,
   parseScoringConfig,
+  parseStructureSearch,
 } from "./optimizationSearchInputs.ts";
 import { parseTradeCosts, validateTicker } from "./shared.ts";
 
@@ -161,6 +162,10 @@ export function parseExperimentRequest(
   if ("error" in parameterOverrides) {
     return { error: parameterOverrides.error };
   }
+  const structureSearch = parseStructureSearch(body.structure_search);
+  if ("error" in structureSearch) {
+    return { error: structureSearch.error };
+  }
 
   const config: OptimizationExperimentConfig = {
     strategy_id: strategyId,
@@ -182,6 +187,7 @@ export function parseExperimentRequest(
     ...(scoring.scoring ? { scoring: scoring.scoring } : {}),
     ...(ruleRoles.roles ? { rule_roles: ruleRoles.roles } : {}),
     ...(parameterOverrides.overrides ? { parameter_overrides: parameterOverrides.overrides } : {}),
+    ...(structureSearch.structure ? { structure_search: structureSearch.structure } : {}),
     ...(body.halving ? { halving: body.halving as OptimizationExperimentConfig["halving"] } : {}),
     ...(body.refinement
       ? { refinement: body.refinement as OptimizationExperimentConfig["refinement"] }

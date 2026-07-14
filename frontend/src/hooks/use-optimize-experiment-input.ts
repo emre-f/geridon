@@ -46,6 +46,9 @@ export function useOptimizeExperimentInput(
       seed: form.seed,
       ...(scoring ? { scoring } : {}),
       ...(!tuneOnly && searchSpace.ruleRoles ? { rule_roles: searchSpace.ruleRoles } : {}),
+      ...(!tuneOnly && searchSpace.structureSearch
+        ? { structure_search: searchSpace.structureSearch }
+        : {}),
       ...(searchSpace.parameterOverrides
         ? { parameter_overrides: searchSpace.parameterOverrides }
         : {}),
@@ -67,6 +70,7 @@ export function useOptimizeExperimentInput(
     searchSpace.issue,
     searchSpace.preview,
     searchSpace.ruleRoles,
+    searchSpace.structureSearch,
     searchSpace.parameterOverrides,
     evolving,
     tuneOnly,

@@ -1,6 +1,8 @@
 import type { SearchSpacePreview } from "@/lib/api-optimization-experiment-types";
 import { nodeLabel } from "./optimize-chart-utils.ts";
-import { underOffRule, type SearchSpaceEdits } from "./optimize-search-space-utils.ts";
+import { sizingNodes, underOffRule, type SearchSpaceEdits } from "./optimize-search-space-utils.ts";
+
+const comparisonOperatorCount = 6;
 
 export type BudgetPreset = "quick" | "standard" | "thorough";
 export type BudgetPresetChoice = BudgetPreset | "custom";
@@ -67,7 +69,7 @@ export function searchSpaceSize(
 ): SearchSpaceSize {
   const dimensions: SpaceDimension[] = [];
   for (const node of preview.nodes) {
-    if (node.kind === "toggle" || underOffRule(node.id, edits)) {
+    if (node.kind === "toggle" || node.kind === "operator" || underOffRule(node.id, edits)) {
       continue;
     }
     if (node.kind === "categorical") {
@@ -90,6 +92,32 @@ export function searchSpaceSize(
         id: rule.id,
         label: `${ruleShortLabel(rule.id)} on/off`,
         cardinality: 2,
+      });
+    }
+    if (edits.operators[rule.id] && edits.roles[rule.id] !== "off") {
+      dimensions.push({
+        id: `${rule.id}.operator`,
+        label: `${ruleShortLabel(rule.id)} operator`,
+        cardinality: comparisonOperatorCount,
+      });
+    }
+  }
+  for (const group of preview.at_least_groups ?? []) {
+    if (edits.atLeast[group.id]) {
+      dimensions.push({
+        id: `${group.id}.count`,
+        label: `${ruleShortLabel(group.id)} at-least count`,
+        cardinality: group.size,
+      });
+    }
+  }
+  for (const node of sizingNodes(preview)) {
+    const edit = edits.sizing[node.id];
+    if (edit?.tuned) {
+      dimensions.push({
+        id: node.id,
+        label: nodeLabel(node),
+        cardinality: numericCardinality(edit.min, edit.max, node.step),
       });
     }
   }

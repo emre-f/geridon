@@ -1,5 +1,12 @@
 import { applyValues, sampleNumeric, snapToStep } from "./sampler.ts";
-import { collectRules, conditionDepth, getAtPath, pathId, setAtPath } from "./strategyPaths.ts";
+import {
+  collectAtLeastGroups,
+  collectRules,
+  conditionDepth,
+  getAtPath,
+  pathId,
+  setAtPath,
+} from "./strategyPaths.ts";
 import { pruneDisabledConditions } from "../signals.ts";
 import { comparisonOperators } from "../strategyValidationHelpers.ts";
 import type { SeededRandom } from "./random.ts";
@@ -54,27 +61,6 @@ export function materializeGenome(
   return strategy;
 }
 
-export function collectAtLeastGroups(strategy: Strategy): string[] {
-  const groups: string[] = [];
-  const visit = (condition: StrategyCondition, path: string[]) => {
-    if (condition.type === "rule") {
-      return;
-    }
-    if (condition.operator === "at_least") {
-      groups.push(pathId(path));
-    }
-    condition.conditions.forEach((child, index) =>
-      visit(child, [...path, "conditions", String(index)]),
-    );
-  };
-  for (const side of ["entry", "exit", "cash"] as const) {
-    if (strategy[side]) {
-      visit(strategy[side]!, [side]);
-    }
-  }
-  return groups;
-}
-
 export interface MutationContext {
   nodes: SearchSpaceNode[];
   baseStrategy: Strategy;
@@ -95,8 +81,8 @@ export function mutateGenome(genome: EvolutionGenome, context: MutationContext):
         const nudge = node.step * random.nextInt(1, 3) * (random.nextBoolean() ? 1 : -1);
         const nudged = snapToStep(node, current + nudge);
         mutated.values[node.id] = nudged === current ? sampleNumeric(node, random) : nudged;
-      } else if (node.kind === "categorical") {
-        mutated.values[node.id] = random.pick(node.choices);
+      } else if (node.kind === "categorical" || node.kind === "operator") {
+        mutated.values[node.id] = random.pick<number | string>(node.choices);
       } else {
         mutated.values[node.id] = !(mutated.values[node.id] ?? node.current);
       }
@@ -115,7 +101,7 @@ export function mutateGenome(genome: EvolutionGenome, context: MutationContext):
     });
   }
 
-  const atLeastGroups = collectAtLeastGroups(baseStrategy);
+  const atLeastGroups = collectAtLeastGroups(baseStrategy).map(({ path }) => pathId(path));
   if (atLeastGroups.length > 0) {
     mutations.push(() => {
       const groupId = random.pick(atLeastGroups);

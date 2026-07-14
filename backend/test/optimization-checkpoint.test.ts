@@ -94,17 +94,23 @@ test("resuming a cancelled experiment reuses its streamed trials as a checkpoint
   assert.equal(created.statusCode, 201);
   const interrupted = (created.body as { id: number }).id;
 
-  const trialCount = () =>
+  // Cancelling before any evaluated trial streamed would leave an empty
+  // checkpoint (nothing to reuse), so wait for a row that carries folds.
+  const evaluatedTrialCount = () =>
     Number(
       (db
-        .prepare("SELECT COUNT(*) AS count FROM optimization_trials WHERE experiment_id = ?")
+        .prepare(
+          `SELECT COUNT(*) AS count FROM optimization_trials
+           WHERE experiment_id = ? AND status IN ('scored', 'pruned')
+             AND fold_results IS NOT NULL AND fold_results != '[]'`,
+        )
         .get(interrupted) as { count: number }).count,
     );
   const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline && trialCount() === 0) {
+  while (Date.now() < deadline && evaluatedTrialCount() === 0) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  assert.ok(trialCount() > 0, "expected streamed trial rows before cancelling");
+  assert.ok(evaluatedTrialCount() > 0, "expected streamed evaluated trials before cancelling");
   handleCancelExperiment(db, runner, String(interrupted));
   await runner.waitForFinish(interrupted);
   assert.equal(getExperiment(db, interrupted)!.status, "cancelled");

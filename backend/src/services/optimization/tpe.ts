@@ -148,7 +148,7 @@ export class TpeSampler {
     for (const node of this.nodes) {
       if (node.kind === "numeric") {
         values[node.id] = this.sampleNumericNode(node, good, bad);
-      } else if (node.kind === "categorical") {
+      } else if (node.kind === "categorical" || node.kind === "operator") {
         values[node.id] = this.sampleDiscreteNode(node.choices, node.id, good, bad);
       } else {
         values[node.id] = this.sampleDiscreteNode([true, false], node.id, good, bad);

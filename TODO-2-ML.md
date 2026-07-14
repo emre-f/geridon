@@ -109,12 +109,17 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 ### Mode A — Tune parameters (default, smallest space)
 
 - [x] Start from a saved strategy snapshot and keep its tree structure fixed.
-- [ ] Let the user lock or tune each numeric value:
+- [x] Let the user lock or tune each numeric value:
   - indicator parameters such as MACD `fast`, `slow`, and `signal` or Momentum `period`;
   - constant thresholds used by rules;
   - backtest sizing values when the position mode supports them.
   (indicator parameters and rule thresholds are done via `parameterOverrides` and controllable from
-  the Optimize form's "Parameters & rules" section; backtest sizing values are not searchable yet)
+  the Optimize form's "Parameters & rules" section; buy/sell percent are now opt-in search
+  dimensions in long_only — the mode where partial sizing exists — via `sizing.buyPercent` /
+  `sizing.sellPercent` overrides, locked by default in the form's "Backtest sizing" rows. Sampled
+  sizing lives on the trial, not the strategy tree: it joins the candidate hash, flows through
+  halving/ablation/equity/holdout via `withSizing`, and stays clamped to the simulator's 1..100
+  bounds — see `sizingSpace.ts` and `optimization-sizing-structure.test.ts`)
 - [x] Support integer, decimal, categorical, linear, and curated candidate ranges.
 - [x] Validate every sample against catalog constraints, including `MACD fast < slow`.
 - [x] Make range defaults conservative and centered near the current value; do not automatically use
@@ -125,9 +130,13 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
 - [x] Include Mode A plus required/optional/off controls for every existing rule or group.
       (roles apply per rule via `ruleRoles`; a group is controlled through its rules; the Optimize
       form's "Parameters & rules" section exposes the per-rule role control)
-- [ ] Allow selected operators or group `at_least` counts to be searched only when the user opts in.
-      (evolution search mutates operators and `at_least` counts, but there is no per-rule opt-in
-      control for Mode B yet)
+- [x] Allow selected operators or group `at_least` counts to be searched only when the user opts in.
+      (`structure_search: { operators: [ruleIds], at_least: [groupIds] }` compiles per-rule operator
+      nodes — a new `operator` search-node kind over the six comparison operators — and integer
+      count nodes bounded by each group's size; ids are validated against the strategy with
+      structured 400s, off-role rules are skipped, and random/TPE/refinement/evolution all sample
+      them. The form exposes a per-rule "operator" checkbox and per-group at-least checkboxes in
+      Mode B/C only, and the preflight space estimate counts the new dimensions)
 - [x] Preserve type-compatible operands and valid group shapes. (Mode A/B toggles cannot change
       operands; evolution mutations are typed and every candidate passes `validateCandidate`)
 - [x] Add a complexity cost for active rules, unique indicator configurations, and tree depth.
@@ -663,12 +672,23 @@ used to take, skip, or shrink each trade. It can only remove or shrink bad trade
 baseline, is evaluated with the exact same folds/holdout/cost harness as optimization experiments,
 and never mutates the strategy itself.
 
-- [ ] **Trade-event dataset builder**: run the baseline strategy over the search window and emit one
+- [x] **Trade-event dataset builder**: run the baseline strategy over the search window and emit one
       row per entry trigger with entry/exit timestamps and net PnL after configured costs; the label
       is binary (trade cleared costs) with the label horizon recorded per row.
-- [ ] **Feature matrix at trigger time**: reuse the indicator engine for features (oscillator levels,
+      (`metaLabeling/tradeEvents.ts` pairs the non-persisting simulator's fills into round trips —
+      flat→position opens an event, back-to-flat closes it, stop-and-reverse fills close and open on
+      the same bar, scaling fills extend the event — and each row records entry/exit timestamps and
+      indexes, the trigger bar, `horizon_candles`, cost-net PnL, and the binary label. Still-open
+      entries at the window end are counted, never labelled. Tests reconcile closed-trade PnL with
+      the simulator's equity and prove a 10% commission flips every triangle-fixture label)
+- [x] **Feature matrix at trigger time**: reuse the indicator engine for features (oscillator levels,
       trend slope, volatility, relative volume, position of price vs bands) computed only from candles
       at or before the trigger; store a versioned feature-set id so old models stay interpretable.
+      (`metaLabeling/features.ts` computes six causal features per bar through the existing indicator
+      engine — RSI 14, MACD histogram as % of close, 20-bar SMA slope, ATR % of close, relative
+      volume 20, and Bollinger %B — and `buildFeatureMatrix` samples them at each event's trigger
+      bar, never the fill bar, with nulls during warmup. `featureSetId = "meta-features-v1"` versions
+      the set; a test proves truncating all candles after the trigger reproduces every row exactly)
 - [ ] **Walk-forward training loop**: train per fold on past triggers only, with embargo sized from the
       label horizon; fit preprocessing (scaling, feature selection) on the training portion only and
       apply it frozen to validation (closes Section 3's open preprocessing checkbox for this track).

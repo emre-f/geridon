@@ -78,10 +78,28 @@ export interface ToggleSearchNode {
   current: boolean;
 }
 
-export type SearchSpaceNode = NumericSearchNode | CategoricalSearchNode | ToggleSearchNode;
+export interface OperatorSearchNode {
+  id: string;
+  kind: "operator";
+  path: string[];
+  choices: string[];
+  current: string;
+}
 
-export type SampledValue = number | boolean;
+export type SearchSpaceNode =
+  | NumericSearchNode
+  | CategoricalSearchNode
+  | ToggleSearchNode
+  | OperatorSearchNode;
+
+export type SampledValue = number | boolean | string;
 export type TrialValues = Record<string, SampledValue>;
+
+/** Opt-in structural dimensions: which rule operators and group counts to search. */
+export interface StructureSearchConfig {
+  operators?: string[];
+  at_least?: string[];
+}
 
 export interface FoldEvaluation {
   symbol: string;

@@ -132,6 +132,15 @@ export function foldGroups(
 // "entry.conditions.0.left.params.fast"; this compresses them into a short
 // human label like "entry r1 fast".
 export function nodeLabel(node: SearchSpaceNode): string {
+  if (node.path[0] === "sizing") {
+    if (node.path[1] === "buyPercent") {
+      return "buy %";
+    }
+    if (node.path[1] === "sellPercent") {
+      return "sell %";
+    }
+    return node.path.join(" ");
+  }
   const side = node.path[0] ?? "";
   const ruleNumbers = node.path
     .filter((segment) => /^\d+$/.test(segment))
@@ -142,9 +151,12 @@ export function nodeLabel(node: SearchSpaceNode): string {
   return [side, ruleNumbers ? `r${ruleNumbers}` : "", name].filter(Boolean).join(" ");
 }
 
-export function formatSampledValue(value: number | boolean): string {
+export function formatSampledValue(value: number | boolean | string): string {
   if (typeof value === "boolean") {
     return value ? "on" : "off";
+  }
+  if (typeof value === "string") {
+    return value.replace(/_/g, " ");
   }
   return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }

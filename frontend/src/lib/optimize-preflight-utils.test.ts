@@ -44,6 +44,22 @@ function preview(): SearchSpacePreview {
         hard_max: null,
       },
     ],
+    sizing_nodes: [
+      {
+        id: "sizing.buyPercent",
+        kind: "numeric",
+        path: ["sizing", "buyPercent"],
+        valueType: "integer",
+        min: 50,
+        max: 100,
+        step: 5,
+        scale: "linear",
+        current: 100,
+        hard_min: 1,
+        hard_max: 100,
+      },
+    ],
+    at_least_groups: [{ id: "entry", size: 3, count: 2 }],
   };
 }
 
@@ -119,4 +135,31 @@ test("budget presets scale from quick to thorough", () => {
   assert.ok(budgetPresets.quick.maxTrials < budgetPresets.standard.maxTrials);
   assert.ok(budgetPresets.standard.maxTrials < budgetPresets.thorough.maxTrials);
   assert.ok(budgetPresets.quick.foldCount <= budgetPresets.thorough.foldCount);
+});
+
+test("opted-in operators, at_least counts, and tuned sizing multiply the space", () => {
+  const data = preview();
+  const edits = initialEdits(data);
+  edits.operators["entry.conditions.0"] = true;
+  edits.atLeast.entry = true;
+  edits.sizing["sizing.buyPercent"] = { tuned: true, min: 50, max: 100 };
+
+  const size = searchSpaceSize(data, edits);
+  assert.deepEqual(
+    size.dimensions.map((dimension) => [dimension.label, dimension.cardinality]),
+    [
+      ["entry r1 fast", 13],
+      ["buy %", 11],
+      ["entry r1 operator", 6],
+      ["entry r2 threshold", 3],
+      ["entry at-least count", 3],
+    ],
+  );
+
+  edits.roles["entry.conditions.0"] = "off";
+  const withOff = searchSpaceSize(data, edits);
+  assert.ok(
+    withOff.dimensions.every((dimension) => dimension.id !== "entry.conditions.0.operator"),
+    "operator search is dropped when its rule is off",
+  );
 });

@@ -49,7 +49,7 @@ export async function routeOptimizationExperiments(
   }
 
   if (pathname === `${basePath}/search-space` && method === "GET") {
-    return handleGetSearchSpacePreview(db, url.searchParams.get("strategy_id"));
+    return handleGetSearchSpacePreview(db, url.searchParams);
   }
 
   if (pathname === `${basePath}/rule-library` && method === "GET") {

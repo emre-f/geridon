@@ -2,10 +2,17 @@ import { useState } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 import type { RuleRole } from "@/lib/api";
-import { ruleParameterGroups, type RuleParameterGroup } from "@/lib/optimize-search-space-utils";
+import {
+  ruleParameterGroups,
+  sizingNodes,
+  type RuleParameterGroup,
+} from "@/lib/optimize-search-space-utils";
 import type { useOptimizeSearchSpace } from "@/hooks/use-optimize-search-space";
 import { searchSpaceHelp } from "@/components/optimize-section-help";
-import { OptimizeSearchSpaceParameterRow } from "@/components/optimize-search-space-parameter-row";
+import {
+  OptimizeSearchSpaceParameterRow,
+  OptimizeSearchSpaceSizingRow,
+} from "@/components/optimize-search-space-parameter-row";
 import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Select } from "@/components/ui/select";
@@ -63,16 +70,34 @@ function RuleGroup({
                   : `${tuned}/${group.nodes.length} tuned`}
             </span>
             {rolesEditable ? (
-              <Select
-                value={role}
-                aria-label={`Role for rule ${rule.id}`}
-                className="w-28"
-                onChange={(event) => searchSpace.setRole(rule.id, event.target.value as RuleRole)}
-              >
-                <option value="required">Required</option>
-                <option value="optional">Optional</option>
-                <option value="off">Off</option>
-              </Select>
+              <>
+                <label
+                  className={`flex shrink-0 items-center gap-1 text-xs ${off ? "opacity-30" : ""}`}
+                  title="Also search this rule's comparison operator (gt, lt, cross above, ...)"
+                >
+                  <input
+                    type="checkbox"
+                    className="size-3.5 accent-[var(--primary)]"
+                    checked={edits?.operators[rule.id] ?? false}
+                    disabled={off}
+                    aria-label={`Search the operator of rule ${rule.id}`}
+                    onChange={(event) =>
+                      searchSpace.setOperatorSearch(rule.id, event.target.checked)
+                    }
+                  />
+                  operator
+                </label>
+                <Select
+                  value={role}
+                  aria-label={`Role for rule ${rule.id}`}
+                  className="w-28"
+                  onChange={(event) => searchSpace.setRole(rule.id, event.target.value as RuleRole)}
+                >
+                  <option value="required">Required</option>
+                  <option value="optional">Optional</option>
+                  <option value="off">Off</option>
+                </Select>
+              </>
             ) : null}
           </>
         ) : (
@@ -139,6 +164,41 @@ export function OptimizeSearchSpaceEditor({
               />
             ))}
           </div>
+          {rolesEditable && (preview.at_least_groups ?? []).length > 0 ? (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+              <span className="text-muted-foreground text-xs">At-least counts</span>
+              {preview.at_least_groups.map((group) => (
+                <label
+                  key={group.id}
+                  className="flex items-center gap-1.5"
+                  title={`Search how many of the ${group.size} conditions in "${group.id}" must hold (currently ${group.count})`}
+                >
+                  <input
+                    type="checkbox"
+                    className="size-3.5 accent-[var(--primary)]"
+                    checked={edits.atLeast[group.id] ?? false}
+                    aria-label={`Search the at-least count of group ${group.id}`}
+                    onChange={(event) =>
+                      searchSpace.setAtLeastSearch(group.id, event.target.checked)
+                    }
+                  />
+                  <span className="text-xs">
+                    {group.id}: {group.count} of {group.size}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : null}
+          {sizingNodes(preview).length > 0 ? (
+            <div className="flex flex-col">
+              <span className="text-muted-foreground text-xs">
+                Backtest sizing (locked unless tuned)
+              </span>
+              {sizingNodes(preview).map((node) => (
+                <OptimizeSearchSpaceSizingRow key={node.id} node={node} searchSpace={searchSpace} />
+              ))}
+            </div>
+          ) : null}
           {issue ? <p className="text-destructive text-xs">{issue}</p> : null}
         </>
       ) : null}
