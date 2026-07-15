@@ -31,6 +31,17 @@ export const budgetPresetLabels: Record<BudgetPresetChoice, string> = {
   custom: "Custom",
 };
 
+/** Logical cores the browser reports; the local backend runs on the same machine. */
+export function machineCoreCount(): number {
+  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency : undefined;
+  return Number.isFinite(cores) && (cores as number) > 0 ? Math.floor(cores as number) : 4;
+}
+
+/** Conservative multi-core default: use most cores but leave headroom (mirrors the backend). */
+export function defaultWorkerCount(): number {
+  return Math.max(1, machineCoreCount() - 2);
+}
+
 export interface SpaceDimension {
   id: string;
   label: string;

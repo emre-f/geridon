@@ -1,3 +1,5 @@
+import { availableParallelism } from "node:os";
+
 import { parseTimeframe } from "../timeframes.ts";
 import type { BacktestPositionMode, OptimizationExperimentConfig } from "../types.ts";
 import { parseEvolutionConfig } from "./optimizationEvolutionInputs.ts";
@@ -19,6 +21,16 @@ export const experimentLimits = {
   maxFolds: 12,
   maxEmbargoCandles: 250,
 };
+
+/** Upper bound on parallel evaluation workers: the machine's logical cores. */
+export function maxWorkerCount(): number {
+  return Math.max(1, availableParallelism());
+}
+
+/** Conservative multi-core default that leaves headroom for the server and UI. */
+export function defaultWorkerCount(): number {
+  return Math.max(1, maxWorkerCount() - 2);
+}
 
 const optionalObjectKeys = ["scoring", "halving", "refinement", "tpe", "evolution"] as const;
 
@@ -120,6 +132,12 @@ export function parseExperimentRequest(
     };
   }
 
+  const maxWorkers = maxWorkerCount();
+  const workerCount = body.worker_count == null ? defaultWorkerCount() : Number(body.worker_count);
+  if (!Number.isInteger(workerCount) || workerCount < 1 || workerCount > maxWorkers) {
+    return { error: `worker_count must be an integer between 1 and ${maxWorkers}.` };
+  }
+
   const method = body.method ?? "random";
   if (method !== "random" && method !== "tpe" && method !== "evolution") {
     return { error: "method must be random, tpe, or evolution." };
@@ -181,6 +199,7 @@ export function parseExperimentRequest(
     seed,
     max_trials: maxTrials,
     max_runtime_ms: maxRuntimeMs,
+    worker_count: workerCount,
     method,
     folds,
     ...(holdout ? { holdout } : {}),

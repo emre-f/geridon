@@ -24,6 +24,7 @@ export function toEngineConfig(
     seed: config.seed,
     maxTrials: config.max_trials,
     maxRuntimeMs: config.max_runtime_ms,
+    workerCount: config.worker_count,
     folds: config.folds,
     scoring: config.scoring,
     ruleRoles: config.rule_roles,

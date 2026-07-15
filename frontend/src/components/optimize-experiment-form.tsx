@@ -36,6 +36,7 @@ export function OptimizeExperimentForm({
   timeframe,
   timeframes,
   tickerList,
+  workerCount,
   onEndDateChange,
   onFoldCountChange,
   onHoldoutPctChange,
@@ -50,6 +51,7 @@ export function OptimizeExperimentForm({
   onStrategyIdChange,
   onTickerChange,
   onTimeframeChange,
+  onWorkerCountChange,
 }: {
   children?: ReactNode;
   coverage: SymbolTimeframe | undefined;
@@ -71,6 +73,7 @@ export function OptimizeExperimentForm({
   timeframe: string;
   timeframes: string[];
   tickerList: string[];
+  workerCount: number;
   onEndDateChange: (value: string) => void;
   onFoldCountChange: (value: number) => void;
   onHoldoutPctChange: (value: number) => void;
@@ -85,6 +88,7 @@ export function OptimizeExperimentForm({
   onStrategyIdChange: (value: number) => void;
   onTickerChange: (value: string) => void;
   onTimeframeChange: (value: string) => void;
+  onWorkerCountChange: (value: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -167,11 +171,13 @@ export function OptimizeExperimentForm({
           maxTrials={maxTrials}
           method={method}
           preset={preset}
+          workerCount={workerCount}
           onFoldCountChange={onFoldCountChange}
           onHoldoutPctChange={onHoldoutPctChange}
           onMaxTrialsChange={onMaxTrialsChange}
           onMethodChange={onMethodChange}
           onPresetChange={onPresetChange}
+          onWorkerCountChange={onWorkerCountChange}
         />
 
         <Separator orientation="vertical" className="hidden h-auto sm:block" />

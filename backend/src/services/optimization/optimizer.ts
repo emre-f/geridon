@@ -16,6 +16,7 @@ import { computeParetoFronts } from "./pareto.ts";
 import { resolveTpeConfig, runTpeSearch } from "./tpe.ts";
 import { resolveEvolutionConfig, runEvolutionSearch } from "./evolution.ts";
 import { runRandomSearch, runRefinement, type SearchContext } from "./searchPhases.ts";
+import { createEvaluationPool, type EvaluationPool } from "./evaluationPool.ts";
 import { createTrialFactory } from "./trials.ts";
 import type {
   FoldSpec,
@@ -37,11 +38,38 @@ function validateConfig(config: OptimizationConfig) {
   }
 }
 
-export function runOptimization(
+export async function runOptimization(
   config: OptimizationConfig,
   control?: OptimizationControl,
-): OptimizationResult {
+): Promise<OptimizationResult> {
   validateConfig(config);
+  const workerCount = Math.max(1, Math.floor(config.workerCount ?? 1));
+  const pool: EvaluationPool | undefined =
+    workerCount > 1
+      ? createEvaluationPool(
+          config.datasets,
+          {
+            positionMode: config.positionMode,
+            initialCapital: config.initialCapital,
+            costs: config.costs,
+            objective: resolveScoringConfig(config.scoring).objective,
+          },
+          workerCount,
+          config.cache?.maxValues,
+        )
+      : undefined;
+  try {
+    return await runSearch(config, control, pool);
+  } finally {
+    await pool?.close();
+  }
+}
+
+async function runSearch(
+  config: OptimizationConfig,
+  control: OptimizationControl | undefined,
+  pool: EvaluationPool | undefined,
+): Promise<OptimizationResult> {
   const method = config.method ?? "random";
   const scoring = resolveScoringConfig(config.scoring);
   const checkpoint = createFoldCheckpoint(config.checkpoint);
@@ -105,9 +133,11 @@ export function runOptimization(
       scoring,
       finalStage: halving.stageFoldFractions.length - 1,
       onTrialComplete,
+      pool,
     },
     random: new SeededRandom(config.seed),
     stopRequested,
+    pool,
   };
 
   let searchOutcome: { trials: OptimizationTrial[]; stoppedEarly: boolean };
@@ -117,19 +147,19 @@ export function runOptimization(
     : 0;
   const searchTrials = config.maxTrials - refinementTrials;
   if (method === "tpe") {
-    searchOutcome = runTpeSearch({
+    searchOutcome = await runTpeSearch({
       ...context,
       config: resolveTpeConfig(config.tpe),
       maxTrials: searchTrials,
     });
   } else if (method === "evolution") {
-    searchOutcome = runEvolutionSearch({
+    searchOutcome = await runEvolutionSearch({
       ...context,
       config: resolveEvolutionConfig(config.evolution, baseStrategy),
       maxTrials: config.maxTrials,
     });
   } else {
-    searchOutcome = runRandomSearch(context, searchTrials);
+    searchOutcome = await runRandomSearch(context, searchTrials);
   }
   const { trials } = searchOutcome;
   let stoppedEarly = searchOutcome.stoppedEarly;
@@ -140,7 +170,7 @@ export function runOptimization(
       .sort((left, right) => compareTrialScores(left.score, right.score));
 
   if (method !== "evolution" && !stoppedEarly) {
-    stoppedEarly = runRefinement(context, trials, scoredSorted(), refinementTrials);
+    stoppedEarly = await runRefinement(context, trials, scoredSorted(), refinementTrials);
   }
 
   const leaderboard = scoredSorted();

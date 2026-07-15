@@ -96,9 +96,9 @@ export interface EvolutionSearchContext {
   stopRequested?: () => boolean;
 }
 
-export function runEvolutionSearch(
+export async function runEvolutionSearch(
   context: EvolutionSearchContext,
-): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
+): Promise<{ trials: OptimizationTrial[]; stoppedEarly: boolean }> {
   const { baseStrategy, nodes, factory, evaluation, config, random, maxTrials } = context;
   const trials: OptimizationTrial[] = [];
   const population: Array<{ trial: OptimizationTrial; genome: EvolutionGenome }> = [];
@@ -135,7 +135,7 @@ export function runEvolutionSearch(
       continue;
     }
 
-    evaluateTrialFully(trial, evaluation);
+    await evaluateTrialFully(trial, evaluation);
     if (trial.status !== "scored") {
       continue;
     }

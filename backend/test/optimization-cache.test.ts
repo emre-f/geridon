@@ -28,7 +28,7 @@ function smaCrossStrategy(fastPeriod: number, slowPeriod: number): Strategy {
   };
 }
 
-test("the cache evicts the least recently used series once past its value budget", () => {
+test("the cache evicts the least recently used series once past its value budget", async () => {
   const cache = createIndicatorSeriesCache(10);
   const scope = cache.scope("TEST", 0, 99);
   scope.set("a", [1, 2, 3, 4]);
@@ -45,7 +45,7 @@ test("the cache evicts the least recently used series once past its value budget
   assert.equal(scope.get("too-big"), undefined);
 });
 
-test("scopes for different symbols or candle ranges never share series", () => {
+test("scopes for different symbols or candle ranges never share series", async () => {
   const cache = createIndicatorSeriesCache();
   cache.scope("TEST", 0, 50).set("sma", [1]);
   assert.equal(cache.scope("TEST", 0, 60).get("sma"), undefined);
@@ -54,7 +54,7 @@ test("scopes for different symbols or candle ranges never share series", () => {
   assert.deepEqual(cache.scope("TEST", 0, 50).get("sma"), [1]);
 });
 
-test("candidates reuse cached indicator series and results stay identical", () => {
+test("candidates reuse cached indicator series and results stay identical", async () => {
   const datasets = [dataset(400)];
   const foldsBySymbol = new Map([["TEST", buildFolds(400, { foldCount: 4, mode: "anchored" })]]);
   const cache = createIndicatorSeriesCache();
@@ -81,11 +81,11 @@ test("candidates reuse cached indicator series and results stay identical", () =
   assert.equal(cache.stats.misses, 12);
 });
 
-test("cached and uncached optimizations match byte for byte", () => {
+test("cached and uncached optimizations match byte for byte", async () => {
   const config = baseConfig(smaCrossStrategy(5, 12), { maxTrials: 16 });
-  const uncached = runOptimization({ ...config, cache: { enabled: false } });
-  const cached = runOptimization(config);
-  const evicting = runOptimization({ ...config, cache: { maxValues: 500 } });
+  const uncached = await runOptimization({ ...config, cache: { enabled: false } });
+  const cached = await runOptimization(config);
+  const evicting = await runOptimization({ ...config, cache: { maxValues: 500 } });
   assert.equal(JSON.stringify(cached), JSON.stringify(uncached));
   assert.equal(JSON.stringify(evicting), JSON.stringify(uncached));
 });

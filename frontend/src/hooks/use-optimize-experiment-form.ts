@@ -3,7 +3,12 @@ import { useMemo, useReducer } from "react";
 import type { OptimizationMethod, ScoringConfig, StrategyRecord, SymbolSummary } from "@/lib/api";
 import { toDateInputValue } from "@/lib/backtest-utils";
 import { availableTimeframes, coverageForTimeframe } from "@/lib/chart-options";
-import { budgetPresets, type BudgetPreset, type BudgetPresetChoice } from "@/lib/optimize-preflight-utils";
+import {
+  budgetPresets,
+  defaultWorkerCount,
+  type BudgetPreset,
+  type BudgetPresetChoice,
+} from "@/lib/optimize-preflight-utils";
 import { defaultScoring } from "@/lib/optimize-scoring-utils";
 
 /** The explicit Mode A/B/C framing over one experiment config: tune keeps the
@@ -26,6 +31,7 @@ interface OptimizeFormState {
   maxTrials: number;
   maxRuntimeMinutes: number;
   foldCount: number;
+  workerCount: number;
   holdoutPct: number;
   seed: number;
   scoring: ScoringConfig;
@@ -44,6 +50,7 @@ type EditableField = Pick<
   | "maxTrials"
   | "maxRuntimeMinutes"
   | "foldCount"
+  | "workerCount"
   | "holdoutPct"
   | "seed"
   | "scoring"
@@ -89,6 +96,7 @@ export function useOptimizeExperimentForm({
     method: "random",
     preset: "standard",
     ...budgetPresets.standard,
+    workerCount: defaultWorkerCount(),
     holdoutPct: 0,
     seed: 1,
     scoring: defaultScoring,
@@ -160,6 +168,8 @@ export function useOptimizeExperimentForm({
     setMaxRuntimeMinutes: (maxRuntimeMinutes: number) =>
       dispatch({ type: "fieldChanged", patch: { maxRuntimeMinutes } }),
     setFoldCount: (foldCount: number) => dispatch({ type: "fieldChanged", patch: { foldCount } }),
+    setWorkerCount: (workerCount: number) =>
+      dispatch({ type: "fieldChanged", patch: { workerCount } }),
     setHoldoutPct: (holdoutPct: number) => dispatch({ type: "fieldChanged", patch: { holdoutPct } }),
     setSeed: (seed: number) => dispatch({ type: "fieldChanged", patch: { seed } }),
     setStartDate: (nextStartDate: string) =>

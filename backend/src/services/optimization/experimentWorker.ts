@@ -9,7 +9,7 @@ const { config, cancelBuffer } = workerData as {
 };
 const cancelFlag = new Int32Array(cancelBuffer);
 
-const result = runOptimization(config, {
+const result = await runOptimization(config, {
   shouldStop: () => Atomics.load(cancelFlag, 0) === 1,
   onBaseline: (score) => {
     parentPort?.postMessage({ type: "baseline", baselineScore: score });

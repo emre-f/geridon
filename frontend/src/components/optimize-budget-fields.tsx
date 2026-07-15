@@ -1,6 +1,7 @@
 import type { OptimizationMethod } from "@/lib/api";
 import {
   budgetPresetLabels,
+  machineCoreCount,
   type BudgetPreset,
   type BudgetPresetChoice,
 } from "@/lib/optimize-preflight-utils";
@@ -14,23 +15,28 @@ export function OptimizeBudgetFields({
   maxTrials,
   method,
   preset,
+  workerCount,
   onFoldCountChange,
   onHoldoutPctChange,
   onMaxTrialsChange,
   onMethodChange,
   onPresetChange,
+  onWorkerCountChange,
 }: {
   foldCount: number;
   holdoutPct: number;
   maxTrials: number;
   method: OptimizationMethod;
   preset: BudgetPresetChoice;
+  workerCount: number;
   onFoldCountChange: (value: number) => void;
   onHoldoutPctChange: (value: number) => void;
   onMaxTrialsChange: (value: number) => void;
   onMethodChange: (value: OptimizationMethod) => void;
   onPresetChange: (value: BudgetPreset) => void;
+  onWorkerCountChange: (value: number) => void;
 }) {
+  const maxWorkers = machineCoreCount();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-end gap-3">
@@ -106,6 +112,17 @@ export function OptimizeBudgetFields({
               </option>
             ))}
           </Select>
+        </Field>
+        <Field label={`Workers (max ${maxWorkers})`}>
+          <NumberInput
+            className="w-16"
+            aria-label="Parallel worker count"
+            value={workerCount}
+            min={1}
+            max={maxWorkers}
+            step={1}
+            onValueChange={onWorkerCountChange}
+          />
         </Field>
       </div>
     </div>

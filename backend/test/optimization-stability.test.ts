@@ -50,7 +50,7 @@ const toggleNode: SearchSpaceNode = {
   current: true,
 };
 
-test("stability aggregates the scores of trials sampled near the best value", () => {
+test("stability aggregates the scores of trials sampled near the best value", async () => {
   const best = scoredTrial(0, { "entry.right.value": 95 }, 1.0);
   const trials = [
     best,
@@ -70,7 +70,7 @@ test("stability aggregates the scores of trials sampled near the best value", ()
   assert.equal(entry.neighborScoreMin, 0.5);
 });
 
-test("stability reports an empty neighborhood as null rather than zero", () => {
+test("stability reports an empty neighborhood as null rather than zero", async () => {
   const best = scoredTrial(0, { "entry.right.value": 95 }, 1.0);
   const far = scoredTrial(1, { "entry.right.value": 115 }, 0.2);
   const entries = computeParameterStability([numericNode], [best, far], best);
@@ -80,14 +80,14 @@ test("stability reports an empty neighborhood as null rather than zero", () => {
   assert.equal(entries[0].neighborScoreMin, null);
 });
 
-test("stability skips dimensions the best trial never sampled and handles no best trial", () => {
+test("stability skips dimensions the best trial never sampled and handles no best trial", async () => {
   const best = scoredTrial(0, {}, 1.0);
   assert.deepEqual(computeParameterStability([numericNode], [best], best), []);
   assert.deepEqual(computeParameterStability([numericNode], [], undefined), []);
 });
 
-test("optimization results carry stability entries for searched numeric dimensions", () => {
-  const result = runOptimization(
+test("optimization results carry stability entries for searched numeric dimensions", async () => {
+  const result = await runOptimization(
     baseConfig(thresholdStrategy(95, 105), {
       maxTrials: 30,
       parameterOverrides: {

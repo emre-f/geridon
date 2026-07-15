@@ -25,9 +25,9 @@ function continuousConfig(method: "random" | "tpe", seed: number): OptimizationC
   });
 }
 
-test("tpe is deterministic for a fixed seed", () => {
-  const first = runOptimization(continuousConfig("tpe", 11));
-  const second = runOptimization(continuousConfig("tpe", 11));
+test("tpe is deterministic for a fixed seed", async () => {
+  const first = await runOptimization(continuousConfig("tpe", 11));
+  const second = await runOptimization(continuousConfig("tpe", 11));
   assert.equal(first.trials.length, 40);
   assert.deepEqual(
     second.trials.map((trial) => trial.hash),
@@ -35,14 +35,14 @@ test("tpe is deterministic for a fixed seed", () => {
   );
 });
 
-test("tpe matches or beats seeded random search under an equal budget on the fixture", () => {
+test("tpe matches or beats seeded random search under an equal budget on the fixture", async () => {
   const seeds = [1, 2, 3];
-  const bestScore = (method: "random" | "tpe", seed: number) =>
-    runOptimization(continuousConfig(method, seed)).leaderboard[0]?.score?.score ?? -Infinity;
+  const bestScore = async (method: "random" | "tpe", seed: number) =>
+    (await runOptimization(continuousConfig(method, seed))).leaderboard[0]?.score?.score ?? -Infinity;
 
   for (const seed of seeds) {
-    const randomBest = bestScore("random", seed);
-    const tpeBest = bestScore("tpe", seed);
+    const randomBest = await bestScore("random", seed);
+    const tpeBest = await bestScore("tpe", seed);
     assert.ok(
       tpeBest >= randomBest,
       `seed ${seed}: tpe best ${tpeBest} should match or beat random best ${randomBest}`,
@@ -62,7 +62,7 @@ function blockedStrategy(): Strategy {
   };
 }
 
-test("evolution only produces valid candidates within the caps", () => {
+test("evolution only produces valid candidates within the caps", async () => {
   const config = baseConfig(blockedStrategy(), {
     method: "evolution",
     maxTrials: 30,
@@ -74,7 +74,7 @@ test("evolution only produces valid candidates within the caps", () => {
       maxActiveRulesPerSide: 3,
     },
   });
-  const result = runOptimization(config);
+  const result = await runOptimization(config);
   assert.equal(result.trials.length, config.maxTrials);
   for (const trial of result.trials) {
     if (trial.status === "rejected") {
@@ -87,8 +87,8 @@ test("evolution only produces valid candidates within the caps", () => {
   assert.ok(result.leaderboard.length > 0);
 });
 
-test("evolution improves on a baseline blocked by a harmful rule", () => {
-  const result = runOptimization(
+test("evolution improves on a baseline blocked by a harmful rule", async () => {
+  const result = await runOptimization(
     baseConfig(blockedStrategy(), {
       method: "evolution",
       maxTrials: 40,
@@ -101,7 +101,7 @@ test("evolution improves on a baseline blocked by a harmful rule", () => {
   assert.ok(best.score.score > result.baseline.score.score);
 });
 
-test("evolution can insert approved library rules and dedups candidates", () => {
+test("evolution can insert approved library rules and dedups candidates", async () => {
   const config = baseConfig(blockedStrategy(), {
     method: "evolution",
     maxTrials: 40,
@@ -112,7 +112,7 @@ test("evolution can insert approved library rules and dedups candidates", () => 
       ],
     },
   });
-  const result = runOptimization(config);
+  const result = await runOptimization(config);
   const baseRuleCount = 3;
   const withAddedRule = result.trials.filter((trial) => {
     if (trial.status === "rejected") {
@@ -176,8 +176,8 @@ test("pareto fronts separate dominated from non-dominated candidates", () => {
   assert.deepEqual(fronts[1], [2]);
 });
 
-test("pareto fronts are attached to optimization results", () => {
-  const result = runOptimization(continuousConfig("random", 5));
+test("pareto fronts are attached to optimization results", async () => {
+  const result = await runOptimization(continuousConfig("random", 5));
   assert.ok(result.paretoFronts.length > 0);
   const frontIndexes = new Set(result.paretoFronts.flat());
   assert.equal(frontIndexes.size, result.leaderboard.length);

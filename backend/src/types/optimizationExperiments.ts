@@ -53,6 +53,8 @@ export interface OptimizationExperimentConfig {
   seed: number;
   max_trials: number;
   max_runtime_ms: number;
+  /** Parallel fold-evaluation workers this experiment may use; 1 is single-threaded. */
+  worker_count: number;
   method: OptimizationMethod;
   folds: FoldsConfig;
   holdout?: HoldoutConfig;

@@ -217,6 +217,8 @@ export interface OptimizationConfig {
   seed: number;
   maxTrials: number;
   maxRuntimeMs?: number;
+  /** Parallel fold-evaluation workers; 1 (default) keeps the single-threaded path. */
+  workerCount?: number;
   folds: FoldsConfig;
   scoring?: Partial<ScoringConfig>;
   ruleRoles?: Record<string, RuleRole>;

@@ -8,6 +8,7 @@ import {
   type FullEvaluationContext,
   type TrialFactory,
 } from "./trials.ts";
+import type { EvaluationPool } from "./evaluationPool.ts";
 import type {
   OptimizationConfig,
   OptimizationTrial,
@@ -23,12 +24,13 @@ export interface SearchContext {
   evaluation: FullEvaluationContext;
   random: SeededRandom;
   stopRequested: () => boolean;
+  pool?: EvaluationPool;
 }
 
-export function runRandomSearch(
+export async function runRandomSearch(
   context: SearchContext,
   maxTrials: number,
-): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
+): Promise<{ trials: OptimizationTrial[]; stoppedEarly: boolean }> {
   const { config, baseStrategy, nodes, factory, random } = context;
   const trials: OptimizationTrial[] = [];
   for (let attempt = 0; attempt < maxTrials; attempt += 1) {
@@ -40,7 +42,7 @@ export function runRandomSearch(
     }
   }
 
-  const { stoppedEarly } = runSuccessiveHalving(trials, {
+  const { stoppedEarly } = await runSuccessiveHalving(trials, {
     datasets: config.datasets,
     foldsBySymbol: context.evaluation.foldsBySymbol,
     settings: context.evaluation.settings,
@@ -48,16 +50,17 @@ export function runRandomSearch(
     halving: resolveHalvingConfig(config.halving),
     stopRequested: context.stopRequested,
     onTrialComplete: context.evaluation.onTrialComplete,
+    pool: context.pool,
   });
   return { trials, stoppedEarly };
 }
 
-export function runRefinement(
+export async function runRefinement(
   context: SearchContext,
   trials: OptimizationTrial[],
   scoredSorted: OptimizationTrial[],
   maxTrials: number,
-) {
+): Promise<boolean> {
   const refinement = resolveRefinementConfig(context.config.refinement, context.config.maxTrials);
   if (!refinement.enabled || maxTrials < 1 || scoredSorted.length === 0) {
     return false;
@@ -76,7 +79,7 @@ export function runRefinement(
     );
     trials.push(trial);
     if (trial.status !== "rejected") {
-      evaluateTrialFully(trial, context.evaluation);
+      await evaluateTrialFully(trial, context.evaluation);
     } else {
       context.evaluation.onTrialComplete?.(trial);
     }

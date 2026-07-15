@@ -55,6 +55,7 @@ export function experimentBody(strategyId: number, overrides?: Record<string, un
     end_ms: 4e12,
     seed: 42,
     max_trials: 12,
+    worker_count: 1,
     folds: { foldCount: 4, mode: "anchored" },
     scoring: {
       objective: "total_return",

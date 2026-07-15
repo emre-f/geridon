@@ -188,11 +188,17 @@ rule library. The Optimize tab (Milestone 4) is where the A/B/C choice becomes a
       select on the experiment form applies preset trials/runtime/folds calibrated from
       `backend/bench/RESULTS.md`; editing any budget field flips the select to Custom, and the live
       preflight estimate re-checks the choice on the actual data)
-- [ ] A budget must include `max_trials`, `max_runtime`, worker count, promotion rate, and deterministic
+- [x] A budget must include `max_trials`, `max_runtime`, worker count, promotion rate, and deterministic
       seed. The first defaults should be calibrated with benchmarks rather than guessed here.
       (`max_trials`, `max_runtime_ms`, `halving.promotionRate`, and `seed` exist in the config and the
-      trial/runtime/fold defaults now come from bench-calibrated presets; worker count is still
-      hard-coded to one thread)
+      trial/runtime/fold defaults come from bench-calibrated presets; `worker_count` is now a first-class
+      budget field validated to `1..availableParallelism()`, defaulting to `cores - 2` so it never claims
+      every core, recorded immutably with the experiment and surfaced in the Optimize form. A run with
+      `worker_count > 1` fans each candidate's fold backtests across a persistent worker pool
+      (`evaluationPool.ts`), with cache/checkpoint reuse kept on the main thread so results reassemble in
+      candidate order — `optimization-parallel.test.ts` proves 1-worker and N-worker runs are
+      byte-identical across random/TPE/evolution and multi-symbol, and a 4-worker run measured ~2.5x
+      faster than single-threaded on a 2-symbol × 5-fold × 150-trial workload)
 - [x] Show an estimate in “backtest evaluations” and an approximate runtime based on a small preflight
       benchmark on the selected data. (`POST /api/v1/optimization-experiments/preflight` validates the
       draft config exactly like creation, counts planned fold backtests through the halving schedule,
@@ -370,9 +376,12 @@ For an optimization experiment, the data roles should be:
       resumed result is byte-identical to an uninterrupted run)
 - [x] Run CPU-heavy trials in a bounded worker-thread pool so HTTP requests and the UI remain responsive.
       (one worker thread per experiment, experiments run sequentially)
-- [ ] Default worker count conservatively and allow the user to lower it; optimization must not consume
-      every core by default. (currently exactly one worker thread, so the conservative default holds by
-      construction, but there is no user-facing setting)
+- [x] Default worker count conservatively and allow the user to lower it; optimization must not consume
+      every core by default. (`worker_count` defaults to `availableParallelism() - 2` (min 1), so the
+      default leaves headroom rather than grabbing every core, and the Optimize form's "Workers" control
+      lets the user raise or lower it within `1..cores`. The preflight runtime estimate divides the
+      single-threaded projection by a conservative `1 + (workers-1)*0.6` efficiency factor so bigger
+      multi-worker experiments do not falsely trip the runtime-cap warning)
 - [x] Cache immutable candle arrays and indicator series by ticker/timeframe/range/spec within sensible
       memory bounds. Reuse identical indicator calculations across candidates. (a per-run LRU in
       `indicatorCache.ts` keyed by symbol/candle-slice/indicator-spec shares indicator series across

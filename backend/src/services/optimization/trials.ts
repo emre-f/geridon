@@ -4,10 +4,12 @@ import { hasCheckpointFolds, takeCheckpointFold } from "./checkpoint.ts";
 import { sizingFromValues, validateCandidate } from "./searchSpace.ts";
 import { entrySignalFires } from "../signals.ts";
 import { evaluateFold, withSizing, type EvaluationSettings } from "./evaluate.ts";
+import type { EvaluationPool, PoolFoldTask } from "./evaluationPool.ts";
 import { scoreTrial } from "./scoring.ts";
 import { computeComplexity } from "./strategyPaths.ts";
 import type {
   BacktestPositionMode,
+  FoldEvaluation,
   FoldSpec,
   OptimizationDataset,
   OptimizationTrial,
@@ -78,6 +80,8 @@ export interface FullEvaluationContext {
   scoring: ScoringConfig;
   finalStage: number;
   onTrialComplete?: (trial: OptimizationTrial) => void;
+  /** Present only when worker_count > 1; the candidate's folds then run in parallel. */
+  pool?: EvaluationPool;
 }
 
 /**
@@ -103,7 +107,48 @@ function isSignalStarved(trial: OptimizationTrial, context: FullEvaluationContex
   return true;
 }
 
-export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvaluationContext) {
+/**
+ * Resolve the candidate's folds, either inline or across the worker pool.
+ * Checkpoint reuse always happens on the main thread so a pooled run reuses the
+ * same interrupted evaluations and stays byte-identical to the inline path.
+ */
+async function evaluateFolds(
+  trial: OptimizationTrial,
+  context: FullEvaluationContext,
+  settings: EvaluationSettings,
+): Promise<FoldEvaluation[]> {
+  const checkpoint = context.settings.checkpoint;
+  const slots: Array<{ resolved: FoldEvaluation | null; taskIndex: number }> = [];
+  const tasks: PoolFoldTask[] = [];
+  for (const dataset of context.datasets) {
+    for (const fold of context.foldsBySymbol.get(dataset.symbol) ?? []) {
+      const resolved =
+        takeCheckpointFold(checkpoint, trial.hash, dataset.symbol, fold.index) ?? null;
+      if (resolved || !context.pool) {
+        slots.push({
+          resolved: resolved ?? evaluateFold(trial.strategy, dataset, fold, settings),
+          taskIndex: -1,
+        });
+      } else {
+        slots.push({ resolved: null, taskIndex: tasks.length });
+        tasks.push({
+          strategy: trial.strategy,
+          buyPercent: settings.buyPercent,
+          sellPercent: settings.sellPercent,
+          symbol: dataset.symbol,
+          fold,
+        });
+      }
+    }
+  }
+  const evaluated = tasks.length > 0 && context.pool ? await context.pool.map(tasks) : [];
+  return slots.map((slot) => slot.resolved ?? evaluated[slot.taskIndex]);
+}
+
+export async function evaluateTrialFully(
+  trial: OptimizationTrial,
+  context: FullEvaluationContext,
+): Promise<void> {
   const checkpoint = context.settings.checkpoint;
   // A candidate with checkpointed folds passed the starvation probe before
   // the interruption, so only unseen candidates need it re-run.
@@ -115,16 +160,8 @@ export function evaluateTrialFully(trial: OptimizationTrial, context: FullEvalua
     return;
   }
   trial.stageReached = context.finalStage;
-  trial.foldResults = [];
   const settings = withSizing(context.settings, trial.sizing);
-  for (const dataset of context.datasets) {
-    for (const fold of context.foldsBySymbol.get(dataset.symbol) ?? []) {
-      trial.foldResults.push(
-        takeCheckpointFold(checkpoint, trial.hash, dataset.symbol, fold.index) ??
-          evaluateFold(trial.strategy, dataset, fold, settings),
-      );
-    }
-  }
+  trial.foldResults = await evaluateFolds(trial, context, settings);
   trial.score = scoreTrial(trial.foldResults, trial.complexity, context.scoring);
   trial.status = "scored";
   context.onTrialComplete?.(trial);

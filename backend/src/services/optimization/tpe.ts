@@ -169,9 +169,9 @@ export interface TpeSearchContext {
   stopRequested?: () => boolean;
 }
 
-export function runTpeSearch(
+export async function runTpeSearch(
   context: TpeSearchContext,
-): { trials: OptimizationTrial[]; stoppedEarly: boolean } {
+): Promise<{ trials: OptimizationTrial[]; stoppedEarly: boolean }> {
   const sampler = new TpeSampler(context.nodes, context.random, context.config);
   const trials: OptimizationTrial[] = [];
   let evaluated = 0;
@@ -194,7 +194,7 @@ export function runTpeSearch(
       continue;
     }
 
-    evaluateTrialFully(trial, context.evaluation);
+    await evaluateTrialFully(trial, context.evaluation);
     if (trial.status !== "scored" || trial.score == null) {
       continue;
     }

@@ -42,6 +42,7 @@ export interface OptimizationExperimentConfig {
   seed: number;
   max_trials: number;
   max_runtime_ms: number;
+  worker_count: number;
   method: OptimizationMethod;
   folds: FoldsConfig;
   holdout?: HoldoutConfig;

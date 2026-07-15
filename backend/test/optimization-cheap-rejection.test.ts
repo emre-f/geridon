@@ -31,7 +31,7 @@ function andStrategy(conditions: StrategyCondition[]): Strategy {
   };
 }
 
-test("self-comparisons are flagged as always true or always false", () => {
+test("self-comparisons are flagged as always true or always false", async () => {
   assert.match(ruleRejectionReason(rule(close, "gt", close)) ?? "", /always false/);
   assert.match(ruleRejectionReason(rule(close, "gte", close)) ?? "", /always true/);
   assert.match(ruleRejectionReason(rule(rsi(14), "cross_above", rsi(14))) ?? "", /always false/);
@@ -39,7 +39,7 @@ test("self-comparisons are flagged as always true or always false", () => {
   assert.equal(ruleRejectionReason(rule(close, "gt", { type: "value", value: 100 })), null);
 });
 
-test("contradictory thresholds in an and group are rejected", () => {
+test("contradictory thresholds in an and group are rejected", async () => {
   const impossible = andStrategy([
     rule(close, "gt", { type: "value", value: 100 }),
     rule(close, "lt", { type: "value", value: 90 }),
@@ -65,7 +65,7 @@ test("contradictory thresholds in an and group are rejected", () => {
   assert.equal(cheapRejectionReason(separateOperands), null);
 });
 
-test("nested and groups count toward the simultaneous rule set", () => {
+test("nested and groups count toward the simultaneous rule set", async () => {
   const nested = andStrategy([
     rule(close, "gt", { type: "value", value: 100 }),
     {
@@ -90,7 +90,7 @@ test("nested and groups count toward the simultaneous rule set", () => {
   assert.equal(cheapRejectionReason(viaOr), null);
 });
 
-test("opposite crosses of the same pair cannot hold in one and group", () => {
+test("opposite crosses of the same pair cannot hold in one and group", async () => {
   const crossed = andStrategy([
     rule(rsi(14), "cross_above", { type: "value", value: 50 }),
     rule(rsi(14), "cross_below", { type: "value", value: 50 }),
@@ -98,7 +98,7 @@ test("opposite crosses of the same pair cannot hold in one and group", () => {
   assert.match(cheapRejectionReason(crossed) ?? "", /never fire on the same candle/);
 });
 
-test("duplicate rules in one group are rejected, disabled rules are ignored", () => {
+test("duplicate rules in one group are rejected, disabled rules are ignored", async () => {
   const duplicated: Strategy = {
     name: "Test",
     entry: {
@@ -120,7 +120,7 @@ test("duplicate rules in one group are rejected, disabled rules are ignored", ()
   assert.equal(cheapRejectionReason(withDisabled), null);
 });
 
-test("canonical rule keys ignore parameter order", () => {
+test("canonical rule keys ignore parameter order", async () => {
   const left = {
     type: "indicator",
     kind: "macd",
@@ -137,7 +137,7 @@ test("canonical rule keys ignore parameter order", () => {
   );
 });
 
-test("createTrial records the cheap rejection reason", () => {
+test("createTrial records the cheap rejection reason", async () => {
   const factory = createTrialFactory("long_only", "baseline-hash");
   const trial = createTrial(
     factory,
@@ -152,7 +152,7 @@ test("createTrial records the cheap rejection reason", () => {
   assert.match(trial.rejectionReason ?? "", /at the same time/);
 });
 
-test("signal-starved candidates are rejected before any fold backtest", () => {
+test("signal-starved candidates are rejected before any fold backtest", async () => {
   // Triangle closes stay above ~89, so every sampled "close lt" entry is unreachable.
   const config = baseConfig(thresholdStrategy(5, 105), {
     method: "tpe",
@@ -163,7 +163,7 @@ test("signal-starved candidates are rejected before any fold backtest", () => {
       "exit.right.value": { locked: true },
     },
   });
-  const result = runOptimization(config);
+  const result = await runOptimization(config);
 
   const starved = result.trials.filter((trial) =>
     /signal-starved/.test(trial.rejectionReason ?? ""),

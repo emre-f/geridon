@@ -45,5 +45,9 @@ export interface ExperimentPreflight {
   estimated_runtime_ms: number;
   max_runtime_ms: number;
   runtime_capped: boolean;
+  /** Parallel workers this estimate assumed and the machine's bounds for the control. */
+  worker_count: number;
+  default_worker_count: number;
+  max_worker_count: number;
   timeline: PreflightSymbolTimeline[];
 }

@@ -47,11 +47,11 @@ function tunableConfig(method: "random" | "tpe"): OptimizationConfig {
 }
 
 for (const method of ["random", "tpe"] as const) {
-  test(`a ${method} run resumed from a full checkpoint reuses folds and stays byte-identical`, () => {
-    const fresh = runOptimization(tunableConfig(method));
+  test(`a ${method} run resumed from a full checkpoint reuses folds and stays byte-identical`, async () => {
+    const fresh = await runOptimization(tunableConfig(method));
     assert.equal(fresh.checkpointFoldsReused, 0);
 
-    const resumed = runOptimization({
+    const resumed = await runOptimization({
       ...tunableConfig(method),
       checkpoint: checkpointFromResult(fresh),
     });
@@ -60,13 +60,13 @@ for (const method of ["random", "tpe"] as const) {
   });
 }
 
-test("a partial checkpoint is reused for the trials it covers and the rest recompute identically", () => {
-  const fresh = runOptimization(tunableConfig("random"));
+test("a partial checkpoint is reused for the trials it covers and the rest recompute identically", async () => {
+  const fresh = await runOptimization(tunableConfig("random"));
   const partial = checkpointFromResult(fresh);
   const kept = partial.slice(0, Math.floor(partial.length / 2));
   assert.ok(kept.length > 0 && kept.length < partial.length);
 
-  const resumed = runOptimization({ ...tunableConfig("random"), checkpoint: kept });
+  const resumed = await runOptimization({ ...tunableConfig("random"), checkpoint: kept });
   assert.ok(resumed.checkpointFoldsReused > 0);
   const keptFoldCount = kept.reduce((sum, entry) => sum + entry.foldResults.length, 0);
   assert.ok(resumed.checkpointFoldsReused <= keptFoldCount);

@@ -39,7 +39,7 @@ function scoredTrial(index: number, strategy: Strategy, eligible = true): Optimi
   };
 }
 
-test("computeRuleInclusion counts active rules among the top eligible candidates", () => {
+test("computeRuleInclusion counts active rules among the top eligible candidates", async () => {
   const baseline = groupedStrategy(true);
   const leaderboard = [
     scoredTrial(0, groupedStrategy(true)),
@@ -58,7 +58,7 @@ test("computeRuleInclusion counts active rules among the top eligible candidates
   );
 });
 
-test("computeRuleInclusion skips ineligible candidates and respects topCount", () => {
+test("computeRuleInclusion skips ineligible candidates and respects topCount", async () => {
   const baseline = groupedStrategy(true);
   const leaderboard = [
     scoredTrial(0, groupedStrategy(false)),
@@ -78,7 +78,7 @@ test("computeRuleInclusion skips ineligible candidates and respects topCount", (
   assert.ok(onlyBest.every((entry) => entry.topCount === 1));
 });
 
-test("computeRuleInclusion labels rules from the baseline snapshot, not tuned candidates", () => {
+test("computeRuleInclusion labels rules from the baseline snapshot, not tuned candidates", async () => {
   const baseline = groupedStrategy(true, 100);
   const leaderboard = [scoredTrial(0, groupedStrategy(true, 999))];
 
@@ -87,12 +87,12 @@ test("computeRuleInclusion labels rules from the baseline snapshot, not tuned ca
   assert.equal(secondRule?.summary, "entry: close gt 100");
 });
 
-test("computeRuleInclusion returns nothing without eligible candidates", () => {
+test("computeRuleInclusion returns nothing without eligible candidates", async () => {
   const baseline = groupedStrategy(true);
   assert.deepEqual(computeRuleInclusion([scoredTrial(0, baseline, false)], baseline), []);
 });
 
-test("optimization reports inclusion frequency when rule structure is searched", () => {
+test("optimization reports inclusion frequency when rule structure is searched", async () => {
   const strategy: Strategy = {
     name: "Blocked",
     entry: {
@@ -102,7 +102,7 @@ test("optimization reports inclusion frequency when rule structure is searched",
     },
     exit: thresholdRule("gt", 105),
   };
-  const result = runOptimization(
+  const result = await runOptimization(
     baseConfig(strategy, {
       maxTrials: 8,
       ruleRoles: { "entry.conditions.1": "optional" },
@@ -124,7 +124,7 @@ test("optimization reports inclusion frequency when rule structure is searched",
   assert.equal(blockedRule?.includedCount, 0);
 });
 
-test("optimization reports no inclusion for a pure parameter search", () => {
-  const result = runOptimization(baseConfig(thresholdStrategy(95, 105), { maxTrials: 8 }));
+test("optimization reports no inclusion for a pure parameter search", async () => {
+  const result = await runOptimization(baseConfig(thresholdStrategy(95, 105), { maxTrials: 8 }));
   assert.deepEqual(result.inclusion, []);
 });

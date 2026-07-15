@@ -115,6 +115,7 @@ export function OptimizePanel({
                 timeframe={form.timeframe}
                 timeframes={form.timeframes}
                 tickerList={form.tickerList}
+                workerCount={form.workerCount}
                 onEndDateChange={form.setEndDate}
                 onFoldCountChange={form.setFoldCount}
                 onHoldoutPctChange={form.setHoldoutPct}
@@ -129,6 +130,7 @@ export function OptimizePanel({
                 onStrategyIdChange={form.setStrategyId}
                 onTickerChange={form.setTicker}
                 onTimeframeChange={form.setTimeframe}
+                onWorkerCountChange={form.setWorkerCount}
                 startDisabled={
                   searchSpace.issue != null ||
                   (evolving && ruleLibrary.issue != null) ||

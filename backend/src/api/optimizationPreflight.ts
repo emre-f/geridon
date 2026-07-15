@@ -9,9 +9,24 @@ import {
 } from "../services/optimization/preflight.ts";
 import { resolveScoringConfig } from "../services/optimization/scoring.ts";
 import type { ExperimentPreflight } from "../types.ts";
-import { parseExperimentRequest } from "./optimizationRequests.ts";
+import {
+  defaultWorkerCount,
+  maxWorkerCount,
+  parseExperimentRequest,
+} from "./optimizationRequests.ts";
 import { prepareExperimentInputs } from "./optimizationSetup.ts";
 import { badRequest, type ApiResult } from "./shared.ts";
+
+/**
+ * Fold backtests parallelize with diminishing returns (worker startup, uneven
+ * batches, shared memory bandwidth); this efficiency factor keeps the runtime
+ * estimate conservative rather than promising linear speedup.
+ */
+const PARALLEL_EFFICIENCY = 0.6;
+
+function effectiveParallelism(workerCount: number): number {
+  return 1 + Math.max(0, workerCount - 1) * PARALLEL_EFFICIENCY;
+}
 
 /**
  * Validates a draft experiment exactly like creation would, then returns the
@@ -52,7 +67,10 @@ export function handlePreflightExperiment(db: Database, body: unknown): ApiResul
     refinement: config.refinement,
     activeRuleCount: activeRuleCount(strategy),
   });
-  const estimatedRuntimeMs = Math.round(evaluations.total * benchmark.ms_per_evaluation);
+  const singleThreadMs = evaluations.total * benchmark.ms_per_evaluation;
+  const estimatedRuntimeMs = Math.round(
+    singleThreadMs / effectiveParallelism(config.worker_count),
+  );
 
   const preflight: ExperimentPreflight = {
     evaluations,
@@ -60,6 +78,9 @@ export function handlePreflightExperiment(db: Database, body: unknown): ApiResul
     estimated_runtime_ms: estimatedRuntimeMs,
     max_runtime_ms: config.max_runtime_ms,
     runtime_capped: estimatedRuntimeMs > config.max_runtime_ms,
+    worker_count: config.worker_count,
+    default_worker_count: defaultWorkerCount(),
+    max_worker_count: maxWorkerCount(),
     timeline: buildPreflightTimeline(datasets, searchData, foldsBySymbol, config.holdout),
   };
   return { statusCode: 200, body: preflight };

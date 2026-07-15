@@ -42,7 +42,7 @@ function atLeastStrategy(): Strategy {
   };
 }
 
-test("sizing nodes exist only for long_only with an unlocked override", () => {
+test("sizing nodes exist only for long_only with an unlocked override", async () => {
   const strategy = thresholdStrategy(95, 105);
   const base = { strategy, positionMode: "long_only" as const, buyPercent: 100, sellPercent: 100 };
 
@@ -73,7 +73,7 @@ test("sizing nodes exist only for long_only with an unlocked override", () => {
   assert.ok(alwaysIn.nodes.every((node) => node.path[0] !== "sizing"));
 });
 
-test("sizing values stay off the strategy tree and distinguish candidate hashes", () => {
+test("sizing values stay off the strategy tree and distinguish candidate hashes", async () => {
   const strategy = thresholdStrategy(95, 105);
   const { baseStrategy, nodes } = compileSearchSpace({
     strategy,
@@ -102,7 +102,7 @@ test("sizing values stay off the strategy tree and distinguish candidate hashes"
   );
 });
 
-test("an optimization over sizing scores sizing-only candidates and stays deterministic", () => {
+test("an optimization over sizing scores sizing-only candidates and stays deterministic", async () => {
   const config = () =>
     baseConfig(thresholdStrategy(95, 105), {
       maxTrials: 16,
@@ -113,7 +113,7 @@ test("an optimization over sizing scores sizing-only candidates and stays determ
       },
     });
 
-  const result = runOptimization(config());
+  const result = await runOptimization(config());
   const scored = result.trials.filter((trial) => trial.status === "scored");
   assert.ok(scored.length > 0);
   for (const trial of scored) {
@@ -127,10 +127,10 @@ test("an optimization over sizing scores sizing-only candidates and stays determ
   const distinctScores = new Set(scored.map((trial) => trial.score!.score));
   assert.ok(distinctScores.size > 1, "different sizing must change evaluation results");
 
-  assert.equal(JSON.stringify(runOptimization(config())), JSON.stringify(result));
+  assert.equal(JSON.stringify(await runOptimization(config())), JSON.stringify(result));
 });
 
-test("operator search samples valid operators only for opted-in rules", () => {
+test("operator search samples valid operators only for opted-in rules", async () => {
   const strategy = thresholdStrategy(95, 105);
   const { baseStrategy, nodes } = compileSearchSpace({
     strategy,
@@ -147,7 +147,7 @@ test("operator search samples valid operators only for opted-in rules", () => {
   assert.equal((candidate.entry as StrategyRule).operator, "cross_below");
 });
 
-test("operator search is skipped for rules turned off by their role", () => {
+test("operator search is skipped for rules turned off by their role", async () => {
   const { nodes } = compileSearchSpace({
     strategy: atLeastStrategy(),
     ruleRoles: { "entry.conditions.0": "off" },
@@ -157,7 +157,7 @@ test("operator search is skipped for rules turned off by their role", () => {
   assert.deepEqual(operatorIds, ["entry.conditions.1.operator"]);
 });
 
-test("at_least count search compiles an integer node bounded by the group size", () => {
+test("at_least count search compiles an integer node bounded by the group size", async () => {
   const strategy = atLeastStrategy();
   const { baseStrategy, nodes } = compileSearchSpace({
     strategy,
@@ -176,7 +176,7 @@ test("at_least count search compiles an integer node bounded by the group size",
   assert.equal((candidate.entry as StrategyGroup).count, 1);
 });
 
-test("an optimization over operators and at_least counts is valid and deterministic", () => {
+test("an optimization over operators and at_least counts is valid and deterministic", async () => {
   const config = () =>
     baseConfig(atLeastStrategy(), {
       maxTrials: 20,
@@ -189,7 +189,7 @@ test("an optimization over operators and at_least counts is valid and determinis
       },
     });
 
-  const result = runOptimization(config());
+  const result = await runOptimization(config());
   assert.ok(result.trials.some((trial) => trial.status === "scored"));
   const operators = new Set<string>();
   const counts = new Set<number>();
@@ -208,10 +208,10 @@ test("an optimization over operators and at_least counts is valid and determinis
   assert.ok(operators.size > 1, "the search should try more than one operator");
   assert.ok(counts.size > 1, "the search should try more than one at_least count");
 
-  assert.equal(JSON.stringify(runOptimization(config())), JSON.stringify(result));
+  assert.equal(JSON.stringify(await runOptimization(config())), JSON.stringify(result));
 });
 
-test("experiment API validates sizing overrides and structure search with structured errors", () => {
+test("experiment API validates sizing overrides and structure search with structured errors", async () => {
   const db = makeDb();
   insertCandles(db, "TEST", 400);
   const strategyId = insertStrategy(db);
@@ -269,7 +269,7 @@ test("a sizing + operator experiment round-trips through the API and completes",
   }
 });
 
-test("search-space preview reports sizing dimensions and at_least groups", () => {
+test("search-space preview reports sizing dimensions and at_least groups", async () => {
   const db = makeDb();
   const strategy = atLeastStrategy();
   const inserted = db

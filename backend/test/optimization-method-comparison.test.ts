@@ -42,11 +42,11 @@ function blockedStrategy(): Strategy {
   };
 }
 
-function bestScore(config: OptimizationConfig): number {
-  return runOptimization(config).leaderboard[0]?.score?.score ?? -Infinity;
+async function bestScore(config: OptimizationConfig): Promise<number> {
+  return (await runOptimization(config)).leaderboard[0]?.score?.score ?? -Infinity;
 }
 
-function compareAcrossMatrix(
+async function compareAcrossMatrix(
   makeConfig: (
     method: "random" | "tpe" | "evolution",
     datasets: OptimizationDataset[],
@@ -60,8 +60,8 @@ function compareAcrossMatrix(
       cells.push({
         name: variant.name,
         seed,
-        random: bestScore(makeConfig("random", variant.datasets, seed)),
-        smart: bestScore(makeConfig(smarter, variant.datasets, seed)),
+        random: await bestScore(makeConfig("random", variant.datasets, seed)),
+        smart: await bestScore(makeConfig(smarter, variant.datasets, seed)),
       });
     }
   }
@@ -84,8 +84,8 @@ function compareAcrossMatrix(
   );
 }
 
-test("tpe matches or beats random search across strategies, tickers, and seeds under equal budgets", () => {
-  compareAcrossMatrix(
+test("tpe matches or beats random search across strategies, tickers, and seeds under equal budgets", async () => {
+  await compareAcrossMatrix(
     (method, datasets, seed) =>
       baseConfig(thresholdStrategy(95, 105), {
         method: method as "random" | "tpe",
@@ -102,8 +102,8 @@ test("tpe matches or beats random search across strategies, tickers, and seeds u
   );
 });
 
-test("evolution matches or beats random search across strategies, tickers, and seeds under equal budgets", () => {
-  compareAcrossMatrix(
+test("evolution matches or beats random search across strategies, tickers, and seeds under equal budgets", async () => {
+  await compareAcrossMatrix(
     (method, datasets, seed) =>
       baseConfig(blockedStrategy(), {
         method,
