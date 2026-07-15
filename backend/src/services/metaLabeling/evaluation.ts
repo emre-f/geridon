@@ -8,6 +8,8 @@ import {
   recall,
   type AppliedTrade,
 } from "./overlayMetrics.ts";
+import { evaluateGuardrails, type GuardrailReport } from "./guardrails.ts";
+import { buildOverlayArtifact, type OverlayArtifact } from "./overlayArtifact.ts";
 import { applyPolicy, defaultTradePolicy, type TradePolicyConfig } from "./tradePolicy.ts";
 import { runWalkForward, type FoldPrediction, type WalkForwardInput, type WalkForwardResult } from "./walkForward.ts";
 import type { FoldEvaluation, ScoringConfig, TrialScore } from "../../types.ts";
@@ -43,10 +45,12 @@ export interface OverlayEvaluation {
   feature_set_id: string;
   seed: number;
   policy: TradePolicyConfig;
+  guardrails: GuardrailReport;
   take_everything: PolicyEvaluation;
   filtered: PolicyEvaluation;
   random_skip: PolicyEvaluation;
   walk_forward: WalkForwardResult;
+  artifact: OverlayArtifact;
 }
 
 export interface OverlayEvaluationOptions {
@@ -184,6 +188,7 @@ export function evaluateOverlay(
     feature_set_id: wf.feature_set_id,
     seed,
     policy,
+    guardrails: evaluateGuardrails(wf),
     take_everything: buildPolicyEvaluation(
       "take_everything",
       input.symbol,
@@ -212,5 +217,6 @@ export function evaluateOverlay(
       complexity,
     ),
     walk_forward: wf,
+    artifact: buildOverlayArtifact(input, wf, { policy, seed }),
   };
 }

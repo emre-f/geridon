@@ -15,23 +15,18 @@ export interface TradeEventRow {
   exit_timestamp_ms: number;
   entry_index: number;
   exit_index: number;
-  /** The bar whose close fired the signal; fills happen on the next bar's open. */
   trigger_index: number;
-  /** Bars from entry fill to exit fill; the label horizon recorded per row. */
   horizon_candles: number;
   entry_price: number;
   exit_price: number;
-  /** Equity change across the round trip, net of commission and slippage. */
   net_pnl: number;
   return_pct: number;
-  /** 1 when the trade cleared its costs (net PnL positive). */
   label: 0 | 1;
 }
 
 export interface TradeEventDataset {
   symbol: string;
   rows: TradeEventRow[];
-  /** Entries still open when the window ended; they have no outcome and no row. */
   open_trades: number;
 }
 
@@ -91,15 +86,6 @@ function closedRow(
   };
 }
 
-/**
- * One row per entry trigger of the baseline strategy, labelled by whether the
- * round trip cleared its configured costs. An event opens when a fill takes
- * the account out of flat and closes when a fill returns it to flat; a
- * stop-and-reverse fill closes the old event and opens the new one at the
- * same bar, attributing the flip fill's costs to the trade it closed. Scaling
- * fills inside one side extend the same event. Runs the ordinary
- * non-persisting simulator, so costs and fill timing match backtests exactly.
- */
 export function buildTradeEvents(options: TradeEventOptions): TradeEventDataset {
   const result = runBacktest({
     strategy: options.strategy,

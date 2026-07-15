@@ -2,11 +2,6 @@ import { computeIndicatorValueSeries } from "../indicators.ts";
 import type { Candle } from "../../types.ts";
 import type { TradeEventRow } from "./tradeEvents.ts";
 
-/**
- * Versioned feature-set id stored with any trained overlay so old models stay
- * interpretable. Bump the version whenever a feature is added, removed, or its
- * computation changes.
- */
 export const featureSetId = "meta-features-v1";
 
 export const featureNames = [
@@ -23,7 +18,6 @@ export type FeatureName = (typeof featureNames)[number];
 export interface FeatureMatrix {
   feature_set_id: string;
   feature_names: FeatureName[];
-  /** One row per trade event, aligned by index; null while indicators warm up. */
   rows: Array<Array<number | null>>;
 }
 
@@ -34,11 +28,6 @@ function ratio(numerator: number | null, denominator: number | null): number | n
   return numerator / denominator;
 }
 
-/**
- * Market-context features per bar, every one causal: rolling indicators only
- * read candles at or before their own bar, so the value at a trade's trigger
- * bar uses no information from the fill bar or later.
- */
 export function computeFeatureSeries(
   candles: Candle[],
 ): Record<FeatureName, Array<number | null>> {
@@ -78,10 +67,6 @@ export function computeFeatureSeries(
   };
 }
 
-/**
- * One feature row per trade event, taken at the event's trigger bar (the bar
- * whose close fired the signal), never at the fill bar.
- */
 export function buildFeatureMatrix(
   candles: Candle[],
   events: TradeEventRow[],

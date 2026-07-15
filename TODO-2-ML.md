@@ -725,9 +725,19 @@ and never mutates the strategy itself.
       the model's own fit rows — and maps the calibrated probability through a take/skip/shrink policy
       whose size is clamped to [0, 1] so the overlay only removes or shrinks trades. The threshold is a
       policy parameter meant to be validated per fold, never read from the sealed holdout)
-- [ ] **Guardrails**: refuse or warn when there are too few triggers to learn from (hundreds, not
+- [x] **Guardrails**: refuse or warn when there are too few triggers to learn from (hundreds, not
       dozens), when classes are extremely imbalanced, or when a fold has near-zero triggers; the
       sealed holdout follows the existing one-open rule.
+      (`metaLabeling/guardrails.ts` reduces a walk-forward run to a `GuardrailReport` with an overall
+      `ok`/`warn`/`refuse` status and typed findings: `too_few_triggers` refuses below 40 events and
+      warns below the recommended 200; `class_imbalance` refuses when the minority outcome is under 5%
+      of triggers and warns under 15%; `untrained_fold` reports each single-class-training fold; and
+      `sparse_validation_fold` warns on any non-untrained fold that scored fewer than 5 trades. To feed
+      it, `runWalkForward` now also returns `validation_sizes`, `total_events`, `positive_events`,
+      `negative_events`, and `open_trades`, and `evaluateOverlay` attaches the report. The sealed
+      holdout continues to follow the optimization track's existing one-open rule — no new sealing here.
+      `meta-labeling-guardrails.test.ts` pins each threshold, the untrained/sparse de-duplication, and
+      reproducibility through `evaluateOverlay`)
 - [x] **Evaluation vs honest baselines**: score the filtered strategy with the existing robust score
       and compare against the unfiltered baseline, a take-everything policy, and a random-skip policy
       at the same skip rate; report per-fold precision/recall and trades kept vs skipped.
@@ -741,9 +751,21 @@ and never mutates the strategy itself.
       `overlayMetrics.ts` rather than re-plumbing the backtest engine for per-trade overlays;
       `meta-labeling-evaluation.test.ts` pins the classification math, the compounding/drawdown
       reconstruction, the random-skip count match, and seeded reproducibility)
-- [ ] **Persistence and reproducibility**: store the model coefficients/artifact, feature-set version,
+- [x] **Persistence and reproducibility**: store the model coefficients/artifact, feature-set version,
       label definition, calibration, threshold, and seed on the experiment record so a saved overlay
-      reproduces exactly.
+      reproduces exactly. (`metaLabeling/overlayArtifact.ts` assembles a plain, serializable
+      `OverlayArtifact` — versioned `artifact_version`, the `feature_set_id`, the label definition
+      (net-PnL-positive rule, the configured costs that define "cleared costs", the per-row round-trip
+      horizon), the seed, the trade policy/threshold, the label embargo, calibration fraction, and
+      resolved logistic hyperparameters, plus the per-fold frozen coefficients (standardizer stats,
+      logistic weights/bias, Platt calibrator) now captured on `WalkForwardResult.fold_models`.
+      `predictFromArtifact` replays validation probabilities from those frozen coefficients with no
+      retraining, rederiving events/features deterministically from the immutable candles, so a saved —
+      and JSON-round-tripped — overlay predicts byte-identically to its training run.
+      `evaluateOverlay` attaches the artifact to its result. `meta-labeling-persistence.test.ts` pins
+      the captured fields, the retraining-free replay, and the serialization round trip. The
+      experiment-table row that stores this artifact lands with the Optimize-tab meta-label method
+      below, which is where an experiment record for overlays first exists)
 - [ ] **UI**: a Meta-label section/method in the Optimize tab showing kept-vs-skipped trades, the
       score delta vs baseline, per-fold evidence, and a clear "overlay on strategy X" framing; saving
       produces a strategy + overlay pair, never a mutated strategy.

@@ -6,9 +6,11 @@ import {
   fitStandardizer,
   logisticMargin,
   standardizeRow,
+  type LogisticModel,
   type LogisticOptions,
+  type Standardizer,
 } from "./logisticRegression.ts";
-import { calibrateProbability, fitCalibrator } from "./tradePolicy.ts";
+import { calibrateProbability, fitCalibrator, type Calibrator } from "./tradePolicy.ts";
 import type {
   BacktestPositionMode,
   Candle,
@@ -28,9 +30,7 @@ export interface WalkForwardInput {
   costs?: TradeCosts;
   simulationStartIndex?: number;
   folds: FoldsConfig;
-  /** Extra gap between a training event's exit and the validation window. Defaults to the median label horizon. */
   labelEmbargoCandles?: number;
-  /** Chronological tail of each fold's training events reserved for probability calibration. */
   calibrationFraction?: number;
   logistic?: LogisticOptions;
 }
@@ -38,9 +38,16 @@ export interface WalkForwardInput {
 export interface FoldPrediction {
   fold_index: number;
   event: TradeEventRow;
-  /** Calibrated probability that the trade clears its costs. */
   probability: number;
   label: 0 | 1;
+}
+
+export interface FoldModel {
+  fold_index: number;
+  trained: boolean;
+  standardizer: Standardizer | null;
+  model: LogisticModel | null;
+  calibrator: Calibrator | null;
 }
 
 export interface WalkForwardResult {
@@ -48,10 +55,14 @@ export interface WalkForwardResult {
   feature_set_id: string;
   fold_count: number;
   label_embargo_candles: number;
-  /** Number of past events each fold's model was fit on. */
   training_sizes: number[];
-  /** Folds whose training set had a single label class, so the overlay defaulted to taking every trade. */
+  validation_sizes: number[];
   untrained_folds: number[];
+  total_events: number;
+  positive_events: number;
+  negative_events: number;
+  open_trades: number;
+  fold_models: FoldModel[];
   predictions: FoldPrediction[];
 }
 
@@ -73,7 +84,9 @@ export function runWalkForward(input: WalkForwardInput): WalkForwardResult {
   const calibrationFraction = input.calibrationFraction ?? defaultCalibrationFraction;
 
   const trainingSizes: number[] = [];
+  const validationSizes: number[] = [];
   const untrainedFolds: number[] = [];
+  const foldModels: FoldModel[] = [];
   const predictions: FoldPrediction[] = [];
 
   for (const fold of folds) {
@@ -90,11 +103,19 @@ export function runWalkForward(input: WalkForwardInput): WalkForwardResult {
       }
     }
     trainingSizes.push(trainable.length);
+    validationSizes.push(validation.length);
 
     const trainLabels = trainable.map((rowIndex) => dataset.rows[rowIndex].label);
     const distinctClasses = new Set(trainLabels);
     if (distinctClasses.size < 2) {
       untrainedFolds.push(fold.index);
+      foldModels.push({
+        fold_index: fold.index,
+        trained: false,
+        standardizer: null,
+        model: null,
+        calibrator: null,
+      });
       for (const rowIndex of validation) {
         predictions.push({
           fold_index: fold.index,
@@ -132,6 +153,14 @@ export function runWalkForward(input: WalkForwardInput): WalkForwardResult {
             calibrationLabels,
           );
 
+    foldModels.push({
+      fold_index: fold.index,
+      trained: true,
+      standardizer,
+      model,
+      calibrator,
+    });
+
     for (const rowIndex of validation) {
       const margin = logisticMargin(
         model,
@@ -146,13 +175,21 @@ export function runWalkForward(input: WalkForwardInput): WalkForwardResult {
     }
   }
 
+  const positiveEvents = dataset.rows.reduce((sum, row) => sum + row.label, 0);
+
   return {
     symbol: input.symbol,
     feature_set_id: featureSetId,
     fold_count: folds.length,
     label_embargo_candles: embargo,
     training_sizes: trainingSizes,
+    validation_sizes: validationSizes,
     untrained_folds: untrainedFolds,
+    total_events: dataset.rows.length,
+    positive_events: positiveEvents,
+    negative_events: dataset.rows.length - positiveEvents,
+    open_trades: dataset.open_trades,
+    fold_models: foldModels,
     predictions,
   };
 }

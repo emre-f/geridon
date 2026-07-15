@@ -1,11 +1,3 @@
-/**
- * Dependency-light logistic regression for the meta-labeling overlay. Full-batch
- * gradient descent from a zero initialization, so a fixed feature matrix and label
- * vector always train to the same coefficients. Features are standardized with
- * statistics fit on the training rows only; nulls (indicator warm-up) are
- * mean-imputed, which becomes zero after standardization.
- */
-
 export interface Standardizer {
   means: number[];
   stds: number[];

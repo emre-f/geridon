@@ -1,10 +1,5 @@
 import { fitLogistic } from "./logisticRegression.ts";
 
-/**
- * Platt scaling: fit sigmoid(a * margin + b) so the model's raw decision margins
- * become calibrated probabilities. Reuses the same logistic solver on a
- * single-feature (margin) design matrix.
- */
 export interface Calibrator {
   a: number;
   b: number;
@@ -34,11 +29,8 @@ export function calibrateProbability(calibrator: Calibrator, margin: number): nu
 export type PolicySizing = "binary" | "linear";
 
 export interface TradePolicyConfig {
-  /** Take the trade when the calibrated probability is at least this. */
   threshold: number;
-  /** binary: full or nothing; linear: scale size with probability above the threshold. */
   sizing: PolicySizing;
-  /** Smallest fraction a taken trade may be shrunk to under linear sizing. */
   minSize: number;
 }
 
@@ -52,14 +44,9 @@ export type PolicyDecision = "take" | "skip" | "shrink";
 
 export interface PolicyAction {
   decision: PolicyDecision;
-  /** Fraction of the baseline size to trade, always within [0, 1]. */
   size: number;
 }
 
-/**
- * Maps a calibrated probability to a trade action. The overlay can only remove
- * or shrink baseline trades, never enlarge them, so `size` never exceeds 1.
- */
 export function applyPolicy(
   probability: number,
   config: TradePolicyConfig = defaultTradePolicy,
