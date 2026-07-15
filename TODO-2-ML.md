@@ -719,9 +719,19 @@ and never mutates the strategy itself.
 - [ ] **Guardrails**: refuse or warn when there are too few triggers to learn from (hundreds, not
       dozens), when classes are extremely imbalanced, or when a fold has near-zero triggers; the
       sealed holdout follows the existing one-open rule.
-- [ ] **Evaluation vs honest baselines**: score the filtered strategy with the existing robust score
+- [x] **Evaluation vs honest baselines**: score the filtered strategy with the existing robust score
       and compare against the unfiltered baseline, a take-everything policy, and a random-skip policy
       at the same skip rate; report per-fold precision/recall and trades kept vs skipped.
+      (`metaLabeling/evaluation.ts` runs the walk-forward overlay and scores three policies with the
+      same `scoreTrial` used for optimization trials — `take_everything` (the unfiltered baseline that
+      takes every trade), `filtered` (the calibrated take/skip/shrink overlay), and `random_skip` (a
+      seeded control that drops the same number of trades per fold as the overlay, isolating whether
+      the classifier chose *which* trades to skip well versus merely lowering exposure). Per-fold and
+      aggregate precision/recall of the take decision and kept/skipped/shrunk counts are reported.
+      Fold performance is reconstructed from the simulator's cost-net trade returns in
+      `overlayMetrics.ts` rather than re-plumbing the backtest engine for per-trade overlays;
+      `meta-labeling-evaluation.test.ts` pins the classification math, the compounding/drawdown
+      reconstruction, the random-skip count match, and seeded reproducibility)
 - [ ] **Persistence and reproducibility**: store the model coefficients/artifact, feature-set version,
       label definition, calibration, threshold, and seed on the experiment record so a saved overlay
       reproduces exactly.
