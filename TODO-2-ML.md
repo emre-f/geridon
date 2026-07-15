@@ -250,7 +250,7 @@ For an optimization experiment, the data roles should be:
       an option.
 - [x] Never use ordinary shuffled k-fold, random train/test splitting, or random candle sampling.
       (only chronological anchored/rolling folds exist in `folds.ts`)
-- [ ] Fit any learned preprocessing (scalers, imputers, feature selection, regime clustering) on the
+- [-] Fit any learned preprocessing (scalers, imputers, feature selection, regime clustering) on the
       training portion only and apply that frozen transformation to later validation/test data.
 - [x] Warm indicators using only candles at or before the evaluated timestamp. It is valid for the first
       validation indicator value to use earlier training candles; it is not valid to use a future candle.
@@ -265,7 +265,7 @@ For an optimization experiment, the data roles should be:
       do not expose only one aggregate score. (per-fold results are persisted and returned by the trial
       API; the Section 7.1 fold robustness chart shows per-fold objectives for the selected trial vs
       baseline vs buy & hold, and the penalty breakdown exposes the instability component)
-- [ ] If we later train a predictive model, include the standard concerns explicitly: feature/label
+- [-] If we later train a predictive model, include the standard concerns explicitly: feature/label
       definitions, scaling, class imbalance, calibration, training-only feature selection, model version,
       and a naive baseline.
 
@@ -618,7 +618,7 @@ Tasks, in order:
       complete end-to-end — seeded rule library, user approval UI, insertion points, caps, cheap
       rejection. The broader multi-strategy/multi-ticker method comparison landed with Section 10's
       last criterion)
-- [ ] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL
+- [-] **Milestone 7 — Separate ML research track (optional):** supervised prediction and only later an RL
       environment if the simpler, explainable system has demonstrated its limits.
 
 ## 10. MVP completion criteria
@@ -655,18 +655,21 @@ Tasks, in order:
 
 ## 11. Decisions to discuss before implementation
 
-- [ ] Confirm the tab label: **Optimize** (recommended) vs. **Research** or **Strategy Lab**.
-- [ ] Confirm the first MVP scope: Mode A plus existing-rule toggles from Mode B (recommended), with new-rule
+- [-] Confirm the tab label: **Optimize** (recommended) vs. **Research** or **Strategy Lab**.
+- [-] Confirm the first MVP scope: Mode A plus existing-rule toggles from Mode B (recommended), with new-rule
       generation deferred.
-- [ ] Choose the default robust objective and hard constraints; total return alone should not be offered as
+- [-] Choose the default robust objective and hard constraints; total return alone should not be offered as
       the recommended objective. (the code currently defaults to Sharpe with the scoring-v2 penalty
       weights and constraints — treat that as the proposal to confirm or revise)
-- [ ] Choose the default validation design and minimum history for 1d versus intraday experiments.
-- [ ] Decide whether an experiment initially targets one symbol or requires a small symbol basket by
+- [-] Choose the default validation design and minimum history for 1d versus intraday experiments.
+- [-] Decide whether an experiment initially targets one symbol or requires a small symbol basket by
       default.
-- [ ] Decide which transaction-cost/slippage model is sufficient for the MVP. (the code now implements
+- [-] Decide which transaction-cost/slippage model is sufficient for the MVP. (the code now implements
       fixed-per-trade + percent-of-value commission and adverse slippage in basis points — treat that
       as the proposal to confirm or revise)
-- [ ] Calibrate Quick/Standard/Thorough budgets on the actual machine and representative stored data.
-- [ ] Decide whether Phase 2 TPE should remain dependency-light in TypeScript or use a separately managed
+- [-] Calibrate Quick/Standard/Thorough budgets on the actual machine and representative stored data.
+- [-] Decide whether Phase 2 TPE should remain dependency-light in TypeScript or use a separately managed
       Python worker only if the measured benefit justifies the operational cost.
+
+# Final Addition
+- The 11 TODOs ([ ]) where changed with [-] since they aren't really tasks to be completed, the MVP is done.
