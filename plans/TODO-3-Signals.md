@@ -89,20 +89,37 @@ Shared vocabulary; type names should mirror it.
 Goal: one table any source can land in, with the point-in-time contract enforced at the door.
 This is the contract TODO-4 sources conform to; get it right once.
 
-- [ ] `types/events.ts`: `EventRecord`, `EventKind` (string union, extended per source),
+- [x] `types/events.ts`: `EventRecord`, `EventKind` (string union, extended per source),
       `EventSourceId` (`"sec_form4"` first), payload types per kind.
-- [ ] `events` table in `createDb` (`backend/src/db.ts`, follow existing migration pattern):
+      (`backend/src/types/events.ts`: `EventPayloadByKind` maps kind → payload and derives
+      `EventKind`, so adding a source extends one interface; `EventRecord<K>` is generic over
+      kind so payloads stay typed end-to-end)
+- [x] `events` table in `createDb` (`backend/src/db.ts`, follow existing migration pattern):
       `id, source, ticker, event_kind, event_ts_ms, available_ts_ms, score, payload TEXT,
       dedupe_key VARCHAR UNIQUE, created_at` — indexes on `(event_kind, available_ts_ms)` and
       `(ticker, available_ts_ms)`. `dedupe_key` makes re-ingestion idempotent (for Form 4:
       accession number + transaction row identity).
-- [ ] `event_ingestions` table: source, range covered, row counts, status, started/finished —
+      (in `backend/src/db.ts`; also a `CHECK (available_ts_ms >= event_ts_ms)` constraint, so
+      the point-in-time firewall holds even if a writer bypasses `eventStore.ts`; schema tests
+      in `backend/test/eventTables.test.ts` cover dedupe idempotency and the CHECK)
+- [x] `event_ingestions` table: source, range covered, row counts, status, started/finished —
       the `fetch_ranges` equivalent so incremental syncs know what exists.
-- [ ] `eventStore.ts`: batched insert-or-ignore writes, range queries by kind/ticker/window,
+      (in `backend/src/db.ts`: `source, start_ms, end_ms, status` (default `running`),
+      `inserted_rows, skipped_rows, error, started_at, finished_at`)
+- [x] `eventStore.ts`: batched insert-or-ignore writes, range queries by kind/ticker/window,
       coverage summary (events per kind per year — the first thing the UI shows).
-- [ ] Validation at insert: `available_ts_ms >= event_ts_ms` (reject otherwise — this single
+      (`backend/src/services/eventStore.ts`: `insertEvents` runs each batch in one transaction
+      and returns inserted/duplicate counts; `getEvents` filters by kind(s)/ticker/
+      `available_ts_ms` window; `getEventCoverage` groups by kind × year of availability;
+      tests in `backend/test/eventStore.test.ts`)
+- [x] Validation at insert: `available_ts_ms >= event_ts_ms` (reject otherwise — this single
       check is the point-in-time firewall), ticker normalized to the candles table's symbols,
       unknown tickers counted and reported, not silently dropped.
+      (in `insertEvents`: a point-in-time violation rejects the whole batch before any write,
+      naming the offending dedupe keys; tickers are uppercased/trimmed and checked against
+      `getKnownTickers` (distinct candle symbols, overridable per call so ingestion loads it
+      once); unknown-ticker rows are skipped with `unknown_ticker_rows` + sorted
+      `unknown_tickers` in the returned summary)
 
 ## 3. Milestone B — Form 4 ingestion (v1 source)
 
@@ -112,10 +129,14 @@ Mechanics an agent needs to know up front:
 
 - **Bulk backfill**: SEC DERA publishes quarterly "Insider Transactions Data Sets" (zip of
   TSV tables derived from Forms 3/4/5) — `SUBMISSION`, `REPORTINGOWNER`, `NONDERIV_TRANS`,
-  and others. This is the entire history without scraping. `SUBMISSION.ACCEPTANCE_DATETIME`
-  is the `available_ts`. Find them at sec.gov under "Insider Transactions Data Sets".
-- **Ticker mapping**: filings key on CIK; map via SEC's `company_tickers.json`. Some CIKs map
-  to multiple/zero tickers — count and skip, don't guess.
+  and others. This is the entire history without scraping. *(Verified against real 2024q1
+  data: `SUBMISSION` has no `ACCEPTANCE_DATETIME` column — `FILING_DATE` is the only
+  availability signal, so `available_ts` = FILING_DATE end-of-day UTC, which anchors the
+  event to that day's bar and makes it actionable the next trading day; conservative.)*
+- **Ticker mapping**: `SUBMISSION.ISSUERTRADINGSYMBOL` carries the symbol directly and is
+  point-in-time correct (the symbol at filing time), unlike `company_tickers.json` which is
+  a today-snapshot — so no CIK mapping needed. Placeholder junk (`NONE`, `N/A`, `-`,
+  `(CALX)`-style wrapping) is cleaned or counted as missing, never guessed.
 - **SEC etiquette**: declared `User-Agent` with contact email, ≤10 requests/second, and we
   cache everything downloaded (raw zips kept under `backend/data/raw/sec/` so re-parsing
   never re-downloads).
@@ -129,58 +150,122 @@ Mechanics an agent needs to know up front:
 
 Tickets:
 
-- [ ] `sec/form4Ingest.ts`: download + cache quarterly zips for a year range, parse TSVs
+- [x] `sec/form4Ingest.ts`: download + cache quarterly zips for a year range, parse TSVs
       streaming (files are large; do not load whole files into memory), join
       SUBMISSION + REPORTINGOWNER + NONDERIV_TRANS, filter to codes P/S.
-- [ ] Normalize each transaction row → `EventRecord`: kind `insider_buy` / `insider_sell`,
-      `event_ts` = transaction date, `available_ts` = ACCEPTANCE_DATETIME, payload = insider
+      (`backend/src/services/sec/form4Ingest.ts` + `secTsv.ts`: zips cached under
+      `backend/data/raw/sec/`, the extracted TSV dir is the cache unit so re-parsing never
+      re-downloads; downloads go to a `.partial` path first; streaming line reader; resumable
+      per quarter via `event_ingestions` (completed quarters skipped, failed ones retried);
+      sanity-checked on real 2024q1: ~0.5s parse, 14k events on the 952-ticker universe)
+- [x] Normalize each transaction row → `EventRecord`: kind `insider_buy` / `insider_sell`,
+      `event_ts` = transaction date, `available_ts` = FILING_DATE end-of-day (the data set
+      has no ACCEPTANCE_DATETIME; see mechanics note), payload = insider
       name, role flags (officer / director / 10% owner), shares, price, dollar value;
       score = log10(dollar value) with an officer bonus (exact weights are a constant, not a
       tunable — resist optimizing ingestion).
-- [ ] Derived kind `insider_cluster_buy`, computed after base ingestion: ≥N distinct insiders
+      (`backend/src/services/sec/form4Normalize.ts`: joint filings aggregate owner names and
+      OR the role flags; missing price ⇒ null dollar value and null score;
+      `OFFICER_SCORE_BONUS = 0.5`; dedupe key is transaction identity — issuer CIK + owner
+      CIKs + date + code + shares + price — not the accession number, so a 4/A amendment
+      re-filing the same rows lands as duplicates instead of double-counting (identical
+      same-day lots collapsing into one event is the accepted trade-off); rows whose filing
+      date precedes the transaction date are skipped and counted, never inserted)
+- [x] Derived kind `insider_cluster_buy`, computed after base ingestion: ≥N distinct insiders
       with `insider_buy` events on the same ticker within a W-day window and combined value ≥
       $V (defaults N=2, W=10, V=$100k; stored as payload so evaluation can bucket by them).
       `available_ts` = the Nth insider's filing time — the cluster only exists once the last
       member is public.
-- [ ] CLI command (extend `cli.ts` like the candle sync): `ingest form4 --from 2006 --to now`,
+      (`backend/src/services/sec/form4Clusters.ts`: delete + full rebuild each run, so
+      re-derivation after new quarters is idempotent by construction; window slides over
+      transaction dates and is consumed when a cluster is emitted, so a long buy run yields
+      disjoint clusters, not one per extra buy; insiders are distinct individual names — a
+      joint filing "A; B" contributes two; `available_ts` = max member filing time; score =
+      log10(combined value); null-price buys count toward N but $0 toward V)
+- [x] CLI command (extend `cli.ts` like the candle sync): `ingest form4 --from 2006 --to now`,
       idempotent, resumable via `event_ingestions`, prints per-year event counts and skipped
       row/ticker stats at the end.
-- [ ] Fixture test: a small checked-in TSV sample → exact expected `EventRecord` rows,
+      (`npm run ingest -- form4 --from=2006 --to=now`; both flags optional, defaulting to
+      2006→now; requires `SEC_USER_AGENT` in `backend/.env` per SEC etiquette (refuses to run
+      without it); idempotency/resumability come from `ingestForm4`'s `event_ingestions`
+      bookkeeping; re-derives `insider_cluster_buy` whenever a new quarter was ingested; final
+      report = quarters/inserted/duplicates, skip counts by reason, distinct unknown tickers,
+      and a per-year × per-kind event count table)
+- [x] Fixture test: a small checked-in TSV sample → exact expected `EventRecord` rows,
       including one CIK-with-no-ticker skip, one amended-filing dedupe, one cluster.
+      (`backend/test/form4Ingest.test.ts` with fixtures under
+      `backend/test/fixtures/sec/2024q1/`: exact-row assertions, no-ticker skip, 4/A dedupe,
+      unknown ticker, point-in-time skip, joint owners, missing price, paren-wrapped ticker;
+      cluster case in `backend/test/form4Clusters.test.ts` — the fixture quarter derives
+      exactly one FMBH cluster (3 insiders, $112.1k) with default params, plus synthetic
+      cases: value threshold, single repeat insider, window boundary, window consumption,
+      latest-filing availability, joint-name split)
 
 ## 4. Milestone C — Labels (backend)
 
 Goal: forward returns as cached, first-class data. Only this module constructs labels, so
 lookahead has exactly one place to be impossible.
 
-- [ ] `forwardReturns.ts`: per ticker's daily bars, for each date `t` compute
+- [x] `forwardReturns.ts`: per ticker's daily bars, for each date `t` compute
       `close(t+1+k)/close(t+1) - 1` for k ∈ {1, 5, 10, 21, 63}; `null` where bars missing.
-- [ ] Market adjustment: compute SPY once; adjusted = raw − SPY over the identical calendar
-      window, timestamp-aligned.
-- [ ] `forward_returns` table + store: `(ticker, timestamp_ms, horizon, raw, market_adjusted)`,
-      cached, keyed by a `labelVersion` constant.
-- [ ] `eventAnchor.ts`: map an event's `available_ts` → the first actionable bar per the
+      (`backend/src/services/forwardReturns.ts`, tests in `backend/test/forwardReturns.test.ts`)
+- [x] Market adjustment: compute SPY once; adjusted = raw − SPY over the identical calendar
+      window, timestamp-aligned. (same module: pass SPY bars as `marketBars`; closes matched
+      by entry/exit timestamps so ticker gaps cannot misalign the window)
+- [x] `forward_returns` table + store: `(ticker, timestamp_ms, horizon, raw, market_adjusted)`,
+      cached, keyed by a `labelVersion` constant. (table in `backend/src/db.ts`; store in
+      `backend/src/services/forwardReturnStore.ts` — reads filter by current `labelVersion`,
+      re-storing a ticker replaces its rows; tests in `backend/test/forwardReturnStore.test.ts`)
+- [x] `eventAnchor.ts`: map an event's `available_ts` → the first actionable bar per the
       timing convention (next daily bar after availability; events on weekends/after-close
       roll forward). Unit-tested against hand-computed cases including a Friday-evening filing.
-- [ ] Deliberate-lookahead fixtures: (a) a fake event stream using `event_ts` instead of
+      (`backend/src/services/eventAnchor.ts`: returns both the anchor bar `t` — the key into
+      `forward_returns` rows — and the actionable bar `t+1`; events before data coverage
+      resolve to null; tests in `backend/test/eventAnchor.test.ts`)
+- [x] Deliberate-lookahead fixtures: (a) a fake event stream using `event_ts` instead of
       `available_ts` on a constructed dataset must show inflated returns that the real
       convention kills; (b) shifting all events one bar later must kill a planted signal.
       These tests insure every future source in TODO-4.
+      (`backend/test/lookaheadFixtures.test.ts`: price jumps planted between `event_ts` and
+      `available_ts` — anchoring on `event_ts` captures +10%/event, the real convention sees
+      exactly 0; a planted on-time signal drops to 0 when entry slips one bar)
 
 ## 5. Milestone D — Pooled evaluation engine (backend)
 
 Goal: `evaluateEventSignal(eventQuery, universeFilters, dateRange, seed)` → the full evidence
 package, deterministic, seconds when caches are warm.
 
-- [ ] Event selection: kind + payload filters (e.g. officer-only, min dollar value, cluster
+- [x] Event selection: kind + payload filters (e.g. officer-only, min dollar value, cluster
       params) + universe filters (min price, min median dollar volume — penny stocks fake
       signals through bid-ask bounce) + date range clamped to pre-holdout.
-- [ ] Event study: mean cumulative market-adjusted return t+1…t+63 across selected events;
+      (`backend/src/services/signalEval/eventSelection.ts`: `selectEvents(db, options)` clamps
+      the range to before `signalHoldoutStartMs` (2025-01-01) unless `includeHoldout`; payload
+      filters are generic min-thresholds — booleans coerce to 0/1 so `{ is_officer: 1 }` is
+      officer-only, missing fields fail; universe stats are point-in-time: median close and
+      median dollar volume over the trailing ≤63 daily bars ending at the anchor bar, ≥20 bars
+      required; result carries anchor/actionable timestamps per event plus stats counting every
+      exclusion by reason (the "N events, M tickers" preview data); `eventAnchor` now also
+      returns `anchor_index` for window math; tests in `backend/test/eventSelection.test.ts`)
+- [x] Event study: mean cumulative market-adjusted return t+1…t+63 across selected events;
       matched baseline (same tickers, seeded random non-event dates, same count, same
       missing-data handling); bootstrap confidence band; report N events, tickers covered,
       events/year over time (a dying source shows up here).
-- [ ] Horizon summary: abnormal return at each of {1, 5, 10, 21, 63}, with the implied
+      (`backend/src/services/signalEval/eventStudy.ts` + `eventStudyStats.ts`: pure module —
+      takes selected events, bars per ticker, market bars, seed; per-event curves share one
+      code path so baseline missing-data handling matches by construction; baseline anchors
+      are seeded draws from the same ticker's bars within the study's anchor date range,
+      never an actual event anchor; 95% bootstrap band is on the signal−baseline gap
+      (events resampled with replacement, both curves recomputed); deterministic for a given
+      seed and independent of input event order (events sorted internally);
+      `events_per_year` fills gap years with zero; tests in `backend/test/eventStudy.test.ts`
+      include exact hand-computed curves and a collapsed-band case with identical events)
+- [x] Horizon summary: abnormal return at each of {1, 5, 10, 21, 63}, with the implied
       natural holding period (where the gap vs baseline stops growing).
+      (`backend/src/services/signalEval/horizonSummary.ts`: `summarizeHorizons(study)` —
+      natural holding period = first horizon where the full per-bar gap curve reaches its
+      maximum, null when the gap never goes positive; also reports `peak_gap`; tests in
+      `backend/test/horizonSummary.test.ts` cover plateau, all-negative, and short-curve
+      cases)
 - [ ] Score analysis: study split by score quantiles and by key payload flags
       (officer vs director; cluster vs single). Monotonic-in-score is strong evidence.
 - [ ] Cost line: abnormal return per event net of configurable per-side costs (`TradeCosts`
@@ -189,13 +274,25 @@ package, deterministic, seconds when caches are warm.
       observations; deduplicate or block-bootstrap by ticker-month so the confidence band is
       not fake-tight.
 - [ ] Determinism test: same inputs + seed ⇒ identical output JSON, worker pool on or off.
-- [ ] Registry: `signal_evaluations` table — event query JSON + hash, universe, range, seed,
+- [x] Registry: `signal_evaluations` table — event query JSON + hash, universe, range, seed,
       results JSON, versions, `created_at`, `holdout_consumed_at` + holdout results. Append
       only; normal flows never delete. Computed verdict: `no_signal` / `weak` / `candidate`
       from thresholds on (baseline-gap t-stat, net-of-cost abnormal return, N events).
       `candidate` unlocks holdout + promotion.
-- [ ] Registry summary: evaluations grouped by event kind, best/median stats, prominent
+      (table in `backend/src/db.ts`; store in `backend/src/services/signalEval/registry.ts` —
+      the event study reports `SignalHeadlineStats` (baseline-gap t-stat, net-of-cost abnormal
+      return, N events) plus an opaque `detail` package, stored together in the results JSON;
+      the query is the full `EventSelectionOptions` (universe filters included), hashed
+      key-order-independently; `versions` always carries `label_version`, callers merge in
+      more; thresholds are fixed constants — weak: t ≥ 2, net > 0, N ≥ 100; candidate: t ≥ 3,
+      net > 10bp, N ≥ 500, stricter than p < 0.05 because the registry counts draws;
+      `consumeHoldout` enforces candidate-only and exactly-once; tests in
+      `backend/test/signalRegistry.test.ts`)
+- [x] Registry summary: evaluations grouped by event kind, best/median stats, prominent
       total-draws counter ("N evaluations run; expect ~N/20 lucky ones").
+      (`backend/src/services/signalEval/registrySummary.ts`: per kind — evaluation count,
+      verdict counts, best/median t-stat and net abnormal return, holdouts consumed; top-level
+      `total_draws` + `expected_lucky = total_draws / 20` for the UI counter)
 - [ ] API (`/api/signals/...`): coverage summary, run evaluation (async job with progress,
       like optimization experiments), list/get evaluations, one-shot holdout endpoint.
 
@@ -288,7 +385,8 @@ react-doctor skill at the end.
 
 ## 11. Decisions to confirm before implementation
 
-- **Holdout boundary**: proposal — 2025-01-01 onward (~18 months).
+- **Holdout boundary**: proposal — 2025-01-01 onward (~18 months). *(Implemented as the
+  proposal: `signalHoldoutStartMs` in `signalEval/eventSelection.ts`; one constant to change.)*
 - **Universe filters**: proposal — min price $5, min median dollar volume $5M/day.
 - **Cluster defaults**: N=2 insiders / W=10 days / V=$100k combined; bucketable at evaluation
   time, so defaults are not critical.
