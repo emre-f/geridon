@@ -14,6 +14,13 @@ function operandKey(operand: StrategyOperand): string {
   if (operand.type === "value") {
     return `value:${operand.value}`;
   }
+  if (operand.type === "signal") {
+    const filters = Object.entries(operand.filters ?? {})
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}=${value}`)
+      .join(",");
+    return `signal:${operand.kind}[${filters}].${operand.output}(${operand.window ?? ""})`;
+  }
   const parameters = Object.entries(operand.parameters)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, value]) => `${key}=${value}`)

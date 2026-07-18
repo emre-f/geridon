@@ -209,6 +209,21 @@ export function createDb(db: Database): void {
     CREATE INDEX IF NOT EXISTS ix_signal_evaluations_query_hash
       ON signal_evaluations (event_query_hash);
 
+    CREATE TABLE IF NOT EXISTS signal_evaluation_jobs (
+      id INTEGER PRIMARY KEY,
+      job_type VARCHAR(16) NOT NULL,
+      request TEXT NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'queued',
+      selection_stats TEXT,
+      error TEXT,
+      evaluation_id INTEGER,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_signal_evaluation_jobs_status
+      ON signal_evaluation_jobs (status, id);
+
     CREATE TABLE IF NOT EXISTS event_ingestions (
       id INTEGER PRIMARY KEY,
       source VARCHAR(32) NOT NULL,

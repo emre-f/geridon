@@ -53,9 +53,10 @@ export interface EventSelectionStats {
 export interface EventSelectionResult {
   events: SelectedEvent[];
   stats: EventSelectionStats;
+  barsByTicker: Map<string, DailyBar[]>;
 }
 
-interface DailyBar {
+export interface DailyBar {
   timestamp_ms: number;
   close: number;
   volume: number;
@@ -148,10 +149,10 @@ export function selectEvents(db: Database, options: EventSelectionOptions): Even
 
   stats.selected = selected.length;
   stats.tickers = tickers.size;
-  return { events: selected, stats };
+  return { events: selected, stats, barsByTicker };
 }
 
-function passesPayloadFilters(payload: object, filters: Record<string, number>): boolean {
+export function passesPayloadFilters(payload: object, filters: Record<string, number>): boolean {
   return Object.entries(filters).every(([field, threshold]) => {
     const raw = (payload as Record<string, unknown>)[field];
     const value =

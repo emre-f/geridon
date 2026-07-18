@@ -14,6 +14,7 @@ function makeStudy(gaps: Array<number | null>): EventStudyResult {
     gap,
     gap_lower: gap,
     gap_upper: gap,
+    gap_t_stat: gap == null ? null : 2,
   }));
   return {
     n_events: 100,

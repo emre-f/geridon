@@ -4,8 +4,15 @@ import {
   isIndicatorKind,
   normalizeIndicatorParameters,
 } from "./indicators.ts";
-import { isRecord, issue, priceFields, type ValidationContext } from "./strategyValidationHelpers.ts";
-import type { PriceField, StrategyOperand } from "../types.ts";
+import {
+  isRecord,
+  issue,
+  priceFields,
+  signalOutputs,
+  type ValidationContext,
+} from "./strategyValidationHelpers.ts";
+import type { PriceField, SignalOperand, SignalOutput, StrategyOperand } from "../types.ts";
+import { eventKinds, isEventKind } from "../types/events.ts";
 
 export function validateOperand(
   raw: unknown,
@@ -65,8 +72,64 @@ export function validateOperand(
     return { type: "value", value };
   }
 
-  issue(context, path, 'Operand type must be "indicator", "price", or "value".');
+  if (raw.type === "signal") {
+    return validateSignalOperand(raw, path, context);
+  }
+
+  issue(context, path, 'Operand type must be "indicator", "price", "value", or "signal".');
   return null;
+}
+
+function validateSignalOperand(
+  raw: Record<string, unknown>,
+  path: string,
+  context: ValidationContext,
+): SignalOperand | null {
+  if (typeof raw.kind !== "string" || !isEventKind(raw.kind)) {
+    issue(context, path, `Unknown event kind. Use one of: ${eventKinds.join(", ")}.`);
+    return null;
+  }
+
+  if (typeof raw.output !== "string" || !signalOutputs.includes(raw.output as SignalOutput)) {
+    issue(context, path, `Signal output must be one of: ${signalOutputs.join(", ")}.`);
+    return null;
+  }
+  const output = raw.output as SignalOutput;
+
+  if (output === "count_in_window") {
+    if (typeof raw.window !== "number" || !Number.isInteger(raw.window) || raw.window < 1) {
+      issue(context, path, "count_in_window requires a positive integer window of bars.");
+      return null;
+    }
+  } else if (raw.window != null) {
+    issue(context, path, `Signal output ${output} does not take a window.`);
+    return null;
+  }
+
+  let filters: Record<string, number> | undefined;
+  if (raw.filters != null) {
+    if (!isRecord(raw.filters)) {
+      issue(context, path, "Signal filters must be an object of numeric thresholds.");
+      return null;
+    }
+    for (const [key, value] of Object.entries(raw.filters)) {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        issue(context, path, `Signal filter "${key}" must be a finite number.`);
+        return null;
+      }
+    }
+    if (Object.keys(raw.filters).length > 0) {
+      filters = raw.filters as Record<string, number>;
+    }
+  }
+
+  return {
+    type: "signal",
+    kind: raw.kind,
+    output,
+    ...(output === "count_in_window" ? { window: raw.window as number } : {}),
+    ...(filters ? { filters } : {}),
+  };
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   sizingNodeIds,
   sizingSearchNodes,
 } from "../services/optimization/searchSpace.ts";
+import { signalWindowBounds } from "../services/optimization/searchSpaceNodes.ts";
 import { describeRuleLabel } from "../services/optimization/ruleLabels.ts";
 import {
   collectAtLeastGroups,
@@ -24,6 +25,12 @@ import type {
 import { badRequest, type ApiResult } from "./shared.ts";
 
 function hardBounds(strategy: Strategy, node: SearchSpaceNode) {
+  if (node.path.at(-1) === "window") {
+    const operand = getAtPath(strategy, node.path.slice(0, -1)) as { type?: string } | undefined;
+    if (operand?.type === "signal") {
+      return { hard_min: signalWindowBounds.min, hard_max: signalWindowBounds.max };
+    }
+  }
   const parametersIndex = node.path.indexOf("parameters");
   if (parametersIndex === -1) {
     return { hard_min: null, hard_max: null };

@@ -1,5 +1,7 @@
 import { computeIndicatorValueSeries } from "./indicators.ts";
+import { buildSignalSeries } from "./signalSeries.ts";
 import type { SharedSeriesScope } from "./optimization/indicatorCache.ts";
+import type { EventRecord } from "../types/events.ts";
 import type {
   Candle,
   Strategy,
@@ -15,6 +17,7 @@ interface SeriesContext {
   candles: Candle[];
   cache: Map<string, NumericSeries>;
   shared?: SharedSeriesScope;
+  events?: readonly EventRecord[];
 }
 
 function stableParametersKey(parameters: Record<string, number>) {
@@ -31,6 +34,14 @@ function hasValue(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(value);
 }
 
+// days_since is +Infinity before the ticker's first event; only signal
+// operands may compare it, so non-finite indicator values stay inert.
+function comparable(operand: StrategyOperand, value: number | null | undefined): value is number {
+  return (
+    value != null && (Number.isFinite(value) || (value === Infinity && operand.type === "signal"))
+  );
+}
+
 function operandKey(operand: StrategyOperand) {
   if (operand.type === "price") {
     return `price:${operand.field}`;
@@ -38,15 +49,25 @@ function operandKey(operand: StrategyOperand) {
   if (operand.type === "value") {
     return `value:${operand.value}`;
   }
+  if (operand.type === "signal") {
+    return `signal:${operand.kind}:${operand.output}:${operand.window ?? ""}:${stableParametersKey(operand.filters ?? {})}`;
+  }
   return `indicator:${indicatorKey(operand)}`;
 }
 
-function buildOperandSeries(operand: StrategyOperand, candles: Candle[]): NumericSeries {
+function buildOperandSeries(operand: StrategyOperand, context: SeriesContext): NumericSeries {
+  const { candles } = context;
   if (operand.type === "price") {
     return candles.map((candle) => candle[operand.field]);
   }
   if (operand.type === "value") {
     return Array(candles.length).fill(operand.value);
+  }
+  if (operand.type === "signal") {
+    if (context.events == null) {
+      throw new Error("Signal operands need the ticker's events; this evaluation path does not provide them.");
+    }
+    return buildSignalSeries(operand, context.events, candles);
   }
   return computeIndicatorValueSeries(candles, operand.kind, operand.parameters, operand.output);
 }
@@ -62,7 +83,7 @@ function operandSeries(operand: StrategyOperand, context: SeriesContext): Numeri
   // across candidates that evaluate the same candle slice.
   const shareable = operand.type === "indicator" ? context.shared : undefined;
   const series =
-    shareable?.get(key) ?? buildOperandSeries(operand, context.candles);
+    shareable?.get(key) ?? buildOperandSeries(operand, context);
   context.cache.set(key, series);
   shareable?.set(key, series);
   return series;
@@ -74,7 +95,7 @@ function evaluateRule(rule: StrategyRule, context: SeriesContext, index: number)
   const leftValue = left[index];
   const rightValue = right[index];
 
-  if (!hasValue(leftValue) || !hasValue(rightValue)) {
+  if (!comparable(rule.left, leftValue) || !comparable(rule.right, rightValue)) {
     return false;
   }
 
@@ -94,8 +115,8 @@ function evaluateRule(rule: StrategyRule, context: SeriesContext, index: number)
       const previousLeft = left[index - 1];
       const previousRight = right[index - 1];
       return (
-        hasValue(previousLeft) &&
-        hasValue(previousRight) &&
+        comparable(rule.left, previousLeft) &&
+        comparable(rule.right, previousRight) &&
         previousLeft <= previousRight &&
         leftValue > rightValue
       );
@@ -107,8 +128,8 @@ function evaluateRule(rule: StrategyRule, context: SeriesContext, index: number)
       const previousLeft = left[index - 1];
       const previousRight = right[index - 1];
       return (
-        hasValue(previousLeft) &&
-        hasValue(previousRight) &&
+        comparable(rule.left, previousLeft) &&
+        comparable(rule.right, previousRight) &&
         previousLeft >= previousRight &&
         leftValue < rightValue
       );
@@ -178,12 +199,13 @@ export function entrySignalFires(
   strategy: Strategy,
   candles: Candle[],
   shared?: SharedSeriesScope,
+  events?: readonly EventRecord[],
 ): boolean {
   const entry = pruneDisabledConditions(strategy.entry);
   if (!entry) {
     return false;
   }
-  const context: SeriesContext = { candles, cache: new Map(), shared };
+  const context: SeriesContext = { candles, cache: new Map(), shared, events };
   for (let index = 0; index < candles.length; index += 1) {
     if (evaluateCondition(entry, context, index)) {
       return true;
@@ -196,9 +218,10 @@ export function evaluateSignals(
   strategy: Strategy,
   candles: Candle[],
   shared?: SharedSeriesScope,
+  events?: readonly EventRecord[],
 ): StrategySignal[] {
   const signals: StrategySignal[] = [];
-  const context: SeriesContext = { candles, cache: new Map(), shared };
+  const context: SeriesContext = { candles, cache: new Map(), shared, events };
   // A side with every condition disabled simply never fires.
   const entry = pruneDisabledConditions(strategy.entry);
   const exit = pruneDisabledConditions(strategy.exit);

@@ -1,6 +1,12 @@
 import { catalogByKind } from "../indicatorCatalog.ts";
 import { comparisonOperators } from "../strategyValidationHelpers.ts";
-import { indicatorParameterNodes, valueThresholdNode } from "./searchSpaceNodes.ts";
+import { isEventKind } from "../../types/events.ts";
+import {
+  indicatorParameterNodes,
+  signalParameterNodes,
+  signalWindowBounds,
+  valueThresholdNode,
+} from "./searchSpaceNodes.ts";
 import { sizingSearchNodes, type SizingSpaceInputs } from "./sizingSpace.ts";
 import {
   cloneStrategy,
@@ -17,6 +23,7 @@ import type {
   ParameterOverride,
   RuleRole,
   SearchSpaceNode,
+  SignalOperand,
   Strategy,
   StructureSearchConfig,
   ToggleSearchNode,
@@ -28,7 +35,7 @@ export { sizingFromValues, sizingHardBounds, sizingNodeIds, sizingSearchNodes } 
  * Bump when compilation changes the nodes produced from the same strategy
  * and overrides (range defaults, toggle rules, validation).
  */
-export const searchSpaceVersion = 2;
+export const searchSpaceVersion = 3;
 
 export interface CompiledSearchSpace {
   baseStrategy: Strategy;
@@ -99,6 +106,8 @@ export function compileSearchSpace(inputs: SearchSpaceInputs): CompiledSearchSpa
       const operand = rule[side];
       if (operand.type === "indicator") {
         nodes.push(...indicatorParameterNodes(operand, [...path, side], overrides));
+      } else if (operand.type === "signal") {
+        nodes.push(...signalParameterNodes(operand, [...path, side], overrides));
       }
     }
     const threshold = valueThresholdNode(rule, "right", path, overrides);
@@ -124,6 +133,29 @@ export function compileSearchSpace(inputs: SearchSpaceInputs): CompiledSearchSpa
   return { baseStrategy, nodes };
 }
 
+function validateSignalOperandBounds(operand: SignalOperand, operandId: string): string | null {
+  if (!isEventKind(operand.kind)) {
+    return `${operandId}: unknown event kind ${operand.kind}`;
+  }
+  if (operand.output === "count_in_window") {
+    const { window } = operand;
+    if (
+      window == null ||
+      !Number.isInteger(window) ||
+      window < signalWindowBounds.min ||
+      window > signalWindowBounds.max
+    ) {
+      return `${operandId}.window: must be an integer between ${signalWindowBounds.min} and ${signalWindowBounds.max}`;
+    }
+  }
+  for (const [key, value] of Object.entries(operand.filters ?? {})) {
+    if (!Number.isFinite(value)) {
+      return `${operandId}.filters.${key}: must be a finite number`;
+    }
+  }
+  return null;
+}
+
 export function validateCandidate(
   strategy: Strategy,
   positionMode: BacktestPositionMode,
@@ -131,6 +163,13 @@ export function validateCandidate(
   for (const { path, rule } of collectRules(strategy)) {
     for (const side of ["left", "right"] as const) {
       const operand = rule[side];
+      if (operand.type === "signal") {
+        const signalError = validateSignalOperandBounds(operand, `${pathId(path)}.${side}`);
+        if (signalError) {
+          return signalError;
+        }
+        continue;
+      }
       if (operand.type !== "indicator") {
         continue;
       }

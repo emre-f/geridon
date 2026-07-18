@@ -27,22 +27,29 @@ export function meanByHorizon(
   };
 }
 
+/**
+ * Block bootstrap: `blocks` groups event indexes that are not independent
+ * observations (same ticker-month), and each resample draws whole blocks with
+ * replacement. Resampling single events would treat a cluster of overlapping
+ * post-event windows as independent evidence and make the band fake-tight.
+ */
 export function bootstrapGapBand(
   signalCurves: readonly Float64Array[],
   baselineCurves: readonly Float64Array[],
+  blocks: readonly (readonly number[])[],
   maxHorizon: number,
   iterations: number,
   rng: SeededRandom,
 ): { lower: Array<number | null>; upper: Array<number | null> } {
-  const eventCount = signalCurves.length;
   const gapSamples: number[][] = Array.from({ length: maxHorizon }, () => []);
-  for (let iteration = 0; iteration < (eventCount > 0 ? iterations : 0); iteration += 1) {
+  for (let iteration = 0; iteration < (blocks.length > 0 ? iterations : 0); iteration += 1) {
     const sampled: Float64Array[] = [];
     const sampledBaseline: Float64Array[] = [];
-    for (let draw = 0; draw < eventCount; draw += 1) {
-      const index = rng.nextInt(0, eventCount - 1);
-      sampled.push(signalCurves[index]);
-      sampledBaseline.push(baselineCurves[index]);
+    for (let draw = 0; draw < blocks.length; draw += 1) {
+      for (const index of blocks[rng.nextInt(0, blocks.length - 1)]) {
+        sampled.push(signalCurves[index]);
+        sampledBaseline.push(baselineCurves[index]);
+      }
     }
     const signal = meanByHorizon(sampled, maxHorizon);
     const baseline = meanByHorizon(sampledBaseline, maxHorizon);
@@ -62,6 +69,51 @@ export function bootstrapGapBand(
     upper.push(sorted.length > 0 ? percentile(sorted, 1 - tail) : null);
   }
   return { lower, upper };
+}
+
+/**
+ * t-statistic of the signal-minus-baseline gap per horizon, treating each
+ * ticker-month block's mean per-event gap as one observation — the same
+ * independence unit as the block bootstrap, so the t-stat cannot be
+ * fake-tight where the band is not. Null when fewer than two blocks have data
+ * or the block means have zero variance.
+ */
+export function blockGapTStats(
+  signalCurves: readonly Float64Array[],
+  baselineCurves: readonly Float64Array[],
+  blocks: readonly (readonly number[])[],
+  maxHorizon: number,
+): Array<number | null> {
+  const tStats: Array<number | null> = [];
+  for (let k = 0; k < maxHorizon; k += 1) {
+    const blockMeans: number[] = [];
+    for (const block of blocks) {
+      let sum = 0;
+      let count = 0;
+      for (const index of block) {
+        const gap = signalCurves[index][k] - baselineCurves[index][k];
+        if (!Number.isNaN(gap)) {
+          sum += gap;
+          count += 1;
+        }
+      }
+      if (count > 0) {
+        blockMeans.push(sum / count);
+      }
+    }
+    if (blockMeans.length < 2) {
+      tStats.push(null);
+      continue;
+    }
+    const mean = blockMeans.reduce((total, value) => total + value, 0) / blockMeans.length;
+    const variance =
+      blockMeans.reduce((total, value) => total + (value - mean) ** 2, 0) /
+      (blockMeans.length - 1);
+    tStats.push(
+      variance > 0 ? mean / Math.sqrt(variance / blockMeans.length) : null,
+    );
+  }
+  return tStats;
 }
 
 export function percentile(sortedValues: readonly number[], q: number): number {

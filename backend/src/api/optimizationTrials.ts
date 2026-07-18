@@ -68,7 +68,7 @@ function loadFoldContext(
 ): FoldContext | { failure: ApiResult } {
   let loaded: OptimizationDataset[];
   try {
-    loaded = loadExperimentDatasets(db, experiment.config);
+    loaded = loadExperimentDatasets(db, experiment.config, experiment.snapshot.strategy);
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Failed to load experiment data.";
     return { failure: { statusCode: 409, body: { detail } } };

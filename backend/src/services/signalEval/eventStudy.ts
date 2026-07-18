@@ -1,6 +1,6 @@
 import type { CloseBar } from "../forwardReturns.ts";
 import { SeededRandom } from "../optimization/random.ts";
-import { bootstrapGapBand, meanByHorizon } from "./eventStudyStats.ts";
+import { blockGapTStats, bootstrapGapBand, meanByHorizon } from "./eventStudyStats.ts";
 
 export const eventStudyMaxHorizon = 63;
 export const defaultBootstrapIterations = 200;
@@ -28,6 +28,7 @@ export interface EventStudyPoint {
   gap: number | null;
   gap_lower: number | null;
   gap_upper: number | null;
+  gap_t_stat: number | null;
 }
 
 export interface EventStudyResult {
@@ -50,9 +51,9 @@ interface TickerSeries {
  * t+1 … t+maxHorizon after each event's anchor bar t, against a matched
  * baseline — same tickers, seeded random non-event anchor dates within the
  * study's anchor date range, same count, same missing-data handling. The
- * bootstrap band is on the signal-minus-baseline gap: events are resampled
- * with replacement and both curves recomputed per resample. Deterministic for
- * a given seed regardless of input event order.
+ * bootstrap band is on the signal-minus-baseline gap: ticker-month blocks of
+ * events are resampled with replacement and both curves recomputed per
+ * resample. Deterministic for a given seed regardless of input event order.
  */
 export function runEventStudy(options: EventStudyOptions): EventStudyResult {
   const maxHorizon = options.maxHorizon ?? eventStudyMaxHorizon;
@@ -83,7 +84,16 @@ export function runEventStudy(options: EventStudyOptions): EventStudyResult {
 
   const signal = meanByHorizon(signalCurves, maxHorizon);
   const baseline = meanByHorizon(baselineCurves, maxHorizon);
-  const band = bootstrapGapBand(signalCurves, baselineCurves, maxHorizon, bootstrapIterations, rng);
+  const blocks = tickerMonthBlocks(events);
+  const band = bootstrapGapBand(
+    signalCurves,
+    baselineCurves,
+    blocks,
+    maxHorizon,
+    bootstrapIterations,
+    rng,
+  );
+  const tStats = blockGapTStats(signalCurves, baselineCurves, blocks, maxHorizon);
 
   const curve: EventStudyPoint[] = [];
   for (let k = 0; k < maxHorizon; k += 1) {
@@ -100,6 +110,7 @@ export function runEventStudy(options: EventStudyOptions): EventStudyResult {
       gap,
       gap_lower: band.lower[k],
       gap_upper: band.upper[k],
+      gap_t_stat: tStats[k],
     });
   }
 
@@ -111,6 +122,27 @@ export function runEventStudy(options: EventStudyOptions): EventStudyResult {
     events_per_year: countEventsPerYear(events),
     curve,
   };
+}
+
+/**
+ * Events on the same ticker in the same month have overlapping post-event
+ * windows and are one observation, not many; the bootstrap resamples these
+ * blocks whole. Assumes events are already sorted by ticker then anchor time,
+ * so block order is deterministic and input-order-independent.
+ */
+function tickerMonthBlocks(events: readonly StudyEvent[]): number[][] {
+  const blocks: number[][] = [];
+  let previousKey: string | null = null;
+  events.forEach((event, index) => {
+    const anchor = new Date(event.anchor_timestamp_ms);
+    const key = `${event.ticker}:${anchor.getUTCFullYear()}-${anchor.getUTCMonth()}`;
+    if (key !== previousKey) {
+      blocks.push([]);
+      previousKey = key;
+    }
+    blocks[blocks.length - 1].push(index);
+  });
+  return blocks;
 }
 
 function buildSeries(

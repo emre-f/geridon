@@ -63,7 +63,7 @@ function makeBuy(options: {
 }
 
 function getClusters(db: Database) {
-  return getEvents(db, { kind: "insider_cluster_buy" });
+  return getEvents(db, { kind: "insider_cluster_buy" }) as EventRecord<"insider_cluster_buy">[];
 }
 
 test("fixture quarter derives exactly one cluster with default params", async () => {

@@ -61,7 +61,7 @@ export function handleOpenTrialHoldout(
 
   let datasets: OptimizationDataset[];
   try {
-    datasets = loadExperimentDatasets(db, experiment.config);
+    datasets = loadExperimentDatasets(db, experiment.config, experiment.snapshot.strategy);
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Failed to load experiment data.";
     return { statusCode: 409, body: { detail } };

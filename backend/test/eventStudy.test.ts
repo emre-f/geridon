@@ -167,6 +167,71 @@ test("events per year fills gap years with zero", () => {
   ]);
 });
 
+test("clustered events resample as ticker-month blocks, not independent draws", () => {
+  const closes = (planted: number) => [
+    ...new Array<number>(12).fill(100),
+    ...new Array<number>(3).fill(100 * (1 + planted)),
+  ];
+  const cluster = (ticker: string) =>
+    new Array(5).fill(null).map(() => ({ ticker, anchor_timestamp_ms: barMs(10) }));
+  const result = runEventStudy({
+    events: [...cluster("AAA"), ...cluster("BBB")],
+    barsByTicker: new Map([
+      ["AAA", bars(closes(0.1))],
+      ["BBB", bars(closes(0.3))],
+    ]),
+    marketBars: flatBars(15),
+    seed: 11,
+    maxHorizon: 1,
+    bootstrapIterations: 200,
+  });
+
+  const point = result.curve[0];
+  closeTo(point.gap, 0.2, "gap");
+  closeTo(point.gap_lower, 0.1, "lower");
+  closeTo(point.gap_upper, 0.3, "upper");
+});
+
+test("a single ticker-month block collapses the band even with varied curves", () => {
+  const closes = [...new Array<number>(12).fill(100), 105, 110, 110, 110];
+  const result = runEventStudy({
+    events: [
+      { ticker: "AAA", anchor_timestamp_ms: barMs(10) },
+      { ticker: "AAA", anchor_timestamp_ms: barMs(12) },
+    ],
+    barsByTicker: new Map([["AAA", bars(closes)]]),
+    marketBars: flatBars(16),
+    seed: 11,
+    maxHorizon: 1,
+    bootstrapIterations: 50,
+  });
+
+  const point = result.curve[0];
+  assert.notEqual(point.signal_mean, null);
+  assert.equal(point.gap_lower, point.gap);
+  assert.equal(point.gap_upper, point.gap);
+});
+
+test("same ticker in different months forms separate blocks", () => {
+  const closes = [...new Array<number>(12).fill(100), ...new Array<number>(33).fill(110)];
+  const result = runEventStudy({
+    events: [
+      { ticker: "AAA", anchor_timestamp_ms: barMs(10) },
+      { ticker: "AAA", anchor_timestamp_ms: barMs(40) },
+    ],
+    barsByTicker: new Map([["AAA", bars(closes)]]),
+    marketBars: flatBars(45),
+    seed: 11,
+    maxHorizon: 1,
+    bootstrapIterations: 200,
+  });
+
+  const point = result.curve[0];
+  closeTo(point.gap, 0.05, "gap");
+  closeTo(point.gap_lower, 0, "lower");
+  closeTo(point.gap_upper, 0.1, "upper");
+});
+
 test("empty event list yields an all-null curve", () => {
   const result = runEventStudy({
     events: [],

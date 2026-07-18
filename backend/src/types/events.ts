@@ -25,6 +25,18 @@ export interface EventPayloadByKind {
 
 export type EventKind = keyof EventPayloadByKind;
 
+const eventKindFlags: Record<EventKind, true> = {
+  insider_buy: true,
+  insider_sell: true,
+  insider_cluster_buy: true,
+};
+
+export const eventKinds = Object.keys(eventKindFlags) as EventKind[];
+
+export function isEventKind(value: string): value is EventKind {
+  return Object.hasOwn(eventKindFlags, value);
+}
+
 export type EventPayload = EventPayloadByKind[EventKind];
 
 /**

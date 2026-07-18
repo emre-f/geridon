@@ -40,6 +40,11 @@ function operandLabel(operand: StrategyOperand): string {
   if (operand.type === "value") {
     return String(operand.value);
   }
+  if (operand.type === "signal") {
+    const args =
+      operand.output === "count_in_window" ? `${operand.kind}, ${operand.window}` : operand.kind;
+    return `${operand.output}(${args})`;
+  }
   return indicatorLabel(operand);
 }
 

@@ -266,14 +266,53 @@ package, deterministic, seconds when caches are warm.
       maximum, null when the gap never goes positive; also reports `peak_gap`; tests in
       `backend/test/horizonSummary.test.ts` cover plateau, all-negative, and short-curve
       cases)
-- [ ] Score analysis: study split by score quantiles and by key payload flags
+- [x] Score analysis: study split by score quantiles and by key payload flags
       (officer vs director; cluster vs single). Monotonic-in-score is strong evidence.
-- [ ] Cost line: abnormal return per event net of configurable per-side costs (`TradeCosts`
+      (`backend/src/services/signalEval/scoreAnalysis.ts`: `analyzeScoreBuckets` takes the
+      selected events and runs the full event study per bucket — score quantiles low→high
+      (default terciles) plus with/without splits per flag field (default `is_officer`,
+      `is_director`); each bucket reports N, score range, gap at the reference horizon
+      (default 21), peak gap, and natural holding period; `monotonic_in_score` is true only
+      when the reference gap strictly increases across buckets and null when any bucket
+      cannot report one — never guessed; null-score events and missing flag fields are
+      counted, not bucketed; cluster-vs-single stays a cross-kind comparison done by running
+      two evaluations; tests in `backend/test/signalScoreAnalysis.test.ts`)
+- [x] Cost line: abnormal return per event net of configurable per-side costs (`TradeCosts`
       shape) — the headline number, since a 20bp edge with 25bp costs is a "no".
-- [ ] Overlap honesty: cluster events on the same ticker within a horizon are not independent
+      (`backend/src/services/signalEval/costLine.ts`: `roundTripCost` charges slippage +
+      pct commission + fixed commission on both sides, the fixed part expressed as a return
+      via `notionalPerEvent` (default $10k); `computeCostLine(horizonSummary, options)` nets
+      every summary horizon and picks the headline at the natural holding period (gross =
+      `peak_gap`), falling back to the longest horizon with data so a losing signal reports a
+      negative net instead of null; feeds `SignalHeadlineStats.net_abnormal_return`; tests in
+      `backend/test/signalCostLine.test.ts`)
+- [x] Overlap honesty: cluster events on the same ticker within a horizon are not independent
       observations; deduplicate or block-bootstrap by ticker-month so the confidence band is
       not fake-tight.
-- [ ] Determinism test: same inputs + seed ⇒ identical output JSON, worker pool on or off.
+      (block bootstrap in `eventStudyStats.ts` + `eventStudy.ts`: events grouped into
+      ticker-month blocks of their anchor bar and resampled whole — each iteration draws
+      `#blocks` blocks with replacement, paired signal/baseline curves travel together; means
+      and per-event counts are unchanged, only the band widens; blocks are built from the
+      internally sorted event list so determinism and input-order independence hold; tests in
+      `eventStudy.test.ts` pin the band to exact block-resample quantiles that per-event
+      resampling could not produce, plus single-block collapse and same-ticker
+      different-month separation)
+- [x] Determinism test: same inputs + seed ⇒ identical output JSON, worker pool on or off.
+      (this ticket landed the milestone's goal function: `signalEval/evaluate.ts` —
+      `evaluateEventSignal(db, { query, seed, … })` → selection stats, event study, horizon
+      summary, cost line, score analysis, headline stats, verdict, in one package; bucket
+      studies fan across worker threads via `studyPool.ts`/`studyWorker.ts` (evaluationPool
+      pattern: task-order-preserving, per-study seeding, so pooled output is byte-identical
+      to inline); `scoreAnalysis` split into plan/assemble so all studies batch through one
+      runner, with a `dedupe_key` sort tiebreaker so DB insertion order can't change bucket
+      membership; the headline `baseline_gap_t_stat` now exists: `gap_t_stat` per curve
+      point in `eventStudyStats.ts`, block means over the same ticker-month blocks as the
+      bootstrap so the t-stat can't be fake-tight where the band is not, read at the cost
+      line's headline horizon; default costs = 5bps slippage/side, market = SPY; empty
+      selection ⇒ zeroed headline + `no_signal`, never a crash; tests in
+      `backend/test/signalEvaluate.test.ts`: identical JSON for repeat runs, pool on vs off,
+      and shuffled insertion order; different seed ⇒ different study; hand-computed
+      block t-stat)
 - [x] Registry: `signal_evaluations` table — event query JSON + hash, universe, range, seed,
       results JSON, versions, `created_at`, `holdout_consumed_at` + holdout results. Append
       only; normal flows never delete. Computed verdict: `no_signal` / `weak` / `candidate`
@@ -293,8 +332,22 @@ package, deterministic, seconds when caches are warm.
       (`backend/src/services/signalEval/registrySummary.ts`: per kind — evaluation count,
       verdict counts, best/median t-stat and net abnormal return, holdouts consumed; top-level
       `total_draws` + `expected_lucky = total_draws / 20` for the UI counter)
-- [ ] API (`/api/signals/...`): coverage summary, run evaluation (async job with progress,
+- [x] API (`/api/signals/...`): coverage summary, run evaluation (async job with progress,
       like optimization experiments), list/get evaluations, one-shot holdout endpoint.
+      (routes under `/api/v1/signals/` in `backend/src/api/signalsRouter.ts` + `signals.ts` +
+      `signalRequests.ts` — GET `coverage` (events per kind/year + recent ingestions), POST
+      `preview` (selection stats only: the form's live "N events, M tickers"), POST/GET
+      `evaluations` (+ `/:id`), GET `summary` (registry summary), GET `jobs` (+ `/:id`), POST
+      `evaluations/:id/holdout`; evaluations and holdouts run as queued jobs in a
+      `signal_evaluation_jobs` table driven by `signalEval/evaluationRunner.ts`, which calls
+      Milestone D's `evaluateEventSignal` (full worker fanout) and keeps all DB writes on the
+      main thread; completed jobs record to the registry (or `consumeHoldout`) and carry
+      `evaluation_id` + selection stats; boot recovery marks running jobs interrupted and
+      re-enqueues queued ones; the holdout endpoint 409s on non-candidate or already-consumed
+      before enqueueing, and the job reruns the recorded query with the range forced to the
+      sealed window (`startMs = signalHoldoutStartMs`, same seed); `includeHoldout` is never
+      accepted from the API; costs default to `defaultSignalCosts` (5 bps/side) when omitted;
+      tests in `backend/test/signalApi.test.ts`)
 
 ## 6. Milestone E — Strategy integration (backend)
 
@@ -319,21 +372,74 @@ all six comparison operators work unchanged. `days_since(insider_cluster_buy) lt
 entry trigger; `count_in_window(insider_buy, 63) gte 2` is a filter; exits stay indicator- or
 time-based. Events are triggers, indicators are confirmation — the builder should nudge that.
 
-- [ ] `SignalOperand` type + validation in `strategyOperandValidation.ts` (kind exists, output
+- [x] `SignalOperand` type + validation in `strategyOperandValidation.ts` (kind exists, output
       valid, window required iff `count_in_window`; a strategy whose ticker has zero events is
       valid but the backtest response carries a warning).
-- [ ] Series resolution in `signals.ts`: batched event fetch per (ticker, range), then pure
+      (`SignalOperand` + `SignalOutput` in `backend/src/types/strategies.ts`; runtime
+      `eventKinds` / `isEventKind` added to `types/events.ts` (a `Record<EventKind, true>`
+      forces exhaustiveness when kinds are added); validation rejects a window on non-window
+      outputs and drops empty filters; every operand-type fallthrough got an explicit signal
+      branch — labels/keys in `ruleLabels.ts`, `cheapRejection.ts`, `strategyPaths.ts`, and
+      `signals.ts`, where series resolution throws "not implemented yet" until the next
+      ticket lands, so a saved signal strategy fails loudly instead of resolving as a bogus
+      indicator; the zero-events backtest warning belongs to that resolution ticket; tests in
+      `backend/test/signalOperandValidation.test.ts`)
+- [x] Series resolution in `signals.ts`: batched event fetch per (ticker, range), then pure
       per-bar series construction; `days_since` is +Infinity before the first event.
-- [ ] Backtester passthrough: `backtest.ts` needs nothing but the resolved series; verify with
+      (pure construction in `backend/src/services/signalSeries.ts`: `buildSignalSeries` anchors
+      matching events via `eventAnchor` — days_since = 0 on the anchor bar, so a rule firing on
+      that close fills at the next bar's open, exactly the first actionable moment; events
+      available before the first bar are dropped; `count_in_window` includes the current bar,
+      `last_score` carries the latest event's score (null score stays null); operand filters
+      reuse `eventSelection`'s payload-threshold semantics, with a `score` key reading the
+      score column; `collectSignalKinds(strategy)` drives the batched fetch — API handlers
+      fetch the ticker's events for those kinds with no start bound (history before the range
+      feeds days_since) and pass them through `evaluateSignals`/`entrySignalFires`; a signal
+      strategy on a path that provides no events still throws, so the optimizer stays
+      fail-loud until its ticket; +Infinity is comparable only for signal operands, so
+      non-finite indicator values stay inert and `days_since gt N` / `cross_below` work before
+      and at the first event; zero events for a ticker yields a `warnings` line on the
+      backtest run response; tests in `backend/test/signalSeries.test.ts`)
+- [x] Backtester passthrough: `backtest.ts` needs nothing but the resolved series; verify with
       a golden test — constructed events + strategy "enter on days_since lte 1, exit after
       10 bars" produces exactly the expected trades.
-- [ ] Optimizer compatibility (TODO-2 engine): signal operands appear in the search space as
+      (`BacktestOptions.events` is the only change; golden test in
+      `backend/test/backtest-signal.test.ts`: a cluster event available during bar 3 with
+      entry `days_since lte 1` / exit `days_since gte 10` buys at bar 4's open and sells at
+      bar 14's open — exactly 10 bars held, exact prices/shares/pnl asserted; the repeat
+      entry signal at days_since = 1 is absorbed by the account's minimum-trade-value guard;
+      zero events ⇒ zero trades)
+- [x] Optimizer compatibility (TODO-2 engine): signal operands appear in the search space as
       typed values (thresholds, windows, score filters) like indicator params; event *kind* is
       locked, never mutated by evolution. This is where the optimizer becomes useful: tuning
       the harness around a validated trigger.
-- [ ] Promotion endpoint: from a `candidate` evaluation, generate a starter strategy JSON
+      (`signalParameterNodes` in `searchSpaceNodes.ts` compiles the count_in_window window
+      (integer, hard bounds 1-250, surfaced in the search-space preview) and every filter
+      threshold — score and payload keys — into numeric nodes with the free-value span used
+      for value thresholds; kind/output never become nodes and evolution only mutates node
+      values, so the trigger stays locked by construction; `validateCandidate` rejects
+      out-of-bounds windows and non-finite filters; `searchSpaceVersion` bumped to 3;
+      `OptimizationDataset` gained `events` — `loadExperimentDatasets` now takes the snapshot
+      strategy, fetches its `collectSignalKinds` with no start bound, and returns 400 when no
+      requested ticker has any matching events; events flow through fold backtests, the
+      parallel worker pool, the signal-starvation probe, and holdout evaluation, and
+      `searchDatasets` seals holdout-window events alongside the candles so they cannot
+      anchor to the last search bar; tests in `backend/test/optimization-signal.test.ts`,
+      including a full experiment run through the runner)
+- [x] Promotion endpoint: from a `candidate` evaluation, generate a starter strategy JSON
       (event trigger entry, time-based exit at the natural holding period from Milestone D,
       optional trend filter) saved as a normal strategy, visible in the Strategies tab.
+      (POST `/api/v1/signals/evaluations/:id/promote` in `signalsRouter.ts`/`signals.ts`,
+      built by `signalEval/promotion.ts`: entry `days_since(kind) lte 1`, exit
+      `days_since gte natural_holding_period_bars` from the stored horizon summary — a
+      re-triggering event extends the hold, matching the golden-test semantics; the operand's
+      filters replay exactly what the evaluation scored (payload filters as-is, `minScore` as
+      the reserved `score` key `signalSeries` reads); `trend_filter: true` ANDs a
+      `close gt SMA(200)` confirmation, `name` optional (default "Insider Cluster Buy starter
+      (eval N)"); non-candidate and missing-holding-period promote 409 — candidate net > 0
+      implies a positive-gap holding period exists, so the 409 only guards stale/legacy rows;
+      the strategy is saved through `handleCreateStrategy`'s validate+insert path, so the
+      Strategies tab sees an ordinary record; tests in `backend/test/signalPromotion.test.ts`)
 
 ## 7. Milestone F — Frontend: Signals tab
 
@@ -358,9 +464,22 @@ react-doctor skill at the end.
 
 ## 8. Testing and reproducibility
 
-- [ ] Fixture world: ~20 synthetic tickers, ~3 years of candles, three planted event streams —
+- [x] Fixture world: ~20 synthetic tickers, ~3 years of candles, three planted event streams —
       real effect (+2% abnormal over 20 bars), pure noise, and lookahead-contaminated. Suite
       asserts verdicts: candidate / no_signal / flagged-by-timing-tests respectively.
+      (world builder in `backend/test/signalFixtureWorld.ts`, suite in
+      `backend/test/signalFixtureWorld.test.ts`: 20 tickers × ~3.3 years of daily bars, each
+      price = market factor × a 42-bar sawtooth (+2% over 20 bars, full reversion over the
+      next 20) × small deterministic noise, so the baseline's random-phase draws average to
+      zero by periodicity; the three streams reuse the three event kinds —
+      `insider_cluster_buy` available at each cycle boundary (522 events ⇒ `candidate`, gap
+      ≈ +2% at bar 20, t ≥ 3, net > 1%), `insider_buy` at seeded random dates (⇒ `no_signal`,
+      flat gap), and `insider_sell` with `event_ts` before the rise but `available_ts` only
+      once the move completes, so honest anchoring enters at the exact top (⇒ `no_signal`
+      with a −2% gap) while a "leaked" world with `available_ts = event_ts` fabricates the
+      +2% and reads `candidate` — the timing convention itself is the flag; evaluations run
+      with `maxHorizon = 40` so the study window stays inside one cycle of the periodic
+      world)
 - [ ] Form 4 parser fixtures (Milestone B ticket) run offline; no network in any test.
 - [ ] Cache correctness: cold vs warm evaluation byte-identical.
 - [ ] Everything runs under the existing `backend/test` setup.

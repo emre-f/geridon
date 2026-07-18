@@ -49,7 +49,7 @@ async function completedExperiment(db: Database): Promise<OptimizationExperiment
   const inserted = db
     .prepare("INSERT INTO strategies (name, definition) VALUES (?, ?)")
     .run(strategy.name, JSON.stringify(strategy));
-  const runner = new ExperimentRunner(db, (config) => loadExperimentDatasets(db, config));
+  const runner = new ExperimentRunner(db, (config, strategy) => loadExperimentDatasets(db, config, strategy));
   const created = handleCreateExperiment(db, runner, {
     strategy_id: Number(inserted.lastInsertRowid),
     tickers: ["TEST"],
