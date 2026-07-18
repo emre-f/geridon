@@ -559,8 +559,22 @@ react-doctor skill at the end.
       cache hit — all three required TSVs present — returns before `fetch` is reachable; the
       only `fetch` in test-reachable code is that SEC download; full backend suite (325 tests)
       passes in a no-network sandbox)
-- [ ] Cache correctness: cold vs warm evaluation byte-identical.
-- [ ] Everything runs under the existing `backend/test` setup.
+- [x] Cache correctness: cold vs warm evaluation byte-identical.
+      (`backend/test/signalCacheCorrectness.test.ts`: warm differs from cold in exactly the
+      ways that must not leak into results — `event_ingestions` skips completed quarters on
+      re-run, and cluster re-derivation delete+rebuilds its rows with new ids and insertion
+      order; the suite builds a world from the checked-in SEC fixture quarter plus synthetic
+      FMBH/TOL/SPY candles, evaluates `insider_buy` (with universe filters) and
+      `insider_cluster_buy`, then asserts the full evaluation JSON is byte-identical after a
+      warm re-ingest + cluster rebuild, and across two independently built cold worlds; the
+      `forward_returns` label cache is pinned separately — compute → store → SQLite read
+      returns byte-identical rows (float64 and nulls exact), and a warm re-store reads the
+      same)
+- [x] Everything runs under the existing `backend/test` setup.
+      (verified 2026-07-18: all 59 test files sit at the top level of `backend/test/`, so the
+      `npm test` glob `test/*.test.ts` covers every one; four consecutive full runs pass
+      325/325 in ~3s with no flakes; store tests use `sqlite:///:memory:`, no test file calls
+      `fetch`, and the working tree stays clean after runs — no temp or artifact leakage)
 
 ## 9. Implementation order
 
@@ -572,13 +586,33 @@ react-doctor skill at the end.
 
 ## 10. MVP completion criteria
 
-- [ ] Form 4 backfill 2006→now completes on this machine; coverage view shows sane counts.
-- [ ] `insider_cluster_buy` evaluated on the full universe (ex-holdout) in under ~2 min cold /
+- [x] Form 4 backfill 2006→now completes on this machine; coverage view shows sane counts.
+      (run 2026-07-18: 81 quarters, 720,649 events inserted — 42,958 `insider_buy` /
+      670,217 `insider_sell` / 7,474 derived `insider_cluster_buy`; sells dwarf buys as
+      expected, cluster buys spike in 2008; `GET /api/v1/signals/coverage` serves the counts)
+- [x] `insider_cluster_buy` evaluated on the full universe (ex-holdout) in under ~2 min cold /
       seconds warm, with event study, buckets, and verdict — whatever the verdict is.
-- [ ] Noise fixture reads as nothing; lookahead fixture is caught by tests.
-- [ ] One candidate signal goes end-to-end: holdout check → generated strategy → ordinary
+      (evaluation #1, ~6s cold: 2,721 events on 317 tickers, verdict **weak** — t = 2.61,
+      net +3.26%, natural holding period 62 bars; peak gap rises with score bucket
+      2.4% → 3.6% → 5.5% but the 21-bar reference gap is not strictly monotone; note ~4,000
+      of 6,943 candidates have no anchor because candle coverage starts 2016-07)
+- [x] Noise fixture reads as nothing; lookahead fixture is caught by tests.
+      (`signalFixtureWorld.test.ts` + `lookaheadFixtures.test.ts`: planted effect ⇒
+      `candidate`, noise ⇒ `no_signal`, lookahead-contaminated stream caught by the timing
+      convention; full backend suite 328/328)
+- [x] One candidate signal goes end-to-end: holdout check → generated strategy → ordinary
       backtest run from the Backtest tab, with the TODO-2 optimizer able to tune it.
-- [ ] Every evaluation ever run is in the registry with the total-draws counter.
+      (evaluation #5 — all officer `insider_buy`, default universe filters: **candidate**,
+      t = 3.10, net +3.53%, N = 4,173 on 418 tickers, holding period 60 bars; holdout
+      (2025+) consumed: net +4.36% — direction and size hold, t = 1.14 on only 649 events;
+      promoted to strategy 11 "Officer Buy starter (eval 5)"; ordinary backtest on ED
+      2016–2026: 12 trades, +100.6%, 66.7% win rate (re-triggering buys extend holds as
+      designed); optimizer search-space preview compiles the strategy into tunable nodes
+      with the event kind locked)
+- [x] Every evaluation ever run is in the registry with the total-draws counter.
+      (`GET /api/v1/signals/summary`: total_draws = 5, expected_lucky = 0.25; the other
+      draws — clusters ≥ $1M combined ⇒ `no_signal` t = 0.53, clusters ≥ 3 insiders ⇒
+      `weak` t = 2.17 net +4.18%, officer buys ≥ $50k ⇒ `weak` t = 2.94)
 
 ## 11. Decisions to confirm before implementation
 
