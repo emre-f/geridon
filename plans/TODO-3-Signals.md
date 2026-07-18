@@ -448,19 +448,92 @@ Fifth tab: `Charts / Strategies / Backtest / Optimize / Signals`. Flat component
 chart; tooltips in the structured style (bold label + bullets, no em-dashes). Run the
 react-doctor skill at the end.
 
-- [ ] Coverage view: events per kind per year, ingestion status, "run ingestion" affordance.
-- [ ] Evaluation form: event kind + payload filters, universe filters with live
+- [x] Coverage view: events per kind per year, ingestion status, "run ingestion" affordance.
+      (this ticket also scaffolds the tab: `signals` added to `AppTab`/header/`App.tsx`,
+      `signals-panel.tsx` is the Signal Lab shell with load/refresh/error/skeleton states,
+      `lib/api-client-signals.ts` wraps GET `coverage`; `signal-coverage-view.tsx` renders the
+      kind × year count matrix (compact cells, exact totals, horizontal scroll), the last-20
+      ingestion list with status badges and inserted/skipped counts, and the "run ingestion"
+      affordance as the CLI command + `SEC_USER_AGENT` note, since ingestion is CLI-only by
+      design (no ingestion endpoint exists); react-doctor scope-changed: 100/100, no issues)
+- [x] Evaluation form: event kind + payload filters, universe filters with live
       "N events, M tickers" preview, seed; visible holdout boundary + survivorship caveat.
-- [ ] Run flow: async job with progress; history list from the registry (reuse Optimize tab's
+      (`signal-evaluation-form.tsx` + field groups in `signal-evaluation-fields.tsx`;
+      API calls in `lib/api-client-signals-evaluations.ts` — POST `preview`, POST/GET
+      evaluations jobs — kept separate from `api-client-signals.ts` to avoid cross-ticket
+      contention; form state → request body lives in `lib/signal-evaluation-query.ts`
+      (payload filters are kind-specific: officers-only/min trade $ for insider buys/sells,
+      min insiders/min combined $ for clusters; blank or unparseable inputs are dropped, end
+      date is inclusive UTC and dropped when before start), tested in
+      `signal-evaluation-query.test.ts`; the preview debounces 400ms with a stale-response
+      guard and reports selected/tickers/candidates plus per-reason exclusion counts and the
+      holdout clamp; the "Before you run" note states the sealed 2025-01-01 boundary and the
+      survivorship caveat)
+- [x] Run flow: async job with progress; history list from the registry (reuse Optimize tab's
       experiment-list patterns).
-- [ ] Results view: verdict card (baseline-gap t-stat, net-of-cost abnormal return, N,
+      (`signal-run-flow.tsx` mirrors the Optimize experiments list: shared grid template,
+      status badges, 3s polling only while a job is queued/running; jobs come from GET
+      `jobs` — the job store, since jobs carry status/error/selection stats and the
+      registry only holds completed evaluations; a job created by the form is merged in
+      immediately via the `createdJob` prop; completed rows link to their evaluation through
+      the optional `onSelectEvaluation` callback, wired in `signals-panel.tsx` to the
+      results view's `openEvaluationId`; react-doctor scope-changed: 100/100, no issues)
+- [x] Results view: verdict card (baseline-gap t-stat, net-of-cost abnormal return, N,
       natural holding period), event-study chart (signal vs baseline, confidence band),
       horizon bar chart, score-bucket comparison.
-- [ ] Registry view: all evaluations, verdicts, total-draws counter, holdout status.
-- [ ] Promotion actions on a `candidate`: "Run holdout check" (one-shot, confirmation states
+      (`signal-results-view.tsx` self-fetches GET `evaluations/:id` via
+      `lib/api-client-signals-registry.ts` (own file per the contention rule), so hosting it
+      is one line; `signal-results-summary.tsx` holds the verdict card — verdict badge +
+      threshold description, stat tiles for the three headline numbers + natural holding
+      period, selection stats line, always-on survivorship caveat — and the holdout card when
+      consumed; charts follow the dataviz skill: `signal-event-study-chart.tsx` draws signal
+      vs matched-baseline lines with the 95% gap band rendered as baseline+gap bounds around
+      the signal line, crosshair tooltip with gap/band/t-stat; `signal-horizon-chart.tsx` is
+      grouped gross-vs-net bars per horizon with the headline horizon shaded and the round
+      trip cost in the footer; `signal-score-buckets.tsx` is single-hue quantile bars plus
+      the monotonicity read and a flag-split table; the green/blue pair reuses the existing
+      `--viz-candidate`/`--viz-baseline` slots, revalidated with the skill's palette script
+      in both modes (all checks pass); axis units auto-switch bp vs % by data scale; hosts
+      `signal-promotion-actions.tsx` under the verdict card; rows with no stored detail
+      degrade to headline-only)
+- [x] Registry view: all evaluations, verdicts, total-draws counter, holdout status.
+      (`signal-registry-view.tsx` self-fetches GET `evaluations` + `summary` in parallel;
+      the total-draws counter is the lead card — big number plus "expect about N/20 lucky"
+      copy; per-kind summary table (verdict counts, best/median t and net, holdouts) and the
+      all-evaluations table (verdict badges, headline stats, holdout consumed/available/
+      locked) live in `signal-registry-tables.tsx`; opening a row drives the panel's
+      `openEvaluationId` into the results view with a back button, and the run flow's
+      `onSelectEvaluation` reuses the same path; shared verdict/format helpers in
+      `lib/signal-lab-utils.ts`; react-doctor scope-changed: 100/100, no issues)
+- [x] Promotion actions on a `candidate`: "Run holdout check" (one-shot, confirmation states
       it is consumable) → "Create strategy" (pre-filled from evaluation) → link to Backtest.
-- [ ] Strategy builder: signal operand pickers (kind/output/filters dropdowns), catalog-driven
+      (`signal-promotion-actions.tsx` is a self-contained card (duck-typed
+      `PromotableEvaluation` prop: id/event_kind/verdict/holdout_consumed_at, so the results
+      and registry views can host it without importing their types): non-candidates get a
+      one-line explanation; the holdout button goes through an inline confirm step stating
+      the check is consumable exactly once, POSTs via `lib/api-client-signals-promotion.ts`
+      (own file, no contention with the other signals api clients), and reports the queued
+      job id (an `onHoldoutStarted` callback hands the job to the run-flow view); "Create
+      strategy" prefills the backend's default name, offers the SMA(200) trend-filter
+      checkbox, and on 201 exposes `onStrategyCreated` (record gets node ids via the now
+      exported `withRecordNodeIds`) plus an "Open in Backtest" button behind
+      `onOpenInBacktest`, matching App's existing `handleOpenInBacktest(strategyId)`;
+      NOT yet mounted anywhere — wiring into the results/registry views is the
+      integration step)
+- [x] Strategy builder: signal operand pickers (kind/output/filters dropdowns), catalog-driven
       like the indicator picker.
+      (frontend `SignalOperand`/`SignalEventKind`/`SignalOutput` added to
+      `api-strategy-types.ts` mirroring the backend types; `lib/signal-catalog.ts` is the
+      frontend catalog — kind labels/descriptions, the three outputs with help copy, and
+      per-kind filter fields (numeric minimums plus boolean flags that filter as 0/1,
+      `score` as the reserved key) — with `defaultSignalOperand` and
+      `signalOperandSummary` (tested in `signal-catalog.test.ts`); the operand editor gains
+      a fourth "Signal" source rendering `strategy-signal-operand.tsx`: kind/output
+      dropdowns with structured HelpTips, window input only for count_in_window (default 20,
+      max 250 matching the optimizer bounds), and an add/remove filter row per catalog
+      field; `strategy-rules-summary.tsx` describes signal operands ("Days since Insider
+      Cluster Buy (2 filters)"); backend validation, chart preview (`handleSignals` loads
+      events), and backtests already accept these strategies unchanged)
 
 ## 8. Testing and reproducibility
 
@@ -480,7 +553,12 @@ react-doctor skill at the end.
       +2% and reads `candidate` — the timing convention itself is the flag; evaluations run
       with `maxHorizon = 40` so the study window stays inside one cycle of the periodic
       world)
-- [ ] Form 4 parser fixtures (Milestone B ticket) run offline; no network in any test.
+- [x] Form 4 parser fixtures (Milestone B ticket) run offline; no network in any test.
+      (verified: `form4Ingest.test.ts` points `cacheDir` at the checked-in fixtures and pins
+      `nowMs` to 2024-04-15, so `quartersInRange` yields only 2024q1 and `ensureQuarterData`'s
+      cache hit — all three required TSVs present — returns before `fetch` is reachable; the
+      only `fetch` in test-reachable code is that SEC download; full backend suite (325 tests)
+      passes in a no-network sandbox)
 - [ ] Cache correctness: cold vs warm evaluation byte-identical.
 - [ ] Everything runs under the existing `backend/test` setup.
 

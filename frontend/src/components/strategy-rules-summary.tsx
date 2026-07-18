@@ -5,6 +5,7 @@ import type {
   StrategyOperand,
   StrategySnapshot,
 } from "@/lib/api";
+import { signalOperandSummary } from "@/lib/signal-catalog";
 import { comparisonOperatorOptions, priceFieldOptions } from "@/lib/strategy";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,9 @@ function operandLabel(operand: StrategyOperand, definitionsByKind: DefinitionsBy
   }
   if (operand.type === "value") {
     return String(operand.value);
+  }
+  if (operand.type === "signal") {
+    return signalOperandSummary(operand);
   }
 
   const definition = definitionsByKind.get(operand.kind);

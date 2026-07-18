@@ -29,7 +29,21 @@ export interface ValueOperand {
   value: number;
 }
 
-export type StrategyOperand = IndicatorOperand | PriceOperand | ValueOperand;
+export type SignalEventKind = "insider_buy" | "insider_sell" | "insider_cluster_buy";
+
+export type SignalOutput = "days_since" | "count_in_window" | "last_score";
+
+export interface SignalOperand {
+  type: "signal";
+  kind: SignalEventKind;
+  /** Numeric minimums on payload fields, plus the reserved "score" key. */
+  filters?: Record<string, number>;
+  output: SignalOutput;
+  /** Bars; required by and only valid for count_in_window. */
+  window?: number;
+}
+
+export type StrategyOperand = IndicatorOperand | PriceOperand | ValueOperand | SignalOperand;
 
 export interface StrategyRule {
   /** Client-side key for editing; the backend ignores and never returns it. */

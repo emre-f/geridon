@@ -9,6 +9,7 @@ const tabOptions = [
   { value: "strategies", label: "Strategies" },
   { value: "backtest", label: "Backtest" },
   { value: "optimize", label: "Optimize" },
+  { value: "signals", label: "Signals" },
 ];
 
 export function AppHeader({

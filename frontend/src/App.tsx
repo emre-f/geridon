@@ -7,6 +7,7 @@ import { BacktestPanel } from "@/components/backtest-panel";
 import { ChartPanel } from "@/components/chart-panel";
 import { IndicatorPicker } from "@/components/indicator-picker";
 import { OptimizePanel } from "@/components/optimize-panel";
+import { SignalsPanel } from "@/components/signals-panel";
 import { StrategyBuilder } from "@/components/strategy-builder";
 import { SymbolContextMenu as SymbolContextMenuView } from "@/components/symbol-context-menu";
 import { SymbolSidebar } from "@/components/symbol-sidebar";
@@ -106,7 +107,7 @@ export default function App() {
           }
         >
           <div className="flex min-w-0 flex-col gap-4">
-            {activeTab !== "backtest" && activeTab !== "optimize" ? (
+            {activeTab === "charts" || activeTab === "strategies" ? (
               <ChartPanel
                 activeIndicators={chart.activeIndicators}
                 activeTab={activeTab}
@@ -199,6 +200,8 @@ export default function App() {
                 onOpenInBacktest={handleOpenInBacktest}
               />
             </div>
+
+            {activeTab === "signals" ? <SignalsPanel /> : null}
           </div>
 
           {showSymbolSidebar ? (
