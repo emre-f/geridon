@@ -51,15 +51,45 @@ or after-close; an after-close announcement is actionable at the next open, a be
 that same open. If the source only gives a date with no time, assume after-close of that date
 (conservative).
 
-- [ ] Fetch + cache earnings history for the candle universe. While choosing the provider,
+- [x] Fetch + cache earnings history for the candle universe. While choosing the provider,
       check whether it also carries **forward guidance and forward consensus history** — that
       decides which path the guidance subsection below takes.
-- [ ] Events: `earnings_beat` / `earnings_miss`, score = standardized surprise
+- [x] Events: `earnings_beat` / `earnings_miss`, score = standardized surprise
       (actual − estimate, scaled by estimate dispersion or price); payload: EPS values,
       announce time-of-day, fiscal period.
-- [ ] Evaluate: beats vs misses separately; score buckets; check drift horizon (PEAD is a
+- [x] Evaluate: beats vs misses separately; score buckets; check drift horizon (PEAD is a
       21–63 day effect, so the 63-day horizon is the interesting one).
-- [ ] Record verdicts.
+      (evaluations #13–#15, seed 1, universe min $5 / $5M median dollar volume: all beats,
+      all misses, beats with `min_score` 0.0025 — the round constant nearest the top-tercile
+      boundary the score buckets exposed)
+- [x] Record verdicts.
+
+**Provider decision (2026-07-19)**: NASDAQ earnings calendar
+(`api.nasdaq.com/api/calendar/earnings?date=`), keyless, one cached JSON per calendar day,
+history back to ~April 2008. Checked first per the ticket: our Polygon key is NOT entitled to
+the Benzinga earnings endpoints (`NOT_AUTHORIZED`), and Polygon's free financials are
+XBRL filings with no consensus estimates. NASDAQ rows carry actual EPS, consensus, and
+estimate count. Traps found: historical rows always report `time-not-supplied` (so every
+event takes the plan's conservative after-close rule; the payload keeps `announce_time` in
+case future rows have it), and the `marketCap` column is the *current* market cap even on
+2010 dates — lookahead, never ingested. Surprise is scaled by prior close (the feed has no
+per-analyst dispersion); events whose ticker has no candle history yet at the announcement
+keep a null score so the events table doesn't bake in today's candle coverage. NASDAQ has
+**no guidance or forward-consensus history**, so §1b takes the *extraction path*.
+
+**Verdict (2026-07-19): `no_signal`, all three draws — but the interesting kind of nothing.**
+Backfill 2008–2026 complete (~45k events; the study effectively starts 2016 where candle
+coverage begins, holdout excluded). Pooled beats N=17,997 on 860 tickers: flat early, then
+**−0.36% at 63d, t=−2.25** — the average beat is mildly *anti*-alpha at the drift horizon;
+do not chase beats. Pooled misses N=5,440: −0.66% at 63d, t=−1.71, biggest misses most
+negative (−0.39% at 21d) — directionally the classic downside PEAD, untradable long-only
+except as future filter material. The beat score buckets were monotonic in surprise
+(q1 −0.26% → q3 +0.50% at 21d, q3 peak +0.97% with a 63-bar natural hold), so one follow-up
+was spent: beats with surprise ≥ 0.25% of prior close (N=5,609) — positive at every horizon,
+textbook 63d PEAD shape, +0.27% net at 63d, but **t=1.02**: the shape survives, the
+significance does not, consistent with post-2016 PEAD decay in liquid names. Keep the source
+(cheap, permanent cache); revisit the big-beat slice only if §1b's guidance interaction
+(beat+raise) sharpens it. Multiple-testing counter: +3.
 
 ### 1b. Guidance surprise (raise/cut of next-quarter projections)
 
@@ -110,8 +140,30 @@ with a narrow slice.
 prompt hash). Relabeling with a new prompt/model creates new event rows under the new
 version; evaluations pin a version. Never mix labeler versions in one evaluation.
 
-- [ ] Pick 2–3 item types with obvious priors (proposal: guidance updates, buyback
+- [x] Pick 2–3 item types with obvious priors (proposal: guidance updates, buyback
       announcements, unplanned executive departures) and fetch only those 8-K items.
+      (**Items chosen (2026-07-20): 2.02 and 5.02.** Item 2.02 (results of operations) is
+      where guidance ships — the EX-99 press release attached to it is the text §1b's
+      extraction path will read; item 5.02 covers officer/director departures (the labeler
+      must still separate unplanned departures from routine appointment/comp rows filed under
+      the same item). **Buybacks are deferred**: they have no dedicated item code — they ride
+      the 7.01/8.01 catch-alls, which are mostly noise at fetch time; if appetite survives,
+      the route is EDGAR full-text search (`efts.sec.gov`, coverage 2001+), a separate
+      discovery mechanism. `backend/src/services/sec/eightK*.ts`: discovery via the
+      `data.sec.gov/submissions/CIK….json` API (ticker→CIK from `company_tickers.json`;
+      pagination files fetched only when the window reaches past the recent block), which
+      lists every filing's item codes and acceptance datetime — the future `available_ts` —
+      without touching the filing itself. Per matched filing the fetcher pulls the SGML
+      `-index-headers.html` manifest, the primary 8-K document, and EX-99* `.htm`/`.txt`
+      exhibits (XBRL/images never); cache under `backend/data/raw/sec8k/`
+      (`listings/<TICKER>.json`, `filings/<cik>/<accession>/`), `documents.json` written last
+      marks a filing complete, 404s leave `.missing` markers so re-runs never re-request.
+      Throttled under SEC's 10 req/s with `SEC_USER_AGENT`; share classes on one CIK dedupe
+      by accession. No events are inserted at this stage — the labeling bullets own that — so
+      idempotency is file-cache-level, not `event_ingestions`. CLI
+      `npm run ingest -- 8k [--from=2016] [--to=now] [--tickers=…]`; default from 2016
+      (candle coverage; the item numbering exists since Aug 2004). Offline fixtures in
+      `backend/test/eightKFetch.test.ts`.)
 - [ ] Labeling pipeline: filing text → structured label via a cheap model (this is bulk
       mechanical work — gpt-5.5 via codex per the model-routing rules), JSON schema output:
       kind, direction, severity 1–5, one-line rationale kept in payload for spot-checking.
@@ -137,10 +189,39 @@ aggregations exist. Amounts are ranges, not exact values.
 45 days and is exactly where fake alpha hides. This source is the best stress test of the
 point-in-time firewall.
 
-- [ ] Fetch + normalize PTRs; events `congress_buy` / `congress_sell`, score = log midpoint
+- [x] Fetch + normalize PTRs; events `congress_buy` / `congress_sell`, score = log midpoint
       of the amount range; payload: member, chamber, reported trade date, disclosure lag.
-- [ ] Evaluate, including a lag-bucket split (does anything survive the 45-day staleness?).
-- [ ] Record verdict either way.
+      (`backend/src/services/congress/`: source is the **official Senate eFD portal** — the
+      free scraped aggregations this section assumed (Senate/House Stock Watcher S3 buckets)
+      are dead (AccessDenied), and House PTRs are published only as PDFs, which the
+      zero-dependency backend cannot parse, so v1 is **Senate-only** with `chamber` in the
+      payload for a later House source. eFD sits behind Akamai (Node fetch passes, curl does
+      not); the client does the session handshake + prohibition-agreement step, paginates the
+      PTR search per year, and fetches electronic filings' HTML tables; paper filings
+      (all of 2012–13, ~26% overall) are counted, never parsed. Cache under
+      `backend/data/raw/congress/senate/{year}/`, year-unit resumable via `event_ingestions`
+      (source `senate_efd`); `available_ts` = filing date end-of-day UTC like Form 4; dedupe
+      key is transaction identity so the 206 amendments land as duplicates; payload also
+      carries `disclosure_lag_days` + `prompt_disclosure` (lag ≤ 14d constant) so lag buckets
+      are evaluation-time payload filters. `npm run ingest -- congress`; offline fixtures in
+      `backend/test/congressPtrIngest.test.ts`. Backfill 2012–2025: 2,298 filings, 5,039
+      events on the candle universe (buys+sells roughly balanced, sane per-year counts
+      2015+; 8 point-in-time violations skipped).)
+- [x] Evaluate, including a lag-bucket split (does anything survive the 45-day staleness?).
+      (evaluations #9–#12, seed 1, universe min $5 / $5M median dollar volume: all buys, all
+      sells, prompt-only (`prompt_disclosure: 1`), stale-only (`disclosure_lag_days: 30`))
+- [x] Record verdict either way.
+
+**Verdict (2026-07-19): `no_signal`, all four draws.** Senate PTRs 2015–2024 (ex-holdout),
+pooled event study vs matched baseline: `congress_buy` N=1,946 on 369 tickers, t=0.16, net
++11.5bp; `congress_sell` N=2,211, t=0.54, net −5.9bp (gaps negative at every horizon but
+nowhere near significant); prompt buys (lag ≤ 14d) N=572, t=1.21, fading negative after day
+1; stale buys (lag ≥ 30d) N=490, t=1.42, a +56bp blip at 21d that collapses to −204bp by
+63d — noise, not survival of staleness. No score bucket is monotonic. The popular thesis
+fails a fair point-in-time test on this universe; keep the source ingested as a cheap
+negative control, do not build strategies on it. Caveats: Senate-only (House needs a PDF
+path), electronic coverage starts 2014, candle coverage 2016-07, and ~3.5k transaction rows
+fall outside the 950-ticker universe.
 
 ## 4. Short interest
 
@@ -155,12 +236,27 @@ rather than a trigger.
 **`available_ts`**: FINRA's publication date for the cycle, not the settlement date it
 describes (the lag is ~1–2 weeks; using settlement date is lookahead).
 
-- [ ] Fetch + cache cycles; events `short_interest_report` with score = days-to-cover, and
+- [x] Fetch + cache cycles; events `short_interest_report` with score = days-to-cover, and
       derived `short_interest_spike` (change vs prior cycle above a constant threshold).
-- [ ] Evaluate spikes as events; evaluate levels as a filter (does high short interest
+- [x] Evaluate spikes as events; evaluate levels as a filter (does high short interest
       predict weaker post-event returns for *other* signals? — this is a payload filter on
       existing evaluations, not new machinery).
-- [ ] Record verdicts.
+- [x] Record verdicts.
+
+**Verdict (2026-07-19)**: `no_signal` across the board; keep the data, drop it as a trigger.
+Ingested 204 cycles (2018-01 through 2026-06, first published consolidated file is Dec 2017;
+`available_ts` = settlement + 8 weekdays EOD, one weekday above FINRA's stated 7-business-day
+dissemination lag to absorb holidays without a calendar table) for 176,307 events in the
+952-ticker universe. Spike constants: change ≥ 50% vs prior cycle, prior position > 0,
+days-to-cover ≥ 2 (FINRA floors DTC at 1). Registry ids 6–8, all with the standard $5 /
+$5M universe, seed 1: spikes N=1,479 (t=0.80, +0.05% net at 8d) — no_signal; pooled reports
+N=130,613 (t=-3.50 at 63d, -0.40% net; DTC terciles get slightly worse with level:
+-0.06%/-0.07%/-0.10% at 21d, not monotonic-flagged) — no_signal long, mild confirmation of
+the underperformance literature; DTC ≥ 10 filter N=6,134 (t=1.86, +0.08% at 7d) — no_signal.
+The cross-signal interaction test ("do high-SI names drag other signals?") is not expressible
+as a payload filter on another kind's events — it needs a cross-source join; if ever wanted,
+the practical route is the `SignalOperand` last-score filter in strategies, which works today
+with these kinds. Multiple-testing counter: +3.
 
 ## 5. 13F institutional holdings
 

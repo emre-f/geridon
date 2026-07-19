@@ -2,7 +2,17 @@ import { fetchJson } from "@/lib/api-client";
 
 const basePath = "/api/v1/signals";
 
-export const signalEventKinds = ["insider_buy", "insider_sell", "insider_cluster_buy"] as const;
+export const signalEventKinds = [
+  "insider_buy",
+  "insider_sell",
+  "insider_cluster_buy",
+  "earnings_beat",
+  "earnings_miss",
+  "short_interest_report",
+  "short_interest_spike",
+  "congress_buy",
+  "congress_sell",
+] as const;
 export type SignalEventKind = (typeof signalEventKinds)[number];
 
 /** Events from this date onward are sealed for the one-shot holdout check. */

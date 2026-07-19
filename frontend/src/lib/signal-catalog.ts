@@ -27,6 +27,31 @@ const insiderTransactionFields: SignalFilterField[] = [
   { key: "is_ten_percent_owner", label: "10% owners only", boolean: true },
 ];
 
+const earningsSurpriseFields: SignalFilterField[] = [
+  scoreField,
+  { key: "num_estimates", label: "Min analyst estimates", step: 1 },
+];
+
+const congressTradeFields: SignalFilterField[] = [
+  scoreField,
+  { key: "amount_low", label: "Min amount (range low)", step: 1000 },
+  { key: "disclosure_lag_days", label: "Min disclosure lag (days)", step: 1 },
+  { key: "prompt_disclosure", label: "Prompt disclosures only (14 days or less)", boolean: true },
+];
+
+const shortInterestFields: SignalFilterField[] = [
+  scoreField,
+  { key: "days_to_cover", label: "Min days to cover", step: 0.5 },
+  { key: "change_percent", label: "Min change %", step: 5 },
+  { key: "short_interest", label: "Min short interest shares", step: 100000 },
+];
+
+const institutionalStakeFields: SignalFilterField[] = [
+  scoreField,
+  { key: "value_usd", label: "Min position value ($)", step: 1000000 },
+  { key: "portfolio_total_usd", label: "Min manager portfolio ($)", step: 100000000 },
+];
+
 export const signalCatalog: SignalKindDefinition[] = [
   {
     kind: "insider_cluster_buy",
@@ -49,6 +74,60 @@ export const signalCatalog: SignalKindDefinition[] = [
     label: "Insider Sell",
     description: "A single open-market insider sale from a Form 4 filing.",
     filterFields: insiderTransactionFields,
+  },
+  {
+    kind: "earnings_beat",
+    label: "Earnings Beat",
+    description: "Reported EPS above the consensus estimate; score is the price-scaled surprise.",
+    filterFields: earningsSurpriseFields,
+  },
+  {
+    kind: "earnings_miss",
+    label: "Earnings Miss",
+    description: "Reported EPS below the consensus estimate; score is the price-scaled surprise.",
+    filterFields: earningsSurpriseFields,
+  },
+  {
+    kind: "short_interest_report",
+    label: "Short Interest Report",
+    description:
+      "A FINRA bi-monthly short interest cycle for the ticker; score is days to cover.",
+    filterFields: shortInterestFields,
+  },
+  {
+    kind: "short_interest_spike",
+    label: "Short Interest Spike",
+    description:
+      "Short interest jumped at least 50% vs the prior cycle with days to cover of 2 or more; score is the change percent.",
+    filterFields: shortInterestFields,
+  },
+  {
+    kind: "congress_buy",
+    label: "Congress Buy",
+    description:
+      "A senator's reported stock purchase from a STOCK Act disclosure; available only once filed, up to 45 days after the trade.",
+    filterFields: congressTradeFields,
+  },
+  {
+    kind: "congress_sell",
+    label: "Congress Sell",
+    description:
+      "A senator's reported stock sale from a STOCK Act disclosure; available only once filed, up to 45 days after the trade.",
+    filterFields: congressTradeFields,
+  },
+  {
+    kind: "inst_new_stake",
+    label: "Institutional New Stake",
+    description:
+      "A curated 13F manager opened a position last quarter; score is its share of their long book. Holdings are about 45 days stale when filed.",
+    filterFields: institutionalStakeFields,
+  },
+  {
+    kind: "inst_exit",
+    label: "Institutional Exit",
+    description:
+      "A curated 13F manager closed a position last quarter; score is its prior share of their long book. Holdings are about 45 days stale when filed.",
+    filterFields: institutionalStakeFields,
   },
 ];
 

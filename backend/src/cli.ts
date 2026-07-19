@@ -3,8 +3,13 @@ import { createDb, openDatabase, type Database } from "./db.ts";
 import { parseDatetimeMs } from "./datetime.ts";
 import { PolygonClient } from "./polygonClient.ts";
 import { syncPolygonCandles, syncYahooCandles } from "./services/candles.ts";
+import { runIngestCongress } from "./services/congress/congressIngestCommand.ts";
+import { runIngestEarnings } from "./services/earnings/earningsIngestCommand.ts";
 import { getEventCoverage } from "./services/eventStore.ts";
+import { runIngestShortInterest } from "./services/finra/shortInterestIngestCommand.ts";
+import { runFetchEightK } from "./services/sec/eightKFetchCommand.ts";
 import { deriveInsiderClusterBuys } from "./services/sec/form4Clusters.ts";
+import { runIngestThirteenF } from "./services/sec13f/thirteenFIngestCommand.ts";
 import { ingestForm4, type Form4QuarterSummary } from "./services/sec/form4Ingest.ts";
 import { emptySkipCounts, type Form4SkipCounts } from "./services/sec/form4Normalize.ts";
 import { parseTimeframe } from "./timeframes.ts";
@@ -20,6 +25,11 @@ function usage(): never {
       "Usage:",
       "  npm run sync -- <ticker> <start> <end> [--source=polygon|yahoo] [--timeframe=1h] [--adjusted=true|false]",
       "  npm run ingest -- form4 [--from=2006] [--to=now]",
+      "  npm run ingest -- earnings [--from=2008] [--to=now]",
+      "  npm run ingest -- short-interest [--from=2018] [--to=now]",
+      "  npm run ingest -- congress [--from=2012] [--to=now]",
+      "  npm run ingest -- 13f [--from=2013] [--to=now]",
+      "  npm run ingest -- 8k [--from=2016] [--to=now] [--tickers=AAPL,MSFT]",
     ].join("\n"),
   );
 }
@@ -174,6 +184,21 @@ async function main(): Promise<void> {
   }
   if (command === "ingest" && rest[0] === "form4") {
     return runIngestForm4(rest.slice(1));
+  }
+  if (command === "ingest" && rest[0] === "earnings") {
+    return runIngestEarnings(rest.slice(1));
+  }
+  if (command === "ingest" && rest[0] === "short-interest") {
+    return runIngestShortInterest(rest.slice(1));
+  }
+  if (command === "ingest" && rest[0] === "congress") {
+    return runIngestCongress(rest.slice(1));
+  }
+  if (command === "ingest" && rest[0] === "13f") {
+    return runIngestThirteenF(rest.slice(1));
+  }
+  if (command === "ingest" && rest[0] === "8k") {
+    return runFetchEightK(rest.slice(1));
   }
   usage();
 }

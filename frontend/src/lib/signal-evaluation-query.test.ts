@@ -40,6 +40,37 @@ test("buildSignalQuery maps insider filters and ignores cluster-only fields", ()
   assert.deepEqual(query.payload_filters, { is_officer: 1, dollar_value: 10000 });
 });
 
+test("buildSignalQuery maps short interest filters and ignores insider fields", () => {
+  const query = buildSignalQuery(
+    form({
+      kind: "short_interest_spike",
+      minDaysToCover: "2.5",
+      minChangePercent: "75",
+      officersOnly: true,
+      minDollarValue: "10000",
+    }),
+  );
+  assert.deepEqual(query.payload_filters, { days_to_cover: 2.5, change_percent: 75 });
+});
+
+test("buildSignalQuery maps congress filters and ignores insider fields", () => {
+  const query = buildSignalQuery(
+    form({
+      kind: "congress_buy",
+      minAmountLow: "15001",
+      minDisclosureLagDays: "30",
+      promptDisclosuresOnly: true,
+      officersOnly: true,
+      minDollarValue: "10000",
+    }),
+  );
+  assert.deepEqual(query.payload_filters, {
+    amount_low: 15001,
+    disclosure_lag_days: 30,
+    prompt_disclosure: 1,
+  });
+});
+
 test("buildSignalQuery drops unparseable numbers and negative universe values", () => {
   const query = buildSignalQuery(
     form({ minScore: "abc", minPrice: "-5", minMedianDollarVolume: "1e6" }),

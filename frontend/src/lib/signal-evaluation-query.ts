@@ -12,6 +12,12 @@ export interface SignalEvaluationFormState {
   minDollarValue: string;
   minInsiderCount: string;
   minCombinedDollarValue: string;
+  minNumEstimates: string;
+  minDaysToCover: string;
+  minChangePercent: string;
+  minAmountLow: string;
+  minDisclosureLagDays: string;
+  promptDisclosuresOnly: boolean;
   minPrice: string;
   minMedianDollarVolume: string;
   startDate: string;
@@ -26,6 +32,12 @@ export const initialSignalEvaluationForm: SignalEvaluationFormState = {
   minDollarValue: "",
   minInsiderCount: "",
   minCombinedDollarValue: "",
+  minNumEstimates: "",
+  minDaysToCover: "",
+  minChangePercent: "",
+  minAmountLow: "",
+  minDisclosureLagDays: "",
+  promptDisclosuresOnly: false,
   minPrice: "",
   minMedianDollarVolume: "",
   startDate: "",
@@ -37,6 +49,12 @@ export const signalKindLabels: Record<SignalEventKind, string> = {
   insider_buy: "Insider buy",
   insider_sell: "Insider sell",
   insider_cluster_buy: "Insider cluster buy",
+  earnings_beat: "Earnings beat",
+  earnings_miss: "Earnings miss",
+  short_interest_report: "Short interest report",
+  short_interest_spike: "Short interest spike",
+  congress_buy: "Congress buy",
+  congress_sell: "Congress sell",
 };
 
 const dayMs = 86_400_000;
@@ -64,6 +82,38 @@ function payloadFilters(state: SignalEvaluationFormState): Record<string, number
     const combined = parseFinite(state.minCombinedDollarValue);
     if (combined != null) {
       filters.combined_dollar_value = combined;
+    }
+    return filters;
+  }
+  if (state.kind === "earnings_beat" || state.kind === "earnings_miss") {
+    const numEstimates = parseFinite(state.minNumEstimates);
+    if (numEstimates != null) {
+      filters.num_estimates = numEstimates;
+    }
+    return filters;
+  }
+  if (state.kind === "short_interest_report" || state.kind === "short_interest_spike") {
+    const daysToCover = parseFinite(state.minDaysToCover);
+    if (daysToCover != null) {
+      filters.days_to_cover = daysToCover;
+    }
+    const changePercent = parseFinite(state.minChangePercent);
+    if (changePercent != null) {
+      filters.change_percent = changePercent;
+    }
+    return filters;
+  }
+  if (state.kind === "congress_buy" || state.kind === "congress_sell") {
+    const amountLow = parseFinite(state.minAmountLow);
+    if (amountLow != null) {
+      filters.amount_low = amountLow;
+    }
+    const lagDays = parseFinite(state.minDisclosureLagDays);
+    if (lagDays != null) {
+      filters.disclosure_lag_days = lagDays;
+    }
+    if (state.promptDisclosuresOnly) {
+      filters.prompt_disclosure = 1;
     }
     return filters;
   }
@@ -125,7 +175,11 @@ const exclusionLabels: Record<keyof SignalSelectionStats["excluded"], string> = 
 };
 
 export function exclusionSummary(stats: SignalSelectionStats): string[] {
-  return (Object.keys(exclusionLabels) as (keyof SignalSelectionStats["excluded"])[])
-    .filter((reason) => stats.excluded[reason] > 0)
-    .map((reason) => `${stats.excluded[reason].toLocaleString()} ${exclusionLabels[reason]}`);
+  const lines: string[] = [];
+  for (const reason of Object.keys(exclusionLabels) as (keyof SignalSelectionStats["excluded"])[]) {
+    if (stats.excluded[reason] > 0) {
+      lines.push(`${stats.excluded[reason].toLocaleString()} ${exclusionLabels[reason]}`);
+    }
+  }
+  return lines;
 }

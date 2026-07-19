@@ -29,7 +29,18 @@ export interface ValueOperand {
   value: number;
 }
 
-export type SignalEventKind = "insider_buy" | "insider_sell" | "insider_cluster_buy";
+export type SignalEventKind =
+  | "insider_buy"
+  | "insider_sell"
+  | "insider_cluster_buy"
+  | "earnings_beat"
+  | "earnings_miss"
+  | "short_interest_report"
+  | "short_interest_spike"
+  | "congress_buy"
+  | "congress_sell"
+  | "inst_new_stake"
+  | "inst_exit";
 
 export type SignalOutput = "days_since" | "count_in_window" | "last_score";
 

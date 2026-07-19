@@ -179,23 +179,26 @@ function BucketBars({ analysis }: { analysis: ScoreAnalysis }) {
   );
 }
 
+function FlagSplitCell({ bucket }: { bucket: BucketStudy }) {
+  return (
+    <span className="tabular-nums">
+      {formatReturnValue(bucket.reference_gap)}
+      <span className="text-muted-foreground"> · {formatCompact(bucket.n_events)} ev</span>
+    </span>
+  );
+}
+
 function FlagSplitRow({ field, withFlag, withoutFlag, missing }: {
   field: string;
   withFlag: BucketStudy;
   withoutFlag: BucketStudy;
   missing: number;
 }) {
-  const cell = (bucket: BucketStudy) => (
-    <span className="tabular-nums">
-      {formatReturnValue(bucket.reference_gap)}
-      <span className="text-muted-foreground"> · {formatCompact(bucket.n_events)} ev</span>
-    </span>
-  );
   return (
     <tr className="border-b last:border-b-0">
       <td className="py-1.5 pr-3 font-medium">{signalFlagLabel(field)}</td>
-      <td className="px-2 py-1.5 text-right">{cell(withFlag)}</td>
-      <td className="px-2 py-1.5 text-right">{cell(withoutFlag)}</td>
+      <td className="px-2 py-1.5 text-right"><FlagSplitCell bucket={withFlag} /></td>
+      <td className="px-2 py-1.5 text-right"><FlagSplitCell bucket={withoutFlag} /></td>
       <td className="text-muted-foreground py-1.5 pl-3 text-right tabular-nums">{missing.toLocaleString()}</td>
     </tr>
   );

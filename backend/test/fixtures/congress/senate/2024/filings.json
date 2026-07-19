@@ -1,0 +1,6 @@
+[
+  ["Jane Q", "Testerly", "Senator", "<a href=\"/search/view/ptr/aaaa1111-0000-4000-8000-000000000001/\" target=\"_blank\">Periodic Transaction Report for 03/20/2024</a>", "03/20/2024"],
+  ["Jane Q", "Testerly", "Senator", "<a href=\"/search/view/ptr/bbbb2222-0000-4000-8000-000000000002/\" target=\"_blank\">Periodic Transaction Report (Amendment) for 04/10/2024</a>", "04/10/2024"],
+  ["Paper P", "Filer", "Senator", "<a href=\"/search/view/paper/cccc3333-0000-4000-8000-000000000003/\" target=\"_blank\">Periodic Transaction Report for 02/10/2024</a>", "02/10/2024"],
+  ["Broken", "Row", "Senator", "Periodic Transaction Report with no link", "05/01/2024"]
+]

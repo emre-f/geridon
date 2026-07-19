@@ -1,0 +1,108 @@
+{
+  "data": {
+    "asOf": "Thu, Jan 25, 2024",
+    "headers": {
+      "time": "Time",
+      "symbol": "Symbol",
+      "name": "Company Name",
+      "eps": "EPS",
+      "surprise": "% Surprise",
+      "marketCap": "Market Cap",
+      "fiscalQuarterEnding": "Fiscal Quarter Ending",
+      "epsForecast": "Consensus EPS* Forecast",
+      "noOfEsts": "# of Ests"
+    },
+    "rows": [
+      {
+        "eps": "$0.85",
+        "surprise": "13.33",
+        "time": "time-not-supplied",
+        "symbol": "BEAT",
+        "name": "Beat Corp",
+        "marketCap": "$315,223,690,086",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$0.75",
+        "noOfEsts": "12"
+      },
+      {
+        "eps": "($0.09)",
+        "surprise": "-28.57",
+        "time": "time-after-hours",
+        "symbol": "MISS",
+        "name": "Miss Inc",
+        "marketCap": "$208,703,179,673",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "($0.07)",
+        "noOfEsts": "N/A"
+      },
+      {
+        "eps": "$1.00",
+        "surprise": "0",
+        "time": "time-not-supplied",
+        "symbol": "MEET",
+        "name": "Meet Ltd",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$1.00",
+        "noOfEsts": "3"
+      },
+      {
+        "eps": "$0.50",
+        "surprise": "N/A",
+        "time": "time-not-supplied",
+        "symbol": "NOEST",
+        "name": "No Estimate Co",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "",
+        "noOfEsts": "N/A"
+      },
+      {
+        "eps": "",
+        "surprise": "N/A",
+        "time": "time-not-supplied",
+        "symbol": "NOACT",
+        "name": "No Actual Co",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$0.10",
+        "noOfEsts": "2"
+      },
+      {
+        "eps": "$0.30",
+        "surprise": "N/A",
+        "time": "time-not-supplied",
+        "symbol": "",
+        "name": "Nameless Co",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$0.20",
+        "noOfEsts": "2"
+      },
+      {
+        "eps": "$0.40",
+        "surprise": "N/A",
+        "time": "time-not-supplied",
+        "symbol": "ZZZZ",
+        "name": "Unknown Ticker Co",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$0.30",
+        "noOfEsts": "2"
+      },
+      {
+        "eps": "$0.20",
+        "surprise": "N/A",
+        "time": "time-not-supplied",
+        "symbol": "LATE",
+        "name": "Late History Co",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$0.10",
+        "noOfEsts": "2"
+      }
+    ]
+  },
+  "message": null,
+  "status": { "rCode": 200 }
+}

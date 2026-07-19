@@ -38,6 +38,81 @@ export function SignalPayloadFilterFields({
       </>
     );
   }
+  if (form.kind === "earnings_beat" || form.kind === "earnings_miss") {
+    return (
+      <Field label="Min estimates">
+        <Input
+          inputMode="numeric"
+          value={form.minNumEstimates}
+          placeholder="any"
+          className="w-24"
+          aria-label="Minimum analyst estimates"
+          onChange={(event) => onChange({ minNumEstimates: event.target.value })}
+        />
+      </Field>
+    );
+  }
+  if (form.kind === "short_interest_report" || form.kind === "short_interest_spike") {
+    return (
+      <>
+        <Field label="Min days to cover">
+          <Input
+            inputMode="decimal"
+            value={form.minDaysToCover}
+            placeholder="any"
+            className="w-24"
+            aria-label="Minimum days to cover"
+            onChange={(event) => onChange({ minDaysToCover: event.target.value })}
+          />
+        </Field>
+        <Field label="Min change %">
+          <Input
+            inputMode="decimal"
+            value={form.minChangePercent}
+            placeholder="any"
+            className="w-24"
+            aria-label="Minimum change percent vs prior cycle"
+            onChange={(event) => onChange({ minChangePercent: event.target.value })}
+          />
+        </Field>
+      </>
+    );
+  }
+  if (form.kind === "congress_buy" || form.kind === "congress_sell") {
+    return (
+      <>
+        <Field label="Min amount $">
+          <Input
+            inputMode="decimal"
+            value={form.minAmountLow}
+            placeholder="any"
+            className="w-28"
+            aria-label="Minimum amount range low"
+            onChange={(event) => onChange({ minAmountLow: event.target.value })}
+          />
+        </Field>
+        <Field label="Min disclosure lag">
+          <Input
+            inputMode="numeric"
+            value={form.minDisclosureLagDays}
+            placeholder="any"
+            className="w-24"
+            aria-label="Minimum disclosure lag in days"
+            onChange={(event) => onChange({ minDisclosureLagDays: event.target.value })}
+          />
+        </Field>
+        <label className="flex items-center gap-1.5 pt-5 text-sm">
+          <input
+            type="checkbox"
+            className="size-3.5 accent-[var(--primary)]"
+            checked={form.promptDisclosuresOnly}
+            onChange={(event) => onChange({ promptDisclosuresOnly: event.target.checked })}
+          />
+          Prompt disclosures only
+        </label>
+      </>
+    );
+  }
   return (
     <>
       <Field label="Min trade $">

@@ -57,7 +57,7 @@ test("accepts count_in_window with a window and keeps numeric filters", () => {
 
 test("rejects an unknown event kind", () => {
   const { strategy, errors } = validateStrategy(
-    strategyWith({ type: "signal", kind: "earnings_beat", output: "days_since" }),
+    strategyWith({ type: "signal", kind: "alien_landing", output: "days_since" }),
   );
 
   assert.equal(strategy, null);
