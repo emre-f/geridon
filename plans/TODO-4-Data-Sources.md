@@ -270,8 +270,28 @@ implement only if the appetite survives sources 1–4.
 **`available_ts`**: EDGAR acceptance datetime of the filing (holdings are already ~45 days
 stale at that moment — the staleness is the point of the test).
 
-- [ ] Ingest a curated manager list (constant, not tunable) rather than all filers.
-- [ ] Events: `inst_new_stake` / `inst_exit`, score = position size vs portfolio.
+- [x] Ingest a curated manager list (constant, not tunable) rather than all filers.
+      (`backend/src/services/sec13f/`: 17 CIKs verified against EDGAR on 2026-07-20 —
+      concentrated fundamental managers with long histories (Berkshire, Baupost, Pershing
+      Square, both Appaloosa entities, Third Point, Greenlight, Lone Pine, Viking, Tiger
+      Global, ValueAct, Icahn, Duquesne, Coatue, Scion, both Elliott entities). Discovery via
+      `data.sec.gov` submissions JSON incl. older pages; infotable XML resolved from each
+      accession's `index.json` (largest non-primary `.xml`, case-insensitive — one 2026
+      Viking filing ships `*.XML`). Quarter-unit resumable via `event_ingestions` (source
+      `sec_13f`), quarters close at period end + 90 days; cache under
+      `backend/data/raw/sec13f/{manifests,infotables,ftd}/`. `npm run ingest -- 13f`.)
+- [x] Events: `inst_new_stake` / `inst_exit`, score = position size vs portfolio.
+      (Consecutive-quarter holdings diff per manager; first XML-diffable quarter is 2013q3.
+      Score = position value / filing's long-equity book (put/call and PRN rows excluded, so
+      units cancel across EDGAR's 2023-01-03 thousands→dollars switch, normalized in payload
+      anyway). `available_ts` = EDGAR acceptance datetime; `event_ts` = period end EOD.
+      Amendments are counted, never diffed (they blend information timing); entity
+      migrations and filing gaps produce no events (diff requires exactly-adjacent periods).
+      CUSIP→ticker via SEC fails-to-deliver files (one per quarter, latest-file-wins on the
+      8-char issue; pre-2017-07 files live under the legacy FOIA URL). Backfill 2013q3–2026q1:
+      6,420 events (3,278 new stakes, 3,142 exits) on the candle universe, sane per-year
+      counts with the 2020 turnover spike visible; only 17 unmapped-CUSIP rows total.
+      Offline fixtures in `backend/test/thirteenF{Ingest,Parse}.test.ts`.)
 - [ ] Evaluate; record verdicts.
 
 ## 6. Explicitly out of scope

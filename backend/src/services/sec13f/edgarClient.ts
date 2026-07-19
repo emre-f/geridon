@@ -9,6 +9,9 @@ const execFileAsync = promisify(execFile);
 const submissionsBaseUrl = "https://data.sec.gov/submissions";
 const archivesBaseUrl = "https://www.sec.gov/Archives/edgar/data";
 const ftdBaseUrl = "https://www.sec.gov/files/data/fails-deliver-data";
+/** Files before 2017-07 only exist under the legacy FOIA path. */
+const ftdLegacyBaseUrl =
+  "https://www.sec.gov/files/data/frequently-requested-foia-document-fails-deliver-data";
 const defaultDelayMs = 150;
 const ftdMaxBufferBytes = 128 * 1024 * 1024;
 
@@ -65,6 +68,7 @@ export function createEdgar13fClient(options: Edgar13fClientOptions): Edgar13fCl
   const submissionsBase = options.submissionsBaseUrl ?? submissionsBaseUrl;
   const archivesBase = options.archivesBaseUrl ?? archivesBaseUrl;
   const ftdBase = options.ftdBaseUrl ?? ftdBaseUrl;
+  const ftdLegacyBase = options.ftdBaseUrl ?? ftdLegacyBaseUrl;
   const delayMs = options.delayMs ?? defaultDelayMs;
 
   async function get(url: string): Promise<Response> {
@@ -100,7 +104,10 @@ export function createEdgar13fClient(options: Edgar13fClientOptions): Edgar13fCl
         directory: { item: Array<{ name: string; size?: string }> };
       };
       const candidates = index.directory.item
-        .filter((item) => item.name.endsWith(".xml") && item.name !== "primary_doc.xml")
+        .filter((item) => {
+          const name = item.name.toLowerCase();
+          return name.endsWith(".xml") && name !== "primary_doc.xml";
+        })
         .sort((left, right) => Number(right.size ?? 0) - Number(left.size ?? 0));
       if (candidates.length === 0) {
         throw new Error(`No information table XML found in ${accession} for CIK ${cik}.`);
@@ -114,7 +121,10 @@ export function createEdgar13fClient(options: Edgar13fClientOptions): Edgar13fCl
 
     async fetchFtdText(yyyymm: string): Promise<string | null> {
       const fileName = `cnsfails${yyyymm}a`;
-      const response = await get(`${ftdBase}/${fileName}.zip`);
+      let response = await get(`${ftdBase}/${fileName}.zip`);
+      if (response.status === 403 || response.status === 404) {
+        response = await get(`${ftdLegacyBase}/${fileName}.zip`);
+      }
       if (response.status === 403 || response.status === 404) {
         return null;
       }
