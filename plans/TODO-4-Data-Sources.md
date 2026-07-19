@@ -51,12 +51,45 @@ or after-close; an after-close announcement is actionable at the next open, a be
 that same open. If the source only gives a date with no time, assume after-close of that date
 (conservative).
 
-- [ ] Fetch + cache earnings history for the candle universe.
+- [ ] Fetch + cache earnings history for the candle universe. While choosing the provider,
+      check whether it also carries **forward guidance and forward consensus history** — that
+      decides which path the guidance subsection below takes.
 - [ ] Events: `earnings_beat` / `earnings_miss`, score = standardized surprise
       (actual − estimate, scaled by estimate dispersion or price); payload: EPS values,
       announce time-of-day, fiscal period.
 - [ ] Evaluate: beats vs misses separately; score buckets; check drift horizon (PEAD is a
       21–63 day effect, so the 63-day horizon is the interesting one).
+- [ ] Record verdicts.
+
+### 1b. Guidance surprise (raise/cut of next-quarter projections)
+
+**What / why**: management's projection for the *next* quarter (or full year), issued with the
+earnings release. Arguably the more important half of an ER: the reported beat is about the
+past quarter, while the guide moves the estimates the market prices going forward — "beat but
+guided down" routinely trades like a miss. The losing side: investors anchored to the reported
+number who underweight the revision.
+
+**Data reality (the pipeline work)**: structured forward-guidance and forward-consensus
+history is mostly paid data; guidance itself usually exists only as text in the press release
+/ 8-K. Two paths, decided by the provider check in the first ticket above:
+
+- *Quantitative path* (provider has guidance + forward consensus): surprise = guided value vs
+  consensus for that future period, standardized like the EPS surprise. Cleanest, take it if
+  available.
+- *Extraction path* (default assumption): extend section 2's 8-K labeler to extract guided
+  figures — metric, period, low/high/point — and compare against **prior guidance** for the
+  same period (self-relative raise/cut needs no consensus data at all). Same
+  `labelerVersion` discipline as section 2.
+
+**`available_ts`**: same rule as the EPS events — guidance ships with the announcement (or its
+own 8-K acceptance datetime on the extraction path).
+
+- [ ] Events: `guidance_raise` / `guidance_cut`, score = revision magnitude (new vs prior
+      guide midpoint, scaled by price); payload: metric, period, low/high/point values, and a
+      `withdrawn` flag (withdrawal is its own severe row, not a synthetic number).
+- [ ] Evaluate separately from beats/misses, plus the interaction buckets this source exists
+      for: beat+raise / beat+cut / miss+raise / miss+cut — the hypothesis is that the guide
+      dominates the beat.
 - [ ] Record verdicts.
 
 ## 2. LLM-labeled filings and press releases (8-K)
@@ -85,7 +118,9 @@ version; evaluations pin a version. Never mix labeler versions in one evaluation
 - [ ] Calibration set: ~100 hand-checked filings; labeler must clear a stated accuracy bar
       before bulk labeling spends money.
 - [ ] Events: `filing_guidance_up` / `filing_guidance_down` / `filing_buyback` /
-      `filing_exec_departure`, score = severity.
+      `filing_exec_departure`, score = severity. For guidance items, the labeler also extracts
+      the guided figures (metric, period, low/high/point) — section 1b's extraction path
+      consumes them, so the schema is shared, not duplicated.
 - [ ] Evaluate per kind; direction buckets; record verdicts.
 - [ ] Only after a validated signal: extend backfill breadth/history.
 
