@@ -8,6 +8,7 @@ import { runIngestEarnings } from "./services/earnings/earningsIngestCommand.ts"
 import { getEventCoverage } from "./services/eventStore.ts";
 import { runIngestShortInterest } from "./services/finra/shortInterestIngestCommand.ts";
 import { runFetchEightK } from "./services/sec/eightKFetchCommand.ts";
+import { runLabelEightKCommand } from "./services/sec/eightKLabelCommand.ts";
 import { deriveInsiderClusterBuys } from "./services/sec/form4Clusters.ts";
 import { runIngestThirteenF } from "./services/sec13f/thirteenFIngestCommand.ts";
 import { ingestForm4, type Form4QuarterSummary } from "./services/sec/form4Ingest.ts";
@@ -30,6 +31,7 @@ function usage(): never {
       "  npm run ingest -- congress [--from=2012] [--to=now]",
       "  npm run ingest -- 13f [--from=2013] [--to=now]",
       "  npm run ingest -- 8k [--from=2016] [--to=now] [--tickers=AAPL,MSFT]",
+      "  npm run label -- 8k <--limit=100|--all> [--items=2.02,5.02|all] [--model=gpt-5.5] [--concurrency=4]",
     ].join("\n"),
   );
 }
@@ -199,6 +201,9 @@ async function main(): Promise<void> {
   }
   if (command === "ingest" && rest[0] === "8k") {
     return runFetchEightK(rest.slice(1));
+  }
+  if (command === "label" && rest[0] === "8k") {
+    return runLabelEightKCommand(rest.slice(1));
   }
   usage();
 }

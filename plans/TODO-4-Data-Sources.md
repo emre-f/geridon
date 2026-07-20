@@ -164,11 +164,36 @@ version; evaluations pin a version. Never mix labeler versions in one evaluation
       `npm run ingest -- 8k [--from=2016] [--to=now] [--tickers=…]`; default from 2016
       (candle coverage; the item numbering exists since Aug 2004). Offline fixtures in
       `backend/test/eightKFetch.test.ts`.)
-- [ ] Labeling pipeline: filing text → structured label via a cheap model (this is bulk
+- [x] Labeling pipeline: filing text → structured label via a cheap model (this is bulk
       mechanical work — gpt-5.5 via codex per the model-routing rules), JSON schema output:
       kind, direction, severity 1–5, one-line rationale kept in payload for spot-checking.
+      (**2026-07-20.** `npm run label -- 8k <--limit=N|--all> [--items=2.02,5.02|all]
+      [--model=] [--concurrency=4]`. Text: `eightKText.ts` turns cached EDGAR HTML into prose
+      — the win is dropping `<table>` blocks that are ≥40% digits, which cuts a 218KB Apple
+      exhibit to 11.5KB while leaving the guidance paragraph intact; per-document budgets
+      (12k primary / 16k exhibit, ≤3 exhibits) so a long press release can never crowd out
+      the 8-K body that names the items. Kinds are `guidance`, `buyback`,
+      `exec_departure_unplanned`, `exec_departure_routine` — the unplanned/routine split the
+      5.02 ticket demanded lives in the enum, so the events bullet maps kind→event with no
+      second judgement call. A filing returns 0..n labels: multi-item filings get one label
+      each, and an empty array is the expected answer for routine filings.
+      **`unit` is mandatory on every guidance figure** (verified need: one Apple filing quotes
+      revenue in billions beside other income in millions, so §1b's raise/cut comparison is
+      meaningless without it). Model output is untrusted — `parseLabelSet` rejects unknown
+      kinds/directions, out-of-range severity, empty rationale, non-finite figures, and a
+      rejected filing writes nothing rather than caching a half-valid label.
+      `labelerVersion` = model + sha256(prompt template).slice(12), which names the cache
+      directory `filings/<cik>/<accession>/labels/<version>.json`, so relabeling never
+      overwrites and versions cannot mix. Codex runs sandboxed `read-only --ephemeral` in a
+      scratch dir with `--output-schema`, so the labeler can only read a prompt and write one
+      JSON file. Two spend guards: an unbounded run refuses without `--all`, and 5 consecutive
+      failures abort the run rather than walking 5,720 filings to produce nothing. Offline
+      fixtures in `backend/test/eightK{Text,Label}.test.ts` (fake runner, no network).)
 - [ ] Calibration set: ~100 hand-checked filings; labeler must clear a stated accuracy bar
       before bulk labeling spends money.
+      (Note: 109 filings sit labeled under the superseded version `gpt-5.5-eba34444578c`,
+      which predates the mandatory `unit` field. Read them for a free preview of failure
+      modes, but calibration must score the *current* version — never mix.)
 - [ ] Events: `filing_guidance_up` / `filing_guidance_down` / `filing_buyback` /
       `filing_exec_departure`, score = severity. For guidance items, the labeler also extracts
       the guided figures (metric, period, low/high/point) — section 1b's extraction path
@@ -292,7 +317,28 @@ stale at that moment — the staleness is the point of the test).
       6,420 events (3,278 new stakes, 3,142 exits) on the candle universe, sane per-year
       counts with the 2020 turnover spike visible; only 17 unmapped-CUSIP rows total.
       Offline fixtures in `backend/test/thirteenF{Ingest,Parse}.test.ts`.)
-- [ ] Evaluate; record verdicts.
+- [x] Evaluate; record verdicts.
+      (evaluations #16–#18, seed 1, universe min $5 / $5M median dollar volume: all new stakes,
+      all exits, new stakes with `min_score` 0.0125 — the round constant nearest the
+      top-tercile boundary the score buckets exposed)
+
+**Verdict (2026-07-20): `no_signal` on both kinds — and the pooled new-stake draw is
+*negatively* informative.** 13F diffs 2013q3–2026q1 (study effectively starts 2016 with candle
+coverage, holdout excluded; ~19% of events drop as `no_anchor`, all pre-2016). `inst_new_stake`
+N=2,295 on 561 tickers: headline t=1.59, +0.22% net at the 9-bar natural hold, but the curve
+turns over after day 14 and stays negative for the rest of the quarter — **−1.9% at 51 bars,
+t=−3.30**, the largest-magnitude drift this registry has produced. Buying alongside a freshly
+disclosed high-conviction stake underperforms the matched baseline; the 45-day staleness is the
+whole story, exactly the failure mode this section was ranked last for. `inst_exit` N=2,152 on
+546 tickers scores `weak` on the fixed thresholds (t=2.13, +0.32% net at a 14-bar hold), but
+that is the peak of a 63-horizon scan on a curve with no shape: a small bump through day 14,
+back through zero by day 18, −0.91% by 63d, and score buckets that are not monotonic (the
+largest exits are the *worst* bucket). Read it as noise, not as "worth another look". One
+follow-up was spent on the new-stake tercile the buckets flagged (score ≥ 1.25% of the manager's
+long book, N=811): the negative quarter drift disappears entirely (−0.3% at 51d, t=−0.30), so
+the drag lives in the small marginal positions, not the conviction ones — but the top tercile is
+itself flat (t=1.77 at the 9-bar hold). Keep the data (cheap, permanent cache, useful as a
+crowding measure later); do not build triggers on either kind. Multiple-testing counter: +3.
 
 ## 6. Explicitly out of scope
 

@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 
 import { backendRoot } from "../../config.ts";
 import type { Database } from "../../db.ts";
+import { runWithConcurrency } from "../concurrency.ts";
 import { getKnownTickers } from "../eventStore.ts";
 import { createEdgarClient, type EdgarClient } from "./edgarClient.ts";
 import { ensureCached, ensureFilingDocuments, type FetchCounters } from "./eightKFilingCache.ts";
@@ -25,22 +26,6 @@ const dayMs = 86_400_000;
 
 /** Wall-time is round-trip bound; the client throttle owns the request rate. */
 const filingConcurrency = 6;
-
-async function runWithConcurrency<T>(
-  items: readonly T[],
-  limit: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  let nextIndex = 0;
-  const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const item = items[nextIndex];
-      nextIndex += 1;
-      await worker(item);
-    }
-  });
-  await Promise.all(lanes);
-}
 
 interface TickerListing {
   ticker: string;
