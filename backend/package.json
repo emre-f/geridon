@@ -15,6 +15,7 @@
     "sync": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts sync",
     "ingest": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts ingest",
     "label": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts label",
+    "calibrate": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts calibrate",
     "backfill": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/backfill.ts",
     "universe": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/fetchUniverse.ts"
   },

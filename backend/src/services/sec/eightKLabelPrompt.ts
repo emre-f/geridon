@@ -8,23 +8,41 @@ that is the common, expected answer for routine filings. Never invent an event
 to fill the array.
 
 Kinds:
-- "guidance": management gives or revises a financial projection for a FUTURE
-  period. Reported results for a period that has already ended are NOT guidance.
+- "guidance": the COMPANY states its own expectation for its future financial
+  results for a specified future period, in its own voice ("we expect", "the
+  Company now sees", "outlook", "guidance", "reaffirms"). Reported results for a
+  period that has already ended are NOT guidance. The following are NOT guidance
+  even though they name a future dollar figure: illustrative, hypothetical, or
+  "potential"/"could"/"up to" amounts; an opportunity, pipeline, or market size
+  in an investor presentation; figures from a reserve, resource, or other
+  technical report; and third-party or analyst estimates. When you cannot tell
+  whether a number is the company's own committed outlook or just a
+  forward-looking mention, it is not guidance.
 - "buyback": a new or expanded share repurchase authorization. Routine reporting
   of shares already repurchased under an existing authorization is not a buyback.
-- "exec_departure_unplanned": an officer or director leaves and the filing gives
+- "exec_departure_unplanned": an officer or director DEPARTS and the filing gives
   no orderly reason: resignation effective immediately, termination for cause,
   departure "to pursue other interests" with no successor, death, or a
   disagreement with the company.
-- "exec_departure_routine": a planned retirement, an announced succession with a
-  named successor and a transition period, an appointment, a board election, or
-  a compensation arrangement.
+- "exec_departure_routine": an officer or director DEPARTS in an orderly way: a
+  planned retirement, or an announced succession with a named successor and a
+  transition period.
+
+Someone must actually leave for either departure kind. A filing that only
+appoints, hires, elects, or re-elects a person, or only sets a compensation
+arrangement, with no one departing, is NOT an exec_departure event: label only
+its other material events, or emit an empty array.
 
 direction, from the perspective of an investor holding the stock:
 - "up": the disclosure is favorable (guidance raised, buyback authorized).
 - "down": the disclosure is unfavorable (guidance cut, guidance withdrawn, an
   unplanned departure of a CEO/CFO).
 - "none": genuinely neutral or ambiguous. Use it rather than guessing.
+
+For guidance, take direction from how the filing frames the change: "up" when it
+raises, increases, or guides above its prior view; "down" when it lowers,
+reduces, guides below, or withdraws; "none" only for a first-time initiation or
+a plain reaffirmation with no directional language.
 
 severity, 1-5, how materially a well-informed investor would react:
 1 = trivial or boilerplate, 2 = minor, 3 = ordinary material news,
@@ -33,7 +51,14 @@ for events like a CEO terminated for cause or guidance withdrawn entirely.
 
 rationale: ONE short sentence, quoting the filing's own language where possible.
 
-guidance: for "guidance" labels only, extract each figure the filing projects.
+guidance: for "guidance" labels only, extract the company's HEADLINE outlook
+figures - the few top-line metrics it leads with, typically revenue, earnings
+per share, and at most one or two others it explicitly highlights. Do NOT
+itemize a projected reconciliation, bridge, or segment table: when the filing
+walks GAAP to non-GAAP or breaks a total into components, keep only the summary
+total it guides, never every line. Aim for a handful of figures, not dozens.
+Extract only a figure that appears in the filing text above; never add one from
+outside knowledge or infer a number the text does not state.
 Use "low"/"high" for a range and "point" for a single figure, never both. Leave
 all three null when the filing revises guidance without naming a number.
 "metric" is the filer's own term ("revenue", "adjusted EPS", "gross margin").
@@ -68,11 +93,12 @@ export function buildLabelPrompt(context: FilingPromptContext): string {
 
 /**
  * The evaluation contract: a label is only comparable to labels produced by the
- * same model AND the same prompt, so both are folded into one identifier that
- * names the cache directory. Editing `promptTemplate` at all changes the hash,
- * which is the point.
+ * same model, reasoning effort AND prompt, so all three are folded into one
+ * identifier that names the cache directory. Editing `promptTemplate` at all
+ * changes the hash, and switching effort mints a fresh version rather than
+ * silently mixing medium- and high-effort labels under one name.
  */
-export function labelerVersion(model: string): string {
+export function labelerVersion(model: string, effort: string): string {
   const hash = createHash("sha256").update(promptTemplate).digest("hex").slice(0, 12);
-  return `${model}-${hash}`;
+  return `${model}-${effort}-${hash}`;
 }

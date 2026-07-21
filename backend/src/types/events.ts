@@ -1,9 +1,12 @@
+import type { GuidanceFigure, LabelDirection } from "../services/sec/eightKLabelSchema.ts";
+
 export type EventSourceId =
   | "sec_form4"
   | "nasdaq_earnings"
   | "finra_short_interest"
   | "senate_efd"
-  | "sec_13f";
+  | "sec_13f"
+  | "sec_8k";
 
 export interface InsiderTransactionPayload {
   insider_name: string;
@@ -87,6 +90,51 @@ export interface InstitutionalStakePayload {
   filing_lag_days: number;
 }
 
+/**
+ * An LLM-labeled 8-K material event. available_ts is the EDGAR acceptance
+ * datetime, which is also when the event became public, so event_ts equals it.
+ * `labeler_version` (model + prompt hash) pins the label an evaluation trusts:
+ * relabeling under a new version writes new rows, and an evaluation filters this
+ * field so it never mixes versions. `guidance` reuses section 1b's shared figure
+ * schema - the extraction path reads these same figures, they are not duplicated.
+ */
+export interface FilingLabelEventPayload {
+  cik: number;
+  accession: string;
+  items: string[];
+  direction: LabelDirection;
+  severity: number;
+  rationale: string;
+  guidance: GuidanceFigure[];
+  labeler_version: string;
+}
+
+/**
+ * A guidance revision recovered by section 1b's extraction path: a filing's
+ * guided figure for some future period compared against the same company's
+ * prior guide for that same metric/period (self-relative, so no consensus data
+ * is needed). `revision_pct` is signed ((new - prior) / |prior| midpoint) and
+ * the event's score is its absolute value, so a min-score filter means "revision
+ * at least this large" for raises and cuts alike. A withdrawal carries no
+ * synthetic number: `withdrawn` is true, `new_midpoint`/`revision_pct` are null,
+ * and the score is null so it never enters a magnitude bucket. `new_figure` and
+ * `prior_figure` reuse the labeler's shared GuidanceFigure shape rather than
+ * duplicating it. available_ts is the acceptance datetime of the filing that
+ * issued the new guide.
+ */
+export interface GuidanceRevisionPayload {
+  cik: number;
+  accession: string;
+  prior_accession: string;
+  new_figure: GuidanceFigure;
+  prior_figure: GuidanceFigure;
+  new_midpoint: number | null;
+  prior_midpoint: number;
+  revision_pct: number | null;
+  withdrawn: boolean;
+  labeler_version: string;
+}
+
 export interface EventPayloadByKind {
   insider_buy: InsiderTransactionPayload;
   insider_sell: InsiderTransactionPayload;
@@ -99,6 +147,12 @@ export interface EventPayloadByKind {
   congress_sell: CongressTradePayload;
   inst_new_stake: InstitutionalStakePayload;
   inst_exit: InstitutionalStakePayload;
+  filing_guidance_up: FilingLabelEventPayload;
+  filing_guidance_down: FilingLabelEventPayload;
+  filing_buyback: FilingLabelEventPayload;
+  filing_exec_departure: FilingLabelEventPayload;
+  guidance_raise: GuidanceRevisionPayload;
+  guidance_cut: GuidanceRevisionPayload;
 }
 
 export type EventKind = keyof EventPayloadByKind;
@@ -115,6 +169,12 @@ const eventKindFlags: Record<EventKind, true> = {
   congress_sell: true,
   inst_new_stake: true,
   inst_exit: true,
+  filing_guidance_up: true,
+  filing_guidance_down: true,
+  filing_buyback: true,
+  filing_exec_departure: true,
+  guidance_raise: true,
+  guidance_cut: true,
 };
 
 export const eventKinds = Object.keys(eventKindFlags) as EventKind[];

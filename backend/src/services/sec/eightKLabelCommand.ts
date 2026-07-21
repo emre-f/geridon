@@ -1,4 +1,5 @@
-import { defaultLabelModel } from "./eightKLabelRunner.ts";
+import { assertCalibrationPassed, readSample, samplePath } from "./eightKCalibrationSet.ts";
+import { labelerChoiceFromArgs } from "./eightKLabelRunner.ts";
 import { runLabelEightK, type LabelRunSummary } from "./eightKLabelRun.ts";
 
 /** The two items the fetcher collects; labeling anything else is unfetched. */
@@ -17,15 +18,36 @@ function parsePositiveInteger(raw: string, label: string): number {
   return value;
 }
 
+/**
+ * The calibration sample is a fixed list, so labeling it is bounded by
+ * construction and stays open before the gate - it is how a version earns its
+ * score in the first place.
+ */
+async function calibrationAccessions(): Promise<string[]> {
+  const sample = await readSample();
+  if (sample == null) {
+    throw new Error(`No calibration sample at ${samplePath}; run "npm run calibrate -- 8k sample" first.`);
+  }
+  return sample.filings.map((filing) => filing.accession_path);
+}
+
 export async function runLabelEightKCommand(args: string[]): Promise<void> {
   const limitRaw = optionValue(args, "--limit=", "");
   const itemsRaw = optionValue(args, "--items=", defaultItems.join(","));
+  const { model, effort, version } = labelerChoiceFromArgs(args);
+  const calibrationOnly = args.includes("--calibration");
+
+  if (args.includes("--all")) {
+    await assertCalibrationPassed(version);
+  }
 
   const summary = await runLabelEightK({
-    model: optionValue(args, "--model=", defaultLabelModel),
+    model,
+    effort,
     items: itemsRaw === "all" ? undefined : itemsRaw.split(",").map((item) => item.trim()),
+    accessions: calibrationOnly ? await calibrationAccessions() : undefined,
     limit: limitRaw === "" ? undefined : parsePositiveInteger(limitRaw, "--limit"),
-    allowUnbounded: args.includes("--all"),
+    allowUnbounded: args.includes("--all") || calibrationOnly,
     concurrency: (() => {
       const raw = optionValue(args, "--concurrency=", "");
       return raw === "" ? undefined : parsePositiveInteger(raw, "--concurrency");

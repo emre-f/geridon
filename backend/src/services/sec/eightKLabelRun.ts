@@ -1,19 +1,23 @@
-import { existsSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import { backendRoot } from "../../config.ts";
 import { runWithConcurrency } from "../concurrency.ts";
 import { buildLabelPrompt, labelerVersion } from "./eightKLabelPrompt.ts";
-import { createCodexRunner, defaultLabelModel, type LabelRunner } from "./eightKLabelRunner.ts";
+import {
+  createCodexRunner,
+  defaultLabelEffort,
+  defaultLabelModel,
+  type LabelRunner,
+} from "./eightKLabelRunner.ts";
 import { isLabelParseError, parseLabelSet } from "./eightKLabelSchema.ts";
 import {
+  buildTickerMap,
   hasLabel,
   listCachedFilings,
+  readFilingText,
   writeLabel,
   type CachedFiling,
 } from "./eightKLabelStore.ts";
-import { assembleFilingText, documentToText, type FilingTextPart } from "./eightKText.ts";
 
 /** Each lane is one codex subprocess; the model provider owns the rate limit. */
 const defaultConcurrency = 4;
@@ -39,7 +43,10 @@ export interface LabelRunSummary {
 export interface LabelRunOptions {
   cacheDir?: string;
   model?: string;
+  effort?: string;
   items?: string[];
+  /** Restricts the run to named filings; the calibration sample uses this. */
+  accessions?: string[];
   limit?: number;
   /** Labeling spends money per filing, so an unbounded run must be explicit. */
   allowUnbounded?: boolean;
@@ -52,16 +59,21 @@ export interface LabelRunOptions {
 export async function runLabelEightK(options: LabelRunOptions = {}): Promise<LabelRunSummary> {
   const cacheDir = options.cacheDir ?? resolve(backendRoot, "data/raw/sec8k");
   const model = options.model ?? defaultLabelModel;
-  const version = labelerVersion(model);
+  const effort = options.effort ?? defaultLabelEffort;
+  const version = labelerVersion(model, effort);
   const notify = options.onProgress ?? (() => {});
-  const runner = options.runner ?? createCodexRunner(model);
+  const runner = options.runner ?? createCodexRunner(model, effort);
   const nowIso = options.nowIso ?? new Date().toISOString();
 
   const tickerByCik = await buildTickerMap(cacheDir);
   const summary = emptySummary(version);
 
+  const wanted = options.accessions == null ? null : new Set(options.accessions);
   const pending: CachedFiling[] = [];
   for (const filing of await listCachedFilings(cacheDir)) {
+    if (wanted != null && !wanted.has(filing.accession_path)) {
+      continue;
+    }
     if (options.items != null && !filing.items.some((item) => options.items?.includes(item))) {
       continue;
     }
@@ -139,47 +151,6 @@ export async function runLabelEightK(options: LabelRunOptions = {}): Promise<Lab
     );
   }
   return summary;
-}
-
-async function readFilingText(filing: CachedFiling): Promise<string> {
-  const readPart = async (filename: string): Promise<FilingTextPart | null> => {
-    const path = join(filing.dir, filename.replaceAll("/", "_"));
-    if (!existsSync(path)) {
-      return null;
-    }
-    return { filename, text: documentToText(await readFile(path, "utf8")) };
-  };
-
-  const primary = filing.primary == null ? null : await readPart(filing.primary);
-  const exhibits: FilingTextPart[] = [];
-  for (const exhibit of filing.exhibits) {
-    const part = await readPart(exhibit);
-    if (part != null) {
-      exhibits.push(part);
-    }
-  }
-  return assembleFilingText(primary, exhibits);
-}
-
-async function buildTickerMap(cacheDir: string): Promise<Map<number, string>> {
-  const listingsDir = join(cacheDir, "listings");
-  const tickerByCik = new Map<number, string>();
-  if (!existsSync(listingsDir)) {
-    return tickerByCik;
-  }
-  for (const entry of await readdir(listingsDir)) {
-    if (!entry.endsWith(".json")) {
-      continue;
-    }
-    const listing = JSON.parse(await readFile(join(listingsDir, entry), "utf8")) as {
-      ticker: string;
-      cik: number;
-    };
-    if (!tickerByCik.has(listing.cik)) {
-      tickerByCik.set(listing.cik, listing.ticker);
-    }
-  }
-  return tickerByCik;
 }
 
 function emptySummary(version: string): LabelRunSummary {

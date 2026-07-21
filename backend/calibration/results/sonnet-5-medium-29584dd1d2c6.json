@@ -1,0 +1,13 @@
+{
+  "labeler_version": "sonnet-5-medium-29584dd1d2c6",
+  "passed": false,
+  "scored_at": "2026-07-21T15:22:37.286Z",
+  "filings_scored": 100,
+  "metrics": {
+    "kind_f1": 0.9197080291970803,
+    "direction_accuracy": 0.9841269841269841,
+    "severity_within_one": 1,
+    "guidance_figure_f1": 0.8106508875739644,
+    "clean_filing_false_positive_rate": 0.10810810810810811
+  }
+}

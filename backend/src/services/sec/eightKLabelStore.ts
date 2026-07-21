@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import type { FilingLabelSet } from "./eightKLabelSchema.ts";
+import { assembleFilingText, documentToText, type FilingTextPart } from "./eightKText.ts";
 
 export interface CachedFiling {
   cik: number;
@@ -118,4 +119,46 @@ export async function listCachedFilings(cacheDir: string): Promise<CachedFiling[
       left.accession_path.localeCompare(right.accession_path),
   );
   return filings;
+}
+
+export async function readFilingText(filing: CachedFiling): Promise<string> {
+  const readPart = async (filename: string): Promise<FilingTextPart | null> => {
+    const path = join(filing.dir, filename.replaceAll("/", "_"));
+    if (!existsSync(path)) {
+      return null;
+    }
+    return { filename, text: documentToText(await readFile(path, "utf8")) };
+  };
+
+  const primary = filing.primary == null ? null : await readPart(filing.primary);
+  const exhibits: FilingTextPart[] = [];
+  for (const exhibit of filing.exhibits) {
+    const part = await readPart(exhibit);
+    if (part != null) {
+      exhibits.push(part);
+    }
+  }
+  return assembleFilingText(primary, exhibits);
+}
+
+/** Listings are keyed by ticker; share classes on one CIK keep the first seen. */
+export async function buildTickerMap(cacheDir: string): Promise<Map<number, string>> {
+  const listingsDir = join(cacheDir, "listings");
+  const tickerByCik = new Map<number, string>();
+  if (!existsSync(listingsDir)) {
+    return tickerByCik;
+  }
+  for (const entry of await readdir(listingsDir)) {
+    if (!entry.endsWith(".json")) {
+      continue;
+    }
+    const listing = JSON.parse(await readFile(join(listingsDir, entry), "utf8")) as {
+      ticker: string;
+      cik: number;
+    };
+    if (!tickerByCik.has(listing.cik)) {
+      tickerByCik.set(listing.cik, listing.ticker);
+    }
+  }
+  return tickerByCik;
 }

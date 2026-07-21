@@ -6,7 +6,12 @@ import test from "node:test";
 
 import { buildLabelPrompt, labelerVersion, promptTemplate } from "../src/services/sec/eightKLabelPrompt.ts";
 import { runLabelEightK } from "../src/services/sec/eightKLabelRun.ts";
-import type { LabelRunner } from "../src/services/sec/eightKLabelRunner.ts";
+import {
+  defaultLabelEffort,
+  defaultLabelModel,
+  labelerChoiceFromArgs,
+  type LabelRunner,
+} from "../src/services/sec/eightKLabelRunner.ts";
 import { parseLabelSet } from "../src/services/sec/eightKLabelSchema.ts";
 import { listCachedFilings, readLabel } from "../src/services/sec/eightKLabelStore.ts";
 
@@ -89,11 +94,26 @@ test("parseLabelSet rejects malformed model output", () => {
   }
 });
 
-test("labelerVersion changes when the prompt changes", () => {
-  const version = labelerVersion("gpt-5.5");
-  assert.match(version, /^gpt-5\.5-[0-9a-f]{12}$/);
-  assert.equal(version, labelerVersion("gpt-5.5"));
-  assert.notEqual(version, labelerVersion("gpt-5.6"));
+test("labelerVersion pins model, effort and prompt", () => {
+  const version = labelerVersion("gpt-5.6-sol", "medium");
+  assert.match(version, /^gpt-5\.6-sol-medium-[0-9a-f]{12}$/);
+  assert.equal(version, labelerVersion("gpt-5.6-sol", "medium"));
+  assert.notEqual(version, labelerVersion("gpt-5.6-sol", "high"));
+  assert.notEqual(version, labelerVersion("gpt-5.5", "medium"));
+});
+
+test("labelerChoiceFromArgs resolves the version every 8-K subcommand shares", () => {
+  const fallback = labelerChoiceFromArgs([]);
+  assert.equal(fallback.model, defaultLabelModel);
+  assert.equal(fallback.effort, defaultLabelEffort);
+  assert.equal(fallback.version, labelerVersion(defaultLabelModel, defaultLabelEffort));
+
+  const explicit = labelerChoiceFromArgs(["--items=all", "--model=gpt-5.6-sol", "--all", "--effort=high"]);
+  assert.equal(explicit.model, "gpt-5.6-sol");
+  assert.equal(explicit.effort, "high");
+  assert.equal(explicit.version, labelerVersion("gpt-5.6-sol", "high"));
+
+  assert.notEqual(explicit.version, fallback.version);
 });
 
 test("buildLabelPrompt carries the filing context and the template", () => {

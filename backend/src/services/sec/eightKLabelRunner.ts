@@ -3,11 +3,42 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { labelerVersion } from "./eightKLabelPrompt.ts";
 import { filingLabelJsonSchema } from "./eightKLabelSchema.ts";
 
-export const defaultLabelModel = "gpt-5.5";
+export const defaultLabelModel = "gpt-5.6-sol";
+/** Labeling is extraction, not reasoning; medium keeps it cheap without going shallow. */
+export const defaultLabelEffort = "medium";
 const runTimeoutMs = 180_000;
 
+export interface LabelerChoice {
+  model: string;
+  effort: string;
+  version: string;
+}
+
+/**
+ * Reads the shared `--model=` / `--effort=` options every 8-K subcommand accepts
+ * and folds them into the labeler version, so a label run and the commands that
+ * later read those labels agree on the cache directory from the same flags.
+ */
+export function labelerChoiceFromArgs(args: string[]): LabelerChoice {
+  const option = (prefix: string, fallback: string): string => {
+    const found = args.find((arg) => arg.startsWith(prefix));
+    return found ? found.slice(prefix.length) : fallback;
+  };
+  const model = option("--model=", defaultLabelModel);
+  const effort = option("--effort=", defaultLabelEffort);
+  return { model, effort, version: labelerVersion(model, effort) };
+}
+
+/**
+ * The seam between the pipeline and whichever model grades a filing: given one
+ * prompt, return one JSON string matching the label schema. The transport is
+ * chosen from the model name - OpenAI models (`gpt-*`) run through the Codex CLI
+ * (`createCodexRunner`), Claude models through the Anthropic API - so a new
+ * backend is a new `LabelRunner`, not a change to the labeling logic.
+ */
 export interface LabelRunner {
   run: (prompt: string) => Promise<string>;
 }
@@ -48,7 +79,10 @@ function runCommand(command: string, args: string[], cwd: string): Promise<Comma
  * with no repository access: the labeler reads a prompt and writes one JSON
  * file, and must not be able to touch anything else.
  */
-export function createCodexRunner(model = defaultLabelModel): LabelRunner {
+export function createCodexRunner(
+  model = defaultLabelModel,
+  effort = defaultLabelEffort,
+): LabelRunner {
   return {
     async run(prompt: string): Promise<string> {
       const workDir = await mkdtemp(join(tmpdir(), "geridon-label-"));
@@ -65,6 +99,8 @@ export function createCodexRunner(model = defaultLabelModel): LabelRunner {
             "exec",
             "--model",
             model,
+            "-c",
+            `model_reasoning_effort="${effort}"`,
             "--sandbox",
             "read-only",
             "--skip-git-repo-check",
