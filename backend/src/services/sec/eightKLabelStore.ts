@@ -46,6 +46,20 @@ export async function readLabel(
   return JSON.parse(await readFile(path, "utf8")) as StoredLabelSet;
 }
 
+/** First match wins: the version list is a precedence order, not a merge. */
+export async function readLabelFromVersions(
+  filingDir: string,
+  labelerVersions: readonly string[],
+): Promise<StoredLabelSet | null> {
+  for (const version of labelerVersions) {
+    const labelSet = await readLabel(filingDir, version);
+    if (labelSet != null) {
+      return labelSet;
+    }
+  }
+  return null;
+}
+
 export async function writeLabel(
   filingDir: string,
   labelerVersion: string,

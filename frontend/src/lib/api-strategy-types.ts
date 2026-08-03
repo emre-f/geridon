@@ -40,7 +40,13 @@ export type SignalEventKind =
   | "congress_buy"
   | "congress_sell"
   | "inst_new_stake"
-  | "inst_exit";
+  | "inst_exit"
+  | "filing_guidance_up"
+  | "filing_guidance_down"
+  | "filing_buyback"
+  | "filing_exec_departure"
+  | "guidance_raise"
+  | "guidance_cut";
 
 export type SignalOutput = "days_since" | "count_in_window" | "last_score";
 

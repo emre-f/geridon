@@ -133,6 +133,10 @@ export interface GuidanceRevisionPayload {
   revision_pct: number | null;
   withdrawn: boolean;
   labeler_version: string;
+  /** Nearest same-ticker earnings event within 36h; 0/1 for payload filters. */
+  paired_beat: 0 | 1;
+  paired_miss: 0 | 1;
+  paired_surprise: number | null;
 }
 
 export interface EventPayloadByKind {

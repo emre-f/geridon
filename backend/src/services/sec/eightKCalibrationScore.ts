@@ -1,4 +1,7 @@
-import { labelKinds, type FilingLabel, type GuidanceFigure, type LabelKind } from "./eightKLabelSchema.ts";
+import { countFigures, type CountedPair } from "./eightKCalibrationFigures.ts";
+import { labelKinds, type FilingLabel, type LabelKind } from "./eightKLabelSchema.ts";
+
+export type { CountedPair } from "./eightKCalibrationFigures.ts";
 
 /**
  * The stated accuracy bar. These are fixed constants, not tunables: lowering a
@@ -15,12 +18,6 @@ export const accuracyBar = {
   minGuidanceFigureF1: 0.8,
   maxCleanFilingFalsePositiveRate: 0.1,
 } as const;
-
-export interface CountedPair {
-  true_positives: number;
-  false_positives: number;
-  false_negatives: number;
-}
 
 export interface KindScore extends CountedPair {
   kind: LabelKind;
@@ -60,85 +57,6 @@ function f1(counts: CountedPair): number {
   const precision = ratio(counts.true_positives, counts.true_positives + counts.false_positives);
   const recall = ratio(counts.true_positives, counts.true_positives + counts.false_negatives);
   return precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
-}
-
-function normalize(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-/**
- * Two labelers describing the same guided period write it differently -
- * "FY 2023", "FY2023", "Fiscal 2023", "Full Year 2023" are one period, as are
- * "Q1 2023", "1Q 2023" and "first quarter 2023". Collapsing them to a canonical
- * token measures whether the figure was extracted, not whether the two happened
- * to format the period the same way.
- */
-function canonicalPeriod(period: string): string {
-  let p = period.toLowerCase().replace(/[^a-z0-9]/g, "");
-  p = p
-    .replace(/fullyear/g, "fy")
-    .replace(/fiscalyear/g, "fy")
-    .replace(/fiscal/g, "fy")
-    .replace(/calendaryear/g, "fy");
-  p = p
-    .replace(/firstquarter/g, "q1")
-    .replace(/secondquarter/g, "q2")
-    .replace(/thirdquarter/g, "q3")
-    .replace(/fourthquarter/g, "q4");
-  return p.replace(/([1-4])q(?=\d)/g, "q$1");
-}
-
-const metricStopWords = new Set([
-  "the", "of", "a", "an", "for", "on", "under", "to", "is", "in", "at",
-  "vs", "versus", "per", "from", "with", "its", "by", "and", "or",
-]);
-
-/**
- * Metric names are free text, so the same measure appears as "adjusted EPS",
- * "EPS (adjusted)", "adjusted earnings per share". A fingerprint - expand the
- * EPS abbreviation, drop punctuation and filler words, then compare the set of
- * significant words regardless of order - matches those without collapsing
- * genuinely different metrics (a distinguishing word like "GAAP", "diluted" or
- * "organic" still separates them).
- */
-function metricFingerprint(metric: string): string {
-  const expanded = metric.toLowerCase().replace(/&/g, " ").replace(/\beps\b/g, "earnings per share");
-  const words = expanded
-    .replace(/[^a-z0-9 ]/g, " ")
-    .split(/\s+/)
-    .filter((word) => word.length > 0 && !metricStopWords.has(word));
-  return [...new Set(words)].sort().join(" ");
-}
-
-function figureKey(figure: GuidanceFigure): string {
-  const numbers = [figure.low, figure.high, figure.point].map((value) =>
-    value == null ? "null" : value.toFixed(6),
-  );
-  return [metricFingerprint(figure.metric), canonicalPeriod(figure.period), normalize(figure.unit), ...numbers].join("|");
-}
-
-/**
- * Figures are compared as multisets: a filing can guide several metrics, and
- * the order the model happens to list them in carries no meaning.
- */
-function countFigures(gold: GuidanceFigure[], predicted: GuidanceFigure[], into: CountedPair): void {
-  const remaining = new Map<string, number>();
-  for (const figure of predicted) {
-    const key = figureKey(figure);
-    remaining.set(key, (remaining.get(key) ?? 0) + 1);
-  }
-  let matched = 0;
-  for (const figure of gold) {
-    const key = figureKey(figure);
-    const available = remaining.get(key) ?? 0;
-    if (available > 0) {
-      remaining.set(key, available - 1);
-      matched += 1;
-    }
-  }
-  into.true_positives += matched;
-  into.false_negatives += gold.length - matched;
-  into.false_positives += predicted.length - matched;
 }
 
 function emptyCounts(): CountedPair {

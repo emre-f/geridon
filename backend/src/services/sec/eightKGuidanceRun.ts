@@ -11,13 +11,13 @@ import {
 import {
   buildTickerMap,
   listCachedFilings,
-  readLabel,
+  readLabelFromVersions,
   type CachedFiling,
   type StoredLabelSet,
 } from "./eightKLabelStore.ts";
 
 export interface GuidanceEventsRunResult {
-  labeler_version: string;
+  labeler_versions: string[];
   filings_considered: number;
   filings_labeled: number;
   filings_unlabeled: number;
@@ -28,7 +28,8 @@ export interface GuidanceEventsRunResult {
 }
 
 export interface GuidanceEventsRunOptions {
-  labelerVersion: string;
+  /** Precedence order; each filing uses its first version that has a label. */
+  labelerVersions: string[];
   cacheDir?: string;
   /** Restrict to filings carrying at least one of these item codes (guidance rides 2.02). */
   items?: string[];
@@ -50,7 +51,7 @@ export async function collectGuidanceEvents(
   const tickerByCik = await buildTickerMap(cacheDir);
 
   const result: GuidanceEventsRunResult = {
-    labeler_version: options.labelerVersion,
+    labeler_versions: options.labelerVersions,
     filings_considered: 0,
     filings_labeled: 0,
     filings_unlabeled: 0,
@@ -68,7 +69,7 @@ export async function collectGuidanceEvents(
     }
     result.filings_considered += 1;
 
-    const labelSet = await readLabel(filing.dir, options.labelerVersion);
+    const labelSet = await readLabelFromVersions(filing.dir, options.labelerVersions);
     if (labelSet == null) {
       result.filings_unlabeled += 1;
       continue;
@@ -90,7 +91,7 @@ export async function collectGuidanceEvents(
   }
 
   for (const [ticker, filings] of byTicker) {
-    const mapped = tickerGuidanceEvents(filings, ticker, options.labelerVersion);
+    const mapped = tickerGuidanceEvents(filings, ticker);
     result.skips.initiation += mapped.skips.initiation;
     result.skips.reaffirmation += mapped.skips.reaffirmation;
     result.skips.withdrawal_no_prior += mapped.skips.withdrawal_no_prior;

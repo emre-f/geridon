@@ -101,6 +101,9 @@ function makeEvent(
     revision_pct: revisionPct,
     withdrawn,
     labeler_version: labelerVersion,
+    paired_beat: 0,
+    paired_miss: 0,
+    paired_surprise: null,
   };
   return {
     source: "sec_8k",
@@ -126,12 +129,13 @@ export interface GuidanceEventsResult {
  * scored by the signed percentage change of the midpoints. A first guide is an
  * initiation (no baseline), an unchanged midpoint is a reaffirmation, and a
  * figure with no number withdraws the outlook - a severe cut carrying no
- * synthetic magnitude. All three are counted, never emitted.
+ * synthetic magnitude. All three are counted, never emitted. Each event is
+ * stamped with the revising filing's own labeler version, so a hybrid cache
+ * (different filings labeled by different passing versions) stays traceable.
  */
 export function tickerGuidanceEvents(
   filings: Array<{ filing: CachedFiling; labelSet: StoredLabelSet }>,
   ticker: string,
-  labelerVersion: string,
 ): GuidanceEventsResult {
   const events: Array<EventRecord<GuidanceEventKind>> = [];
   const skips = emptyGuidanceEventSkipCounts();
@@ -153,7 +157,7 @@ export function tickerGuidanceEvents(
           continue;
         }
         events.push(
-          makeEvent(filing, ticker, "guidance_cut", labelerVersion, figure, prior, null, null, true),
+          makeEvent(filing, ticker, "guidance_cut", labelSet.labeler_version, figure, prior, null, null, true),
         );
         priorByKey.delete(key);
         continue;
@@ -178,7 +182,7 @@ export function tickerGuidanceEvents(
       }
       const kind: GuidanceEventKind = revisionPct > 0 ? "guidance_raise" : "guidance_cut";
       events.push(
-        makeEvent(filing, ticker, kind, labelerVersion, figure, prior, midpoint, revisionPct, false),
+        makeEvent(filing, ticker, kind, labelSet.labeler_version, figure, prior, midpoint, revisionPct, false),
       );
     }
   }

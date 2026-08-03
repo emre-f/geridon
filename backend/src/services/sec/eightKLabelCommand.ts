@@ -41,11 +41,13 @@ export async function runLabelEightKCommand(args: string[]): Promise<void> {
     await assertCalibrationPassed(version);
   }
 
+  const skipRaw = optionValue(args, "--skip-labeled-by=", "");
   const summary = await runLabelEightK({
     model,
     effort,
     items: itemsRaw === "all" ? undefined : itemsRaw.split(",").map((item) => item.trim()),
     accessions: calibrationOnly ? await calibrationAccessions() : undefined,
+    skipVersions: skipRaw === "" ? undefined : skipRaw.split(",").map((entry) => entry.trim()),
     limit: limitRaw === "" ? undefined : parsePositiveInteger(limitRaw, "--limit"),
     allowUnbounded: args.includes("--all") || calibrationOnly,
     concurrency: (() => {
@@ -61,8 +63,9 @@ function printReport(summary: LabelRunSummary): void {
   console.log(`\nLabeler version: ${summary.labeler_version}`);
   console.log(
     `Filings: ${summary.filings_considered} considered, ${summary.filings_labeled} labeled, ` +
-      `${summary.filings_cached} already cached, ${summary.filings_without_text} without text, ` +
-      `${summary.filings_failed} failed`,
+      `${summary.filings_cached} already cached, ` +
+      `${summary.filings_covered_elsewhere} covered by another version, ` +
+      `${summary.filings_without_text} without text, ${summary.filings_failed} failed`,
   );
   console.log(`Labels: ${summary.labels_emitted} emitted`);
   for (const kind of Object.keys(summary.labels_by_kind).sort()) {

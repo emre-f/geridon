@@ -8,10 +8,10 @@ import {
   type FilingEventKind,
   type FilingEventSkipCounts,
 } from "./eightKLabelEvents.ts";
-import { buildTickerMap, listCachedFilings, readLabel } from "./eightKLabelStore.ts";
+import { buildTickerMap, listCachedFilings, readLabelFromVersions } from "./eightKLabelStore.ts";
 
 export interface FilingEventsRunResult {
-  labeler_version: string;
+  labeler_versions: string[];
   filings_considered: number;
   filings_labeled: number;
   filings_unlabeled: number;
@@ -21,7 +21,8 @@ export interface FilingEventsRunResult {
 }
 
 export interface FilingEventsRunOptions {
-  labelerVersion: string;
+  /** Precedence order; each filing uses its first version that has a label. */
+  labelerVersions: string[];
   cacheDir?: string;
   /** Restrict to filings that carry at least one of these 8-K item codes. */
   items?: string[];
@@ -29,10 +30,13 @@ export interface FilingEventsRunOptions {
 }
 
 /**
- * Walks the label cache for one pinned labeler version and turns every labeled
- * filing into events. It never touches the database or the network: the cache
- * is the sole input, so the same run is a pure function of what is on disk and
- * `INSERT OR IGNORE` on the dedupe key makes replaying it idempotent.
+ * Walks the label cache for the pinned labeler versions and turns every labeled
+ * filing into events. Each filing contributes labels from exactly one version
+ * (first in the precedence list that labeled it), and every event carries that
+ * label's own version in its payload and dedupe key. It never touches the
+ * database or the network: the cache is the sole input, so the same run is a
+ * pure function of what is on disk and `INSERT OR IGNORE` on the dedupe key
+ * makes replaying it idempotent.
  */
 export async function collectFilingEvents(
   options: FilingEventsRunOptions,
@@ -42,7 +46,7 @@ export async function collectFilingEvents(
   const tickerByCik = await buildTickerMap(cacheDir);
 
   const result: FilingEventsRunResult = {
-    labeler_version: options.labelerVersion,
+    labeler_versions: options.labelerVersions,
     filings_considered: 0,
     filings_labeled: 0,
     filings_unlabeled: 0,
@@ -57,7 +61,7 @@ export async function collectFilingEvents(
     }
     result.filings_considered += 1;
 
-    const labelSet = await readLabel(filing.dir, options.labelerVersion);
+    const labelSet = await readLabelFromVersions(filing.dir, options.labelerVersions);
     if (labelSet == null) {
       result.filings_unlabeled += 1;
       continue;

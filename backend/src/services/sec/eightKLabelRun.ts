@@ -4,7 +4,7 @@ import { backendRoot } from "../../config.ts";
 import { runWithConcurrency } from "../concurrency.ts";
 import { buildLabelPrompt, labelerVersion } from "./eightKLabelPrompt.ts";
 import {
-  createCodexRunner,
+  createLabelRunner,
   defaultLabelEffort,
   defaultLabelModel,
   type LabelRunner,
@@ -32,6 +32,7 @@ export interface LabelRunSummary {
   filings_considered: number;
   filings_labeled: number;
   filings_cached: number;
+  filings_covered_elsewhere: number;
   filings_without_text: number;
   filings_failed: number;
   labels_emitted: number;
@@ -47,6 +48,11 @@ export interface LabelRunOptions {
   items?: string[];
   /** Restricts the run to named filings; the calibration sample uses this. */
   accessions?: string[];
+  /**
+   * Skip filings already labeled under any of these versions - the hybrid
+   * split: a second passing labeler covers only what the first has not.
+   */
+  skipVersions?: string[];
   limit?: number;
   /** Labeling spends money per filing, so an unbounded run must be explicit. */
   allowUnbounded?: boolean;
@@ -62,7 +68,7 @@ export async function runLabelEightK(options: LabelRunOptions = {}): Promise<Lab
   const effort = options.effort ?? defaultLabelEffort;
   const version = labelerVersion(model, effort);
   const notify = options.onProgress ?? (() => {});
-  const runner = options.runner ?? createCodexRunner(model, effort);
+  const runner = options.runner ?? createLabelRunner(model, effort);
   const nowIso = options.nowIso ?? new Date().toISOString();
 
   const tickerByCik = await buildTickerMap(cacheDir);
@@ -82,6 +88,10 @@ export async function runLabelEightK(options: LabelRunOptions = {}): Promise<Lab
       summary.filings_cached += 1;
       continue;
     }
+    if (options.skipVersions?.some((other) => hasLabel(filing.dir, other))) {
+      summary.filings_covered_elsewhere += 1;
+      continue;
+    }
     pending.push(filing);
   }
 
@@ -94,7 +104,8 @@ export async function runLabelEightK(options: LabelRunOptions = {}): Promise<Lab
   const selected = options.limit == null ? pending : pending.slice(0, options.limit);
   notify(
     `labeler ${version}: ${summary.filings_considered} filings considered, ` +
-      `${summary.filings_cached} already labeled, ${selected.length} to label`,
+      `${summary.filings_cached} already labeled, ` +
+      `${summary.filings_covered_elsewhere} covered by another version, ${selected.length} to label`,
   );
 
   let consecutiveFailures = 0;
@@ -158,6 +169,7 @@ function emptySummary(version: string): LabelRunSummary {
     filings_considered: 0,
     filings_labeled: 0,
     filings_cached: 0,
+    filings_covered_elsewhere: 0,
     filings_without_text: 0,
     filings_failed: 0,
     labels_emitted: 0,

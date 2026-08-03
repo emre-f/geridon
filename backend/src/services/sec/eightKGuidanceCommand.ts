@@ -2,6 +2,11 @@ import { getSettings } from "../../config.ts";
 import { createDb, openDatabase, type Database } from "../../db.ts";
 import type { EventKind } from "../../types/events.ts";
 import { getEventCoverage, insertEvents } from "../eventStore.ts";
+import {
+  loadEarningsAnchors,
+  pairGuidanceEvents,
+  type PairingCounts,
+} from "./eightKGuidancePairing.ts";
 import { collectGuidanceEvents, type GuidanceEventsRunResult } from "./eightKGuidanceRun.ts";
 import { labelerChoiceFromArgs } from "./eightKLabelRunner.ts";
 
@@ -17,6 +22,7 @@ function optionValue(args: string[], prefix: string, fallback: string): string {
 
 export async function runEightKGuidanceCommand(args: string[]): Promise<void> {
   const { version } = labelerChoiceFromArgs(args);
+  const versionsRaw = optionValue(args, "--versions=", version);
   const itemsRaw = optionValue(args, "--items=", defaultItems.join(","));
 
   const settings = getSettings();
@@ -24,23 +30,25 @@ export async function runEightKGuidanceCommand(args: string[]): Promise<void> {
   createDb(db);
 
   const run = await collectGuidanceEvents({
-    labelerVersion: version,
+    labelerVersions: versionsRaw.split(",").map((entry) => entry.trim()),
     items: itemsRaw === "all" ? undefined : itemsRaw.split(",").map((item) => item.trim()),
     onProgress: (message) => console.log(message),
   });
 
+  const pairing = pairGuidanceEvents(run.events, loadEarningsAnchors(db));
   const insert = insertEvents(db, run.events);
-  printReport(db, run, insert.inserted, insert.duplicates, insert.unknown_ticker_rows);
+  printReport(db, run, pairing, insert.inserted, insert.duplicates, insert.unknown_ticker_rows);
 }
 
 function printReport(
   db: Database,
   run: GuidanceEventsRunResult,
+  pairing: PairingCounts,
   inserted: number,
   duplicates: number,
   unknownTickerRows: number,
 ): void {
-  console.log(`\nLabeler version: ${run.labeler_version}`);
+  console.log(`\nLabeler versions: ${run.labeler_versions.join(", ")}`);
   console.log(
     `Filings: ${run.filings_considered} considered, ${run.filings_labeled} labeled, ` +
       `${run.filings_with_guidance} with guidance, ${run.filings_unlabeled} not yet labeled, ` +
@@ -53,6 +61,10 @@ function printReport(
   console.log(
     `Skipped figures: initiation=${run.skips.initiation}, reaffirmation=${run.skips.reaffirmation}, ` +
       `withdrawal_no_prior=${run.skips.withdrawal_no_prior}, incomparable=${run.skips.incomparable}`,
+  );
+  console.log(
+    `Earnings pairing: ${pairing.paired_beat} beat, ${pairing.paired_miss} miss, ` +
+      `${pairing.unpaired} unpaired`,
   );
 
   const byYear = new Map<number, Partial<Record<EventKind, number>>>();

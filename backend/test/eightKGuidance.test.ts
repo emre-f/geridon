@@ -76,7 +76,6 @@ test("a first guide is an initiation, then a higher midpoint raises and a lower 
       filing(2, [figure({ point: 105 })]),
     ],
     "AAPL",
-    version,
   );
 
   assert.equal(skips.initiation, 1);
@@ -103,7 +102,6 @@ test("an unchanged midpoint is a reaffirmation, never an event", () => {
   const { events, skips } = tickerGuidanceEvents(
     [filing(0, [figure({ point: 100 })]), filing(1, [figure({ point: 100 })])],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 0);
   assert.equal(skips.initiation, 1);
@@ -117,7 +115,6 @@ test("a figure with no number withdraws the outlook as a severe cut with a null 
       filing(1, [figure({ point: null, low: null, high: null })]),
     ],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 1);
   assert.equal(events[0].event_kind, "guidance_cut");
@@ -138,7 +135,6 @@ test("a withdrawal clears the baseline, so a later re-issue is a fresh initiatio
       filing(2, [figure({ point: 120 })]),
     ],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 1);
   assert.equal(events[0].event_kind, "guidance_cut");
@@ -149,7 +145,6 @@ test("a withdrawal with no prior guide is counted, never emitted", () => {
   const { events, skips } = tickerGuidanceEvents(
     [filing(0, [figure({ point: null, low: null, high: null })])],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 0);
   assert.equal(skips.withdrawal_no_prior, 1);
@@ -169,7 +164,6 @@ test("guides for different metrics, periods or units are tracked independently",
       ]),
     ],
     "AAPL",
-    version,
   );
   const raises = events.filter((event) => event.event_kind === "guidance_raise");
   assert.equal(raises.length, 1);
@@ -186,7 +180,6 @@ test("metric, period and unit match on case and collapsed whitespace", () => {
       filing(1, [figure({ metric: "revenue", period: "fy2024", unit: "usd billions", point: 110 })]),
     ],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 1);
   assert.equal(events[0].event_kind, "guidance_raise");
@@ -199,7 +192,6 @@ test("period strings that differ only in spacing do not match (conservative miss
       filing(1, [figure({ period: "FY2024", point: 110 })]),
     ],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 0);
   assert.equal(skips.initiation, 2);
@@ -210,7 +202,6 @@ test("a figure missing metric, period or unit is skipped, never crashes the walk
   const { events, skips } = tickerGuidanceEvents(
     [filing(0, [figure({ point: 100 })]), filing(1, [legacy])],
     "AAPL",
-    version,
   );
   assert.equal(events.length, 0);
   assert.equal(skips.initiation, 1);
@@ -219,7 +210,7 @@ test("a figure missing metric, period or unit is skipped, never crashes the walk
 
 test("event_ts equals available_ts equals the revising filing's acceptance datetime", () => {
   const filings = [filing(0, [figure({ point: 100 })]), filing(1, [figure({ point: 110 })])];
-  const { events } = tickerGuidanceEvents(filings, "AAPL", version);
+  const { events } = tickerGuidanceEvents(filings, "AAPL");
   assert.equal(events[0].event_ts_ms, filings[1].filing.acceptance_ts_ms);
   assert.equal(events[0].available_ts_ms, filings[1].filing.acceptance_ts_ms);
 });
@@ -293,7 +284,7 @@ test("collectGuidanceEvents groups a ticker's filings and respects items and mis
     figures: undefined,
   });
 
-  const run = await collectGuidanceEvents({ labelerVersion: version, cacheDir, items: ["2.02"] });
+  const run = await collectGuidanceEvents({ labelerVersions: [version], cacheDir, items: ["2.02"] });
 
   assert.equal(run.filings_considered, 2);
   assert.equal(run.filings_labeled, 2);
@@ -332,7 +323,7 @@ test("collected guidance events insert and re-running is idempotent", async () =
   });
 
   const db = makeDb();
-  const run = await collectGuidanceEvents({ labelerVersion: version, cacheDir });
+  const run = await collectGuidanceEvents({ labelerVersions: [version], cacheDir });
   const first = insertEvents(db, run.events);
   assert.equal(first.inserted, 1);
 

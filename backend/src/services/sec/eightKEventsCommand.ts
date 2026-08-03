@@ -22,6 +22,7 @@ function optionValue(args: string[], prefix: string, fallback: string): string {
 
 export async function runEightKEventsCommand(args: string[]): Promise<void> {
   const { version } = labelerChoiceFromArgs(args);
+  const versionsRaw = optionValue(args, "--versions=", version);
   const itemsRaw = optionValue(args, "--items=", defaultItems.join(","));
 
   const settings = getSettings();
@@ -29,7 +30,7 @@ export async function runEightKEventsCommand(args: string[]): Promise<void> {
   createDb(db);
 
   const run = await collectFilingEvents({
-    labelerVersion: version,
+    labelerVersions: versionsRaw.split(",").map((entry) => entry.trim()),
     items: itemsRaw === "all" ? undefined : itemsRaw.split(",").map((item) => item.trim()),
     onProgress: (message) => console.log(message),
   });
@@ -45,7 +46,7 @@ function printReport(
   duplicates: number,
   unknownTickerRows: number,
 ): void {
-  console.log(`\nLabeler version: ${run.labeler_version}`);
+  console.log(`\nLabeler versions: ${run.labeler_versions.join(", ")}`);
   console.log(
     `Filings: ${run.filings_considered} considered, ${run.filings_labeled} labeled, ` +
       `${run.filings_unlabeled} not yet labeled, ${run.filings_without_ticker} without ticker`,

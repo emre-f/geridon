@@ -145,13 +145,48 @@ test("collectFilingEvents walks the cache, respecting items and missing labels",
     labels: [label({ direction: "up" })],
   });
 
-  const run = await collectFilingEvents({ labelerVersion: version, cacheDir, items: ["2.02", "5.02"] });
+  const run = await collectFilingEvents({ labelerVersions: [version], cacheDir, items: ["2.02", "5.02"] });
 
   assert.equal(run.filings_considered, 2);
   assert.equal(run.filings_labeled, 1);
   assert.equal(run.filings_unlabeled, 1);
   assert.equal(run.events.length, 1);
   assert.equal(run.events[0].ticker, "AAA");
+});
+
+test("a hybrid precedence list takes each filing's first labeled version", async () => {
+  const cacheDir = await mkdtemp(join(tmpdir(), "sec8k-events-"));
+  await writeFilingCache(cacheDir, {
+    cik: 1,
+    ticker: "AAA",
+    accession: "aaa-1",
+    items: ["2.02"],
+    labels: [label({ direction: "up" })],
+  });
+  await writeFilingCache(cacheDir, {
+    cik: 2,
+    ticker: "BBB",
+    accession: "bbb-1",
+    items: ["2.02"],
+    labels: undefined,
+  });
+  const otherVersion = "sonnet-5-testtesttest";
+  const otherLabels = join(cacheDir, "filings", "2", "bbb-1", "labels");
+  await mkdir(otherLabels, { recursive: true });
+  await writeFile(
+    join(otherLabels, `${otherVersion}.json`),
+    JSON.stringify({ ...labelSet([label({ direction: "down" })]), labeler_version: otherVersion }),
+  );
+
+  const run = await collectFilingEvents({ labelerVersions: [version, otherVersion], cacheDir });
+
+  assert.equal(run.filings_labeled, 2);
+  assert.equal(run.filings_unlabeled, 0);
+  const versionByTicker = new Map(
+    run.events.map((event) => [event.ticker, (event.payload as FilingLabelEventPayload).labeler_version]),
+  );
+  assert.equal(versionByTicker.get("AAA"), version);
+  assert.equal(versionByTicker.get("BBB"), otherVersion);
 });
 
 test("a filing whose CIK has no listing is skipped rather than emitted tickerless", async () => {
@@ -164,7 +199,7 @@ test("a filing whose CIK has no listing is skipped rather than emitted tickerles
   );
   await writeFile(join(dir, "labels", `${version}.json`), JSON.stringify(labelSet([label()])));
 
-  const run = await collectFilingEvents({ labelerVersion: version, cacheDir });
+  const run = await collectFilingEvents({ labelerVersions: [version], cacheDir });
   assert.equal(run.filings_without_ticker, 1);
   assert.equal(run.events.length, 0);
 });
@@ -189,7 +224,7 @@ test("collected events insert into the store and re-running is idempotent", asyn
   });
 
   const db = makeDb();
-  const run = await collectFilingEvents({ labelerVersion: version, cacheDir });
+  const run = await collectFilingEvents({ labelerVersions: [version], cacheDir });
   const first = insertEvents(db, run.events);
   assert.equal(first.inserted, 2);
 

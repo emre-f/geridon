@@ -169,6 +169,55 @@ test("guidance figures are compared as a multiset, unit included", () => {
   assert.ok(wrongUnit.failures.some((failure) => failure.includes("guidance figure")));
 });
 
+test("figures with matching period, unit and values tolerate qualifier-only naming differences", () => {
+  const margin = { metric: "gross margin", period: "Q4 2019", unit: "percent", low: null, high: null, point: 44 };
+  const score = scoreCalibration([
+    {
+      accession_path: "naming",
+      gold: [label({ guidance: [margin, { ...margin, metric: "Core revenues growth", low: 3.75, high: 4.25, point: null }] })],
+      predicted: [
+        label({
+          guidance: [
+            { ...margin, metric: "non-GAAP gross margin" },
+            { ...margin, metric: "Same-Home Core revenues growth", low: 3.75, high: 4.25, point: null },
+          ],
+        }),
+      ],
+    },
+  ]);
+  assert.equal(score.guidance_figure_f1, 1);
+
+  const divergent = scoreCalibration([
+    {
+      accession_path: "divergent-names",
+      gold: [label({ guidance: [margin] })],
+      predicted: [label({ guidance: [{ ...margin, metric: "operating margin" }] })],
+    },
+  ]);
+  assert.equal(divergent.guidance_figure_f1, 0);
+});
+
+test("a single value matches across low/high/point slots but a range never collapses to a point", () => {
+  const floor = { metric: "free cash flow", period: "FY 2018", unit: "USD millions", low: 150, high: null, point: null };
+  const slotShift = scoreCalibration([
+    {
+      accession_path: "slots",
+      gold: [label({ guidance: [floor] })],
+      predicted: [label({ guidance: [{ ...floor, low: null, point: 150 }] })],
+    },
+  ]);
+  assert.equal(slotShift.guidance_figure_f1, 1);
+
+  const rangeVsPoint = scoreCalibration([
+    {
+      accession_path: "range-vs-point",
+      gold: [label({ guidance: [{ ...floor, high: 170 }] })],
+      predicted: [label({ guidance: [{ ...floor, low: null, point: 150 }] })],
+    },
+  ]);
+  assert.equal(rangeVsPoint.guidance_figure_f1, 0);
+});
+
 test("a filing the labeler never labeled fails the run rather than being skipped", () => {
   const score = scoreCalibration([...perfect(20, [label()]), { accession_path: "x", gold: [], predicted: null }]);
 

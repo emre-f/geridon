@@ -52,6 +52,14 @@ const institutionalStakeFields: SignalFilterField[] = [
   { key: "portfolio_total_usd", label: "Min manager portfolio ($)", step: 100000000 },
 ];
 
+const severityFields: SignalFilterField[] = [{ key: "score", label: "Min severity (1-5)", step: 1 }];
+
+const guidanceRevisionFields: SignalFilterField[] = [
+  { key: "score", label: "Min revision magnitude", step: 0.01 },
+  { key: "paired_beat", label: "Same-release earnings beat only", boolean: true },
+  { key: "paired_miss", label: "Same-release earnings miss only", boolean: true },
+];
+
 export const signalCatalog: SignalKindDefinition[] = [
   {
     kind: "insider_cluster_buy",
@@ -128,6 +136,47 @@ export const signalCatalog: SignalKindDefinition[] = [
     description:
       "A curated 13F manager closed a position last quarter; score is its prior share of their long book. Holdings are about 45 days stale when filed.",
     filterFields: institutionalStakeFields,
+  },
+  {
+    kind: "filing_guidance_up",
+    label: "8-K Guidance Up",
+    description:
+      "An LLM-labeled 8-K where management framed its guidance as raised; score is severity 1 to 5.",
+    filterFields: severityFields,
+  },
+  {
+    kind: "filing_guidance_down",
+    label: "8-K Guidance Down",
+    description:
+      "An LLM-labeled 8-K where management framed its guidance as lowered or withdrawn; score is severity 1 to 5.",
+    filterFields: severityFields,
+  },
+  {
+    kind: "filing_buyback",
+    label: "8-K Buyback",
+    description: "An LLM-labeled 8-K announcing a share repurchase program; score is severity 1 to 5.",
+    filterFields: severityFields,
+  },
+  {
+    kind: "filing_exec_departure",
+    label: "8-K Exec Departure",
+    description:
+      "An LLM-labeled 8-K reporting an unplanned executive departure; score is severity 1 to 5.",
+    filterFields: severityFields,
+  },
+  {
+    kind: "guidance_raise",
+    label: "Guidance Raise",
+    description:
+      "A guided figure's midpoint moved up vs the company's prior guide for the same metric and period; score is the revision magnitude.",
+    filterFields: guidanceRevisionFields,
+  },
+  {
+    kind: "guidance_cut",
+    label: "Guidance Cut",
+    description:
+      "A guided figure's midpoint moved down vs the company's prior guide, or the outlook was withdrawn; score is the revision magnitude.",
+    filterFields: [...guidanceRevisionFields, { key: "withdrawn", label: "Withdrawals only", boolean: true }],
   },
 ];
 

@@ -55,6 +55,14 @@ export const signalKindLabels: Record<SignalEventKind, string> = {
   short_interest_spike: "Short interest spike",
   congress_buy: "Congress buy",
   congress_sell: "Congress sell",
+  inst_new_stake: "Institutional new stake",
+  inst_exit: "Institutional exit",
+  filing_guidance_up: "8-K guidance up",
+  filing_guidance_down: "8-K guidance down",
+  filing_buyback: "8-K buyback",
+  filing_exec_departure: "8-K exec departure",
+  guidance_raise: "Guidance raise",
+  guidance_cut: "Guidance cut",
 };
 
 const dayMs = 86_400_000;

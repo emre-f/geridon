@@ -1,0 +1,13 @@
+{
+  "labeler_version": "opus-5-low-d58338259f59",
+  "passed": false,
+  "scored_at": "2026-07-31T12:39:58.295Z",
+  "filings_scored": 100,
+  "metrics": {
+    "kind_f1": 0.9064748201438848,
+    "direction_accuracy": 0.9682539682539683,
+    "severity_within_one": 1,
+    "guidance_figure_f1": 0.8560885608856088,
+    "clean_filing_false_positive_rate": 0.05714285714285714
+  }
+}

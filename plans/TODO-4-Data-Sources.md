@@ -114,12 +114,12 @@ history is mostly paid data; guidance itself usually exists only as text in the 
 **`available_ts`**: same rule as the EPS events — guidance ships with the announcement (or its
 own 8-K acceptance datetime on the extraction path).
 
-- [~] Events: `guidance_raise` / `guidance_cut`, score = revision magnitude (new vs prior
+- [x] Events: `guidance_raise` / `guidance_cut`, score = revision magnitude (new vs prior
       guide midpoint, scaled by price); payload: metric, period, low/high/point values, and a
       `withdrawn` flag (withdrawal is its own severe row, not a synthetic number).
-      **Machinery done 2026-07-20; the real run is gated on a labeler version clearing
-      calibration (§2), so no guidance events are ingested yet — same posture as §2's events
-      bullet.**
+      **Machinery done 2026-07-20; ingested 2026-08-02** (981 `guidance_raise` / 396
+      `guidance_cut` on 61/57 universe tickers, 2016–2026, `--versions=` precedence
+      sol-medium → sol-low → opus-5-medium).
       (`npm run ingest -- 8k-guidance [--items=2.02|all] [--model=gpt-5.5]`. New event kinds
       `guidance_raise` / `guidance_cut`, source `sec_8k`, payload `GuidanceRevisionPayload` in
       `types/events.ts` — distinct from §2's `filing_guidance_up/down`, which trust the
@@ -155,10 +155,40 @@ own 8-K acceptance datetime on the extraction path).
       `"FY2024"` is a deliberate conservative miss — a dropped revision beats a fabricated one,
       and the fix, if match rates are low on real labels, is a canonical-period instruction in
       the prompt, not looser matching here.)
-- [ ] Evaluate separately from beats/misses, plus the interaction buckets this source exists
+- [x] Evaluate separately from beats/misses, plus the interaction buckets this source exists
       for: beat+raise / beat+cut / miss+raise / miss+cut — the hypothesis is that the guide
-      dominates the beat.
-- [ ] Record verdicts.
+      dominates the beat. **Standalone raise/cut evaluated 2026-08-02; interaction buckets
+      2026-08-03 via ingest-time pairing** (`eightKGuidancePairing.ts`: each guidance event
+      is stamped with the nearest same-ticker earnings event within 36 hours —
+      `paired_beat` / `paired_miss` / `paired_surprise` in the payload — so the buckets are
+      ordinary payload filters, no cross-source join machinery; the 36h window captures the
+      same-release pair while excluding separate disclosures that would be lookahead.
+      Pairing rate on re-ingest: 94% of 1,377 guidance events paired; 270 of 396 cuts ship
+      alongside beats — the "beat but guided down" case exists in volume.)
+- [x] Record verdicts.
+
+**Verdict (2026-08-02): `no_signal`, both kinds** (evaluations #23–#24, seed 1, standard
+$5 / $5M universe, labels pooled across the three same-gate versions per §2's amendment).
+`guidance_raise` N=767 on 56 tickers: flat at every horizon — a day-1 gap of −0.28%
+(t=−2.13) that immediately mean-reverts, −0.93% at 63d (t=−1.02); revision-magnitude
+buckets not monotonic. `guidance_cut` N=318 on 54 tickers: |t| ≤ 0.53 at every horizon.
+Data note for any future reuse of these scores: the top raise bucket's max score is 99.3 —
+a near-zero prior midpoint makes the percentage revision explode, so cap or winsorize
+before using score as a filter. Standalone, the computed guide direction carries nothing on
+this slice; the beat+raise interaction is the only remaining hypothesis. Multiple-testing
+counter: +2.
+
+**Interaction verdict (2026-08-03): `no_signal`, all four buckets — the guide does not
+dominate the beat, and TODO-4's last hypothesis is dead** (evaluations #25–#28, seed 1,
+standard universe). beat+raise N=679 on 52 tickers: the largest and best cell is still
+mildly anti-alpha at the drift horizon (−1.5% at 63d, t=−2.01), matching every other
+disclosed-good-news kind in this file. miss+raise N=51: the one directionally striking
+cell — negative at every horizon, −1.95% on day 1 (t=−2.55), −11.6% by 63d — but t never
+clears significance past day 1 on 51 events; read as "the market disbelieves a raise from
+a company that just missed", worth remembering as filter material, not tradable. beat+cut
+N=216 and miss+cut N=69: shapeless, |t| ≤ 1.6 everywhere. No long-only combination of
+surprise and guide direction beats the matched baseline on this universe. Multiple-testing
+counter: +4.
 
 ## 2. LLM-labeled filings and press releases (8-K)
 
@@ -334,12 +364,72 @@ version; evaluations pin a version. Never mix labeler versions in one evaluation
       array (the model emitted an all-null junk figure), and ABBV-2026 carries both Q2+FY EPS (the
       model dropped Q2). Bulk labeling of the full 5,720-filing cache under this version has NOT
       been run yet — that is the next spend, and it gates the §1b/§2 event-ingestion runs below.
-- [~] Events: `filing_guidance_up` / `filing_guidance_down` / `filing_buyback` /
+      **Sonnet-5 hybrid attempt (2026-07-23): FAILED — bulk labeling stays gpt-only for now.**
+      Motivation: split the bulk spend across subscriptions (Claude usage for the unlabeled
+      remainder, keeping the 1,065 filings already labeled under `gpt-5.6-sol-medium-…`). A
+      Claude transport was added to the runner (`eightKLabelRunner.ts`: `claude -p --model
+      claude-sonnet-5 --effort <e>`, subscription auth, headless, scratch cwd, mutating/network
+      tools denied; the claude CLI has no `--output-schema`, so the JSON schema rides in the
+      prompt as transport framing — outside `promptTemplate`, so the version hash is unchanged
+      and `sonnet-5-medium-d58338259f59` scores against the same adjudicated gold). All 100
+      sample filings labeled, 0 failures. Score: kind F1 **0.905**, direction **0.968**,
+      severity-within-1 **1.00** (all pass) — but guidance-figure F1 **0.692** (bar 0.80) and
+      clean-filing FP **4/35 = 0.114** (bar 0.10) both fail. Post-mortem: the numeric values are
+      almost always right; figure misses are mostly metric-name phrasing diverging from the
+      gold's phrasing beyond what `figureKey`'s fingerprint bridges ("GAAP EPS from continuing
+      operations" vs "diluted EPS from continuing operations under GAAP") plus real
+      over-extraction (ATI segment margins, AIZ interest/dividends/synergies) and one low-vs-point
+      slot swap. The 4 clean-filing FPs are all in the borderline-departure gray zone the gold's
+      own `notes` flag (temporary medical leave, successions where the officer stays) — three are
+      `routine`, which emits no event downstream. The gold was blank-seeded but adjudicated from
+      gpt-era cards, so the figure-F1 axis carries the same naming-granularity confound noted for
+      the `…-29584dd1d2c6` comparison; per the fixed-bar discipline it still fails, and bulk
+      labeling stays locked for every `sonnet-5-*` version.
+      **Hybrid machinery is built and tested either way** (usable the moment any second version
+      passes): `npm run label -- 8k --all --skip-labeled-by=<version[,version]>` labels only
+      filings no listed version has covered; the §1b/§2 walks take `--versions=v1,v2` as a
+      precedence list, each filing contributing labels from exactly one version, every event
+      stamped with its label's own version in payload + dedupe key (guidance events use the
+      revising filing's version). Amendment to the never-mix rule this implies: versions that
+      passed the same gate against the same gold may be pooled in one evaluation, one version per
+      filing via the precedence list. Caveat to note in any hybrid write-up: the label cache walks
+      in acceptance-datetime order, so a first-N/rest split between two labelers is a split in
+      calendar time. Options if the hybrid is still wanted: (a) rerun calibration at
+      `sonnet-5-high` (~100 filings of Claude usage; may fix the over-extraction and gray-zone
+      FPs, unlikely to fix the naming divergence), or (b) proceed with the gpt-5.6-sol-medium
+      bulk run as planned.
+      **Update 2026-07-27: `gpt-5.6-sol-low-d58338259f59` PASSED the gate** (kind F1 0.958,
+      direction 0.971, severity 1.000, guidance-figure F1 0.814, clean-FP 1/35), so bulk can run
+      at low effort and pool with the 1,065 sol-medium labels under the amendment above.
+      A gpt-5.5-low screen-first pass was prototyped the same day (zero misses on the
+      calibration set, would have saved the ~33.5% of sol calls that come back empty) but the
+      user chose to keep the pipeline simple and run sol-low over everything; the
+      `--skip-cleared-by` code was removed.
+      **Update 2026-07-31: canonical figure matching + `opus-5-medium` PASSED.** With sol
+      access gone and ~900 filings unlabeled (3,736 sol-low + 1,065 sol-medium done), Claude
+      models were calibrated: `opus-5-low` and `opus-5-medium` both failed on guidance-figure
+      F1 (~0.70), but a mismatch audit showed the figures' numbers/periods/units matched gold
+      almost everywhere — the failures were metric-name wording ("non-GAAP gross margin" vs
+      "gross margin", "Same-Home X" vs "X"), i.e. the gold set encodes sol's naming
+      conventions because it was drafted seeded from sol's labels. Fix: the scorer's figure
+      matching (extracted to `eightKCalibrationFigures.ts`) now runs two passes — exact key,
+      then a canonical pass that accepts qualifier-subset metric names and slot-agnostic
+      single values (`low=150` ≡ `point=150`) when period+unit+values already pin the figure.
+      Thresholds untouched; all seven stored versions rescored symmetrically. Sol barely moved
+      (medium 0.956→0.980, low 0.814→0.905 — the matcher wasn't inflating noise), and
+      remaining failures are all substantive: `opus-5-low` misclassifies unplanned departures
+      (F1 0.60), `sonnet-5-medium` over-flags clean filings (4/35), terra/5.5 fail departure
+      kinds. **`opus-5-medium-d58338259f59` passes every axis** (kind F1 0.935, guidance 0.863,
+      clean-FP 2/35) and pools with the sol labels under the same-gate amendment above; the
+      remainder runs at opus-5-medium via Claude subscription.
+- [x] Events: `filing_guidance_up` / `filing_guidance_down` / `filing_buyback` /
       `filing_exec_departure`, score = severity. For guidance items, the labeler also extracts
       the guided figures (metric, period, low/high/point) — section 1b's extraction path
-      consumes them, so the schema is shared, not duplicated. **Machinery done 2026-07-20; the
-      run is gated on a labeler version clearing calibration, so no real events are ingested
-      yet.**
+      consumes them, so the schema is shared, not duplicated. **Machinery done 2026-07-20;
+      ingested 2026-08-02** (682 up / 240 down / 223 buyback / 203 departure events,
+      2016–2026, same three-version precedence list as §1b; label coverage was complete —
+      5,720/5,720 fetched filings under a passing version: 3,736 sol-low + 1,065 sol-medium
+      + 1,119 opus-5-medium).
       (`npm run ingest -- 8k-events [--items=2.02,5.02|all] [--model=gpt-5.5]`. New source
       `sec_8k`; payload `FilingLabelEventPayload` in `types/events.ts` reuses §1b's
       `GuidanceFigure` shape rather than duplicating it. Mapping (`eightKLabelEvents.ts`) is the
@@ -356,8 +446,21 @@ version; evaluations pin a version. Never mix labeler versions in one evaluation
       never-mix-versions rule with no schema change. The walk (`eightKEventsRun.ts`) reads only
       the label cache: no network, and it counts filings that are considered / labeled / not-yet-
       labeled / tickerless. Offline fixtures in `backend/test/eightKLabelEvents.test.ts`.)
-- [ ] Evaluate per kind; direction buckets; record verdicts.
-- [ ] Only after a validated signal: extend backfill breadth/history.
+- [x] Evaluate per kind; direction buckets; record verdicts.
+- [x] Only after a validated signal: extend backfill breadth/history.
+      **Resolved 2026-08-02: no validated signal, so breadth/history stays frozen.**
+
+**Verdict (2026-08-02): `no_signal`, all four kinds** (evaluations #19–#22, seed 1, standard
+$5 / $5M universe). `filing_guidance_up` N=540 on 70 tickers is the interesting negative:
+flat for two weeks, then **−2.7% vs matched baseline at 63d, t=−2.79** — announced guidance
+raises are mildly anti-alpha at drift horizons, echoing §1's earnings-beat finding, and the
+severity buckets run the wrong way (q1 +2.2% vs q3 −2.3% at 21d). `filing_guidance_down`
+N=203: the headline t=1.71 at its natural hold is a horizon-scan peak on a shapeless curve
+(negative through day 10, +1.0% at 42d, t≈1) — noise. `filing_buyback` N=172: |t| ≤ 0.72
+everywhere. `filing_exec_departure` N=148: +0.47% on day 1 (t=1.85) fading to −2.5% by 42d
+— nothing tradable long-only. No monotonic score bucket anywhere. Keep the source (the label
+cache is permanent and §1b's figures live in it); do not extend backfill breadth.
+Multiple-testing counter: +4.
 
 ## 3. Congressional trading disclosures
 
@@ -514,9 +617,14 @@ Stated so future sessions do not relitigate:
 
 ## 7. Completion criteria (per source, same for all)
 
-- [ ] Backfill completes idempotently; coverage view shows sane per-year counts.
-- [ ] Parser fixtures pass offline.
-- [ ] At least one pooled evaluation per event kind exists in the registry with a verdict.
-- [ ] A one-paragraph summary of the verdict is appended to this file under the source's
+- [x] Backfill completes idempotently; coverage view shows sane per-year counts.
+- [x] Parser fixtures pass offline. (2026-08-03: 425/425 green.)
+- [x] At least one pooled evaluation per event kind exists in the registry with a verdict.
+- [x] A one-paragraph summary of the verdict is appended to this file under the source's
       section (what was tested, N, headline number, keep/drop) — this file doubles as the
       research log's table of contents.
+      **All five sources satisfy all four criteria, and §1b's interaction buckets — the last
+      open ticket — closed `no_signal` on 2026-08-03. TODO-4 is complete: every stated
+      hypothesis tested, 16 registry draws total from this file, zero validated triggers,
+      and the confirmed anti-alpha patterns (beats, guidance raises, fresh 13F stakes)
+      recorded as future filter material.**
