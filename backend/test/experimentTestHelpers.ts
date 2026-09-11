@@ -15,7 +15,7 @@ export function makeDb(): Database {
 }
 
 export function makeRunner(db: Database): ExperimentRunner {
-  return new ExperimentRunner(db, (config) => loadExperimentDatasets(db, config));
+  return new ExperimentRunner(db, (config, strategy) => loadExperimentDatasets(db, config, strategy));
 }
 
 export function insertCandles(db: Database, ticker: string, count: number) {

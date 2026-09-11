@@ -24,7 +24,7 @@ function withNodeIds(condition: StrategyCondition): StrategyCondition {
   return { ...condition, id: generateNodeId() };
 }
 
-function withRecordNodeIds(record: StrategyRecord): StrategyRecord {
+export function withRecordNodeIds(record: StrategyRecord): StrategyRecord {
   return {
     ...record,
     entry: withNodeIds(record.entry),

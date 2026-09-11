@@ -6,6 +6,7 @@ import type {
   StrategyRule,
   TradeCosts,
 } from "../types.ts";
+import type { EventRecord } from "./events.ts";
 
 export interface NumericSearchNode {
   id: string;
@@ -76,6 +77,8 @@ export interface ParameterOverride {
 export interface OptimizationDataset {
   symbol: string;
   candles: Candle[];
+  /** The ticker's events for the strategy's signal kinds; absent when none are used. */
+  events?: EventRecord[];
 }
 
 export interface FoldSpec {

@@ -43,6 +43,7 @@ function record(costs: TradeCosts, foldCandles: number[]): OptimizationExperimen
       seed: 1,
       max_trials: 10,
       max_runtime_ms: 60_000,
+      worker_count: 1,
       method: "random",
       folds: { foldCount: foldCandles.length, mode: "anchored" },
     },

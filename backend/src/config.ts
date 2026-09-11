@@ -7,6 +7,7 @@ export interface Settings {
   databaseUrl: string;
   polygonBaseUrl: string;
   yahooBaseUrl: string;
+  secUserAgent?: string;
   port: number;
 }
 
@@ -50,6 +51,7 @@ export function getSettings(): Settings {
     databaseUrl: process.env.GERIDON_DATABASE_URL ?? "sqlite:///./data/geridon.sqlite3",
     polygonBaseUrl: process.env.POLYGON_BASE_URL ?? "https://api.polygon.io",
     yahooBaseUrl: process.env.YAHOO_BASE_URL ?? "https://query1.finance.yahoo.com",
+    secUserAgent: process.env.SEC_USER_AGENT,
     port: Number(process.env.PORT ?? 8000),
   };
 }

@@ -95,6 +95,7 @@ function runFoldBacktest(
       fold.trainStartIndex,
       fold.validEndIndex,
     ),
+    events: dataset.events,
   });
 }
 

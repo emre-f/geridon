@@ -1,0 +1,3126 @@
+{
+  "created_at": "2026-07-21T23:23:08.495Z",
+  "drafted_from": "agent-adjudicated-blank",
+  "filings": [
+    {
+      "cik": 1433270,
+      "accession_path": "000110465916091752",
+      "ticker": "AR",
+      "filed_date": "2016-01-28",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465916091752.md",
+      "notes": "AR: proved-reserves announcement; reserve report explicitly excluded from guidance. No departure/buyback.",
+      "labels": []
+    },
+    {
+      "cik": 820027,
+      "accession_path": "000110465916114691",
+      "ticker": "AMP",
+      "filed_date": "2016-04-27",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465916114691.md",
+      "notes": "AMP: only forward outlook figure is the FY2016 tax-rate estimate; dividend raise is neither buyback nor guidance.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Company estimates full year 2016 operating effective tax rate will be in the 24 to 26 percent range.",
+          "guidance": [
+            {
+              "metric": "operating effective tax rate",
+              "period": "FY 2016",
+              "unit": "percent",
+              "low": 24,
+              "high": 26,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1521332,
+      "accession_path": "000152133216000095",
+      "ticker": "APTV",
+      "filed_date": "2016-04-29",
+      "items": [
+        "5.02",
+        "5.07"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000152133216000095.md",
+      "notes": "APTV: abrupt board resignation effective immediately, no successor/transition -> unplanned. Director (not CEO/CFO), neutral reason -> none/2.",
+      "labels": [
+        {
+          "kind": "exec_departure_unplanned",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Director Bethany J. Mayer resigned from the Board effective immediately for family reasons, no disagreement.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1579428,
+      "accession_path": "000110465916120118",
+      "ticker": "AXSM",
+      "filed_date": "2016-05-11",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465916120118.md",
+      "notes": "AXSM: Q1 results + cash-runway statement (cash into Q3 2017); no financial-results outlook figure, no buyback/departure. Empty is correct.",
+      "labels": []
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465916133433",
+      "ticker": "ABT",
+      "filed_date": "2016-07-20",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465916133433.md",
+      "notes": "ABT Q2-16: reaffirms/states FY16 EPS -> none.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Full-year 2016 GAAP EPS projected $1.26-$1.36; adjusted EPS unchanged at $2.14-$2.24.",
+          "guidance": [
+            {
+              "metric": "diluted EPS from continuing operations under GAAP",
+              "period": "FY 2016",
+              "unit": "USD per share",
+              "low": 1.26,
+              "high": 1.36,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS from continuing operations",
+              "period": "FY 2016",
+              "unit": "USD per share",
+              "low": 2.14,
+              "high": 2.24,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1579241,
+      "accession_path": "000157924116000078",
+      "ticker": "ALLE",
+      "filed_date": "2016-07-28",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000157924116000078.md",
+      "notes": "ALLE: '2016 Outlook' raises revenue guidance. ACF $280-300M included as a headline metric ALLE guides every quarter (consistency with 2021 ALLE); model omitted it here -> 1 FN.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Company raises full-year 2016 revenue guidance and updates EPS outlook.",
+          "guidance": [
+            {
+              "metric": "reported revenue growth",
+              "period": "FY 2016",
+              "unit": "percent",
+              "low": 8,
+              "high": 9,
+              "point": null
+            },
+            {
+              "metric": "organic revenue growth",
+              "period": "FY 2016",
+              "unit": "percent",
+              "low": 5,
+              "high": 6,
+              "point": null
+            },
+            {
+              "metric": "reported EPS from continuing operations",
+              "period": "FY 2016",
+              "unit": "USD per share",
+              "low": 3.2,
+              "high": 3.35,
+              "point": null
+            },
+            {
+              "metric": "adjusted EPS",
+              "period": "FY 2016",
+              "unit": "USD per share",
+              "low": 3.3,
+              "high": 3.4,
+              "point": null
+            },
+            {
+              "metric": "available cash flow",
+              "period": "FY 2016",
+              "unit": "USD millions",
+              "low": 280,
+              "high": 300,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 40729,
+      "accession_path": "000114420416129488",
+      "ticker": "ALLY",
+      "filed_date": "2016-10-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000114420416129488.md",
+      "notes": "ALLY Q3-16: executed buybacks under existing program (not a new authorization), dividend declared, '$40B illustrative/potential deposit growth' excluded. No guidance figure/departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465917003920",
+      "ticker": "ABT",
+      "filed_date": "2017-01-25",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465917003920.md",
+      "notes": "ABT: 'ISSUES EPS OUTLOOK FOR 2017' -> initiation -> none. 4 headline EPS figs (FY+Q1, GAAP+adj).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Abbott issues initial full-year and Q1 2017 EPS guidance.",
+          "guidance": [
+            {
+              "metric": "diluted EPS from continuing operations under GAAP",
+              "period": "FY 2017",
+              "unit": "USD per share",
+              "low": 0.92,
+              "high": 1.02,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS from continuing operations",
+              "period": "FY 2017",
+              "unit": "USD per share",
+              "low": 2.4,
+              "high": 2.5,
+              "point": null
+            },
+            {
+              "metric": "diluted EPS from continuing operations under GAAP",
+              "period": "Q1 2017",
+              "unit": "USD per share",
+              "low": 0.19,
+              "high": 0.21,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS from continuing operations",
+              "period": "Q1 2017",
+              "unit": "USD per share",
+              "low": 0.42,
+              "high": 0.44,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1018963,
+      "accession_path": "000101896317000014",
+      "ticker": "ATI",
+      "filed_date": "2017-05-15",
+      "items": [
+        "5.02",
+        "5.07"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000101896317000014.md",
+      "notes": "ATI: item 5.03 incentive-plan approval + 5.07 director elections/auditor ratification. Nobody departed. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 866787,
+      "accession_path": "000117184317003257",
+      "ticker": "AZO",
+      "filed_date": "2017-05-23",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000117184317003257.md",
+      "notes": "AZO Q3FY17: buybacks under existing authorization (remaining authorization noted, not new/expanded). No guidance. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1178670,
+      "accession_path": "000115752317002334",
+      "ticker": "ALNY",
+      "filed_date": "2017-08-09",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000115752317002334.md",
+      "notes": "ALNY: only numeric guidance is >$1.0B year-end cash. $150M restricted is a component, not separate.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "On track to end 2017 with greater than $1.0 billion in cash, cash equivalents and fixed marketable securities.",
+          "guidance": [
+            {
+              "metric": "cash, cash equivalents and fixed marketable securities including restricted investments",
+              "period": "year-end 2017",
+              "unit": "USD billions",
+              "low": 1,
+              "high": null,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465917062667",
+      "ticker": "ABT",
+      "filed_date": "2017-10-18",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465917062667.md",
+      "notes": "ABT: narrows to upper end (adj low 2.40->2.48) = de facto raise -> up.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Abbott narrows full-year 2017 EPS guidance to the upper end.",
+          "guidance": [
+            {
+              "metric": "diluted EPS from continuing operations on a GAAP basis",
+              "period": "FY 2017",
+              "unit": "USD per share",
+              "low": 0.97,
+              "high": 0.99,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS from continuing operations",
+              "period": "FY 2017",
+              "unit": "USD per share",
+              "low": 2.48,
+              "high": 2.5,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1267238,
+      "accession_path": "000162828017010688",
+      "ticker": "AIZ",
+      "filed_date": "2017-11-02",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828017010688.md",
+      "notes": "AIZ: outlook mostly qualitative; only hard number is Corp&Other net op loss 55-60M. TWG merger (7.01) is not a labeled kind.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Full-year 2017 Corporate & Other net operating loss expected in a range of $55 to $60 million.",
+          "guidance": [
+            {
+              "metric": "Corporate & Other net operating loss",
+              "period": "FY 2017",
+              "unit": "USD millions",
+              "low": 55,
+              "high": 60,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1047127,
+      "accession_path": "000104712718000002",
+      "ticker": "AMKR",
+      "filed_date": "2018-02-09",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000104712718000002.md",
+      "notes": "AMKR: board expanded, 2 directors appointed + CFO/EVP salary increases. No departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1144215,
+      "accession_path": "000114421518000042",
+      "ticker": "AYI",
+      "filed_date": "2018-04-04",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000114421518000042.md",
+      "notes": "AYI: new/expanded repurchase authorization (~15%). Outlook section is qualitative, no numeric guidance.",
+      "labels": [
+        {
+          "kind": "buyback",
+          "direction": "up",
+          "severity": 4,
+          "rationale": "Board authorized the repurchase of up to six million shares, approximately 15% of outstanding common stock.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000114420418024779",
+      "ticker": "AIG",
+      "filed_date": "2018-05-02",
+      "items": [
+        "2.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000114420418024779.md",
+      "notes": "AIG Q1-18: dividend declared + buybacks under existing authorization ($2.0B remaining). No new authorization/guidance/departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1701605,
+      "accession_path": "000095010318006996",
+      "ticker": "BKR",
+      "filed_date": "2018-06-01",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000095010318006996.md",
+      "notes": "BKR: one-time equity retention award to CEO. Comp arrangement, nobody departed. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1579241,
+      "accession_path": "000157924118000029",
+      "ticker": "ALLE",
+      "filed_date": "2018-07-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000157924118000029.md",
+      "notes": "ALLE: 'updating' outlook, adjusted reaffirmed -> none. ACF $380-400M included as headline metric ALLE guides every quarter (consistency); model omitted it here -> 1 FN.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Updating full-year 2018 revenue outlook and EPS; adjusted EPS remains $4.35 to $4.50.",
+          "guidance": [
+            {
+              "metric": "reported revenue growth",
+              "period": "FY 2018",
+              "unit": "percent",
+              "low": 12.5,
+              "high": 13.5,
+              "point": null
+            },
+            {
+              "metric": "organic revenue growth",
+              "period": "FY 2018",
+              "unit": "percent",
+              "low": 4,
+              "high": 5,
+              "point": null
+            },
+            {
+              "metric": "reported EPS",
+              "period": "FY 2018",
+              "unit": "USD per share",
+              "low": 4.15,
+              "high": 4.35,
+              "point": null
+            },
+            {
+              "metric": "adjusted EPS",
+              "period": "FY 2018",
+              "unit": "USD per share",
+              "low": 4.35,
+              "high": 4.5,
+              "point": null
+            },
+            {
+              "metric": "available cash flow",
+              "period": "FY 2018",
+              "unit": "USD millions",
+              "low": 380,
+              "high": 400,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1562401,
+      "accession_path": "000156240118000086",
+      "ticker": "AMH",
+      "filed_date": "2018-08-10",
+      "items": [
+        "2.02"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000156240118000086.md",
+      "notes": "AMH Aug-18: only a dividend/distribution declaration. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1018963,
+      "accession_path": "000115752318002097",
+      "ticker": "ATI",
+      "filed_date": "2018-10-23",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000115752318002097.md",
+      "notes": "ATI: reiterate -> none. FCF >=$150M is the headline hard number; margin-improvement bps are directional deltas, excluded (model also excluded).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Reiterate goal to generate at least $150 million of free cash flow for full year 2018.",
+          "guidance": [
+            {
+              "metric": "free cash flow",
+              "period": "FY 2018",
+              "unit": "USD millions",
+              "low": 150,
+              "high": null,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 4904,
+      "accession_path": "000000490418000051",
+      "ticker": "AEP",
+      "filed_date": "2018-10-25",
+      "items": [
+        "2.02"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000490418000051.md",
+      "notes": "AEP: raise. GAAP EPS $3.82-3.92 is a reconciliation of the operating guidance, excluded per headline rule (model also excluded).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Management increased and narrowed 2018 operating earnings guidance to $3.88-$3.98 from $3.75-$3.95 per share.",
+          "guidance": [
+            {
+              "metric": "operating earnings per share",
+              "period": "FY 2018",
+              "unit": "USD per share",
+              "low": 3.88,
+              "high": 3.98,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1562401,
+      "accession_path": "000156240118000106",
+      "ticker": "AMH",
+      "filed_date": "2018-11-01",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000156240118000106.md",
+      "notes": "AMH: guidance table has ~11 rows; model+gold take the 3 revised headline metrics (the news; 'handful not dozens'). Lowered -> down.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "down",
+          "severity": 3,
+          "rationale": "Revised (lowered) full-year 2018 guidance for occupancy, core revenue growth and core NOI after capex growth.",
+          "guidance": [
+            {
+              "metric": "Average Occupied Days Percentage",
+              "period": "FY 2018",
+              "unit": "percent",
+              "low": 94.75,
+              "high": 95.25,
+              "point": null
+            },
+            {
+              "metric": "Core revenues growth",
+              "period": "FY 2018",
+              "unit": "percent",
+              "low": 3.75,
+              "high": 4.25,
+              "point": null
+            },
+            {
+              "metric": "Core NOI After Capital Expenditures growth",
+              "period": "FY 2018",
+              "unit": "percent",
+              "low": 2.5,
+              "high": 3,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465919002848",
+      "ticker": "ABT",
+      "filed_date": "2019-01-23",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465919002848.md",
+      "notes": "ABT: issues 2019 outlook -> initiation -> none.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Abbott issues full-year 2019 and Q1 2019 guidance (organic sales growth, GAAP and adjusted EPS).",
+          "guidance": [
+            {
+              "metric": "organic sales growth",
+              "period": "FY 2019",
+              "unit": "percent",
+              "low": 6.5,
+              "high": 7.5,
+              "point": null
+            },
+            {
+              "metric": "diluted EPS from continuing operations under GAAP",
+              "period": "FY 2019",
+              "unit": "USD per share",
+              "low": 1.8,
+              "high": 1.9,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS from continuing operations",
+              "period": "FY 2019",
+              "unit": "USD per share",
+              "low": 3.15,
+              "high": 3.25,
+              "point": null
+            },
+            {
+              "metric": "diluted EPS from continuing operations under GAAP",
+              "period": "Q1 2019",
+              "unit": "USD per share",
+              "low": 0.25,
+              "high": 0.27,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1267238,
+      "accession_path": "000162828019005910",
+      "ticker": "AIZ",
+      "filed_date": "2019-05-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828019005910.md",
+      "notes": "AIZ: continues to expect -> none. NOI/share growth + tax rate are the headline numeric outlook.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Continues to expect full-year 2019 NOI per diluted share ex-cat to increase 6-10% and effective tax rate 23-25%.",
+          "guidance": [
+            {
+              "metric": "net operating income per diluted share excluding catastrophe losses growth",
+              "period": "FY 2019",
+              "unit": "percent",
+              "low": 6,
+              "high": 10,
+              "point": null
+            },
+            {
+              "metric": "consolidated effective tax rate",
+              "period": "FY 2019",
+              "unit": "percent",
+              "low": 23,
+              "high": 25,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 4977,
+      "accession_path": "000000497719000132",
+      "ticker": "AFL",
+      "filed_date": "2019-07-25",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000497719000132.md",
+      "notes": "AFL: affirms/reiterate -> none. Buyback pace $1.3-1.7B is capital-deployment plan (not new authorization, not a P&L outlook metric), excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Reiterates 2019 adjusted EPS guidance of $4.10 to $4.30 and premium growth targets.",
+          "guidance": [
+            {
+              "metric": "adjusted earnings per diluted share",
+              "period": "FY 2019",
+              "unit": "USD per share",
+              "low": 4.1,
+              "high": 4.3,
+              "point": null
+            },
+            {
+              "metric": "Aflac Japan protection-type first and third sector earned premium growth",
+              "period": "FY 2019",
+              "unit": "percent",
+              "low": 1,
+              "high": 2,
+              "point": null
+            },
+            {
+              "metric": "Aflac U.S. earned premium growth",
+              "period": "FY 2019",
+              "unit": "percent",
+              "low": 2,
+              "high": 3,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1584509,
+      "accession_path": "000119312519228611",
+      "ticker": "ARMK",
+      "filed_date": "2019-08-26",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312519228611.md",
+      "notes": "ARMK: abrupt CEO departure, no successor -> unplanned/down/4.",
+      "labels": [
+        {
+          "kind": "exec_departure_unplanned",
+          "direction": "down",
+          "severity": 4,
+          "rationale": "CEO Eric J. Foss stepped down effective immediately, treated as termination without cause, no successor named (interim Office of the Chairman).",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 899051,
+      "accession_path": "000141057819000994",
+      "ticker": "ALL",
+      "filed_date": "2019-09-03",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000141057819000994.md",
+      "notes": "ALL: Pintozzi appointed controller succeeding Ferren, who MOVES to a new role (does not leave company). No departure. Empty (role-transition, not exec_departure).",
+      "labels": []
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620119000066",
+      "ticker": "AAL",
+      "filed_date": "2019-10-24",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000620119000066.md",
+      "notes": "AAL: 3 headline press-release guidance figs; investor-update detail (capacity/CASM/capex) excluded. Lowered vs prior -> down.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "down",
+          "severity": 3,
+          "rationale": "Q4 2019 TRASM flat to up 2%, Q4 pre-tax margin ex-special 5-7%, FY2019 EPS ex-special $4.50-$5.50; MAX grounding cut prior guidance.",
+          "guidance": [
+            {
+              "metric": "total revenue per available seat mile (TRASM)",
+              "period": "Q4 2019",
+              "unit": "percent",
+              "low": 0,
+              "high": 2,
+              "point": null
+            },
+            {
+              "metric": "pre-tax margin excluding net special items",
+              "period": "Q4 2019",
+              "unit": "percent",
+              "low": 5,
+              "high": 7,
+              "point": null
+            },
+            {
+              "metric": "diluted earnings per share excluding net special items",
+              "period": "FY 2019",
+              "unit": "USD per share",
+              "low": 4.5,
+              "high": 5.5,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 2488,
+      "accession_path": "000000248819000157",
+      "ticker": "AMD",
+      "filed_date": "2019-10-29",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000248819000157.md",
+      "notes": "AMD: excluded model's all-null 'revenue growth FY2019' (qualitative 'up mid-single digit', no number) and secondary items (licensing gain, opex). 3 headline figs.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q4 2019 revenue ~$2.1B +/- $50M, Q4 gross margin ~44%, FY2019 gross margin ~43%.",
+          "guidance": [
+            {
+              "metric": "revenue",
+              "period": "Q4 2019",
+              "unit": "USD billions",
+              "low": 2.05,
+              "high": 2.15,
+              "point": null
+            },
+            {
+              "metric": "gross margin",
+              "period": "Q4 2019",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 44
+            },
+            {
+              "metric": "gross margin",
+              "period": "FY 2019",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 43
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1267238,
+      "accession_path": "000126723819000013",
+      "ticker": "AIZ",
+      "filed_date": "2019-11-07",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000126723819000013.md",
+      "notes": "AIZ: board increased 10->12, 2 directors appointed + comp. Nobody departed. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1743881,
+      "accession_path": "000119312519315521",
+      "ticker": "BBIO",
+      "filed_date": "2019-12-17",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312519315521.md",
+      "notes": "BBIO: board increased 6->7, Cook appointed + consulting agreement. No departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1743881,
+      "accession_path": "000119312519323511",
+      "ticker": "BBIO",
+      "filed_date": "2019-12-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312519323511.md",
+      "notes": "BBIO Q3-19: clinical/pipeline updates, no numeric guidance, no buyback/departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1048477,
+      "accession_path": "000119312520022979",
+      "ticker": "BMRN",
+      "filed_date": "2020-02-03",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312520022979.md",
+      "notes": "BMRN: orderly CFO transition (long runway, interim successor named, not for cause) -> routine. BORDERLINE routine/unplanned (flag for spot-check).",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "CFO Dan Spiegelman transitioned out with a 7-month advisory transition; acting CFO named while a search proceeds.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 915912,
+      "accession_path": "000091591220000002",
+      "ticker": "AVB",
+      "filed_date": "2020-02-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000091591220000002.md",
+      "notes": "AVB: initial 2020 outlook -> none. 3 REIT headline figs verified.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Initial full-year 2020 outlook: Projected EPS $5.89-$6.29, FFO/sh $9.46-$9.86, Core FFO/sh $9.62-$10.02.",
+          "guidance": [
+            {
+              "metric": "Projected EPS",
+              "period": "FY 2020",
+              "unit": "USD per share",
+              "low": 5.89,
+              "high": 6.29,
+              "point": null
+            },
+            {
+              "metric": "Projected FFO per share",
+              "period": "FY 2020",
+              "unit": "USD per share",
+              "low": 9.46,
+              "high": 9.86,
+              "point": null
+            },
+            {
+              "metric": "Projected Core FFO per share",
+              "period": "FY 2020",
+              "unit": "USD per share",
+              "low": 9.62,
+              "high": 10.02,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 899051,
+      "accession_path": "000089905120000028",
+      "ticker": "ALL",
+      "filed_date": "2020-05-05",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000089905120000028.md",
+      "notes": "ALL Q1-20: results + continued buybacks under existing plan, no new authorization/guidance/departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 6951,
+      "accession_path": "000119312520190518",
+      "ticker": "AMAT",
+      "filed_date": "2020-07-09",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312520190518.md",
+      "notes": "AMAT: departure to pursue other opportunities, no named successor -> unplanned (per prompt). SVP, orderly -> none/2.",
+      "labels": [
+        {
+          "kind": "exec_departure_unplanned",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "SVP Steve Ghanayem to leave the Company in January 2021 to pursue other opportunities; separation agreement, no successor named.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1053507,
+      "accession_path": "000105350721000007",
+      "ticker": "AMT",
+      "filed_date": "2021-01-19",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000105350721000007.md",
+      "notes": "AMT: director Kenneth Frank elected, effective immediately. Pure appointment, no departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1178670,
+      "accession_path": "000115752321000536",
+      "ticker": "ALNY",
+      "filed_date": "2021-04-29",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000115752321000536.md",
+      "notes": "ALNY: reiterated 2021 guidance table, 4 figs verified exactly. Reiteration -> none.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Reiterated full-year 2021 guidance: product revenues $610-660M, collaboration/royalty revenues $150-200M, GAAP and non-GAAP R&D+SG&A.",
+          "guidance": [
+            {
+              "metric": "combined net product revenues for ONPATTRO, GIVLAARI and OXLUMO",
+              "period": "FY 2021",
+              "unit": "USD millions",
+              "low": 610,
+              "high": 660,
+              "point": null
+            },
+            {
+              "metric": "net revenues from collaborations and royalties",
+              "period": "FY 2021",
+              "unit": "USD millions",
+              "low": 150,
+              "high": 200,
+              "point": null
+            },
+            {
+              "metric": "GAAP R&D and SG&A expenses",
+              "period": "FY 2021",
+              "unit": "USD millions",
+              "low": 1335,
+              "high": 1455,
+              "point": null
+            },
+            {
+              "metric": "non-GAAP R&D and SG&A expenses",
+              "period": "FY 2021",
+              "unit": "USD millions",
+              "low": 1175,
+              "high": 1275,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1841666,
+      "accession_path": "000119312521152738",
+      "ticker": "APA",
+      "filed_date": "2021-05-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312521152738.md",
+      "notes": "APA: unchanged guidance -> none. FCF >=$1B headline figure.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Full-year 2021 guidance unchanged, clear visibility into at least $1 billion of free cash flow.",
+          "guidance": [
+            {
+              "metric": "free cash flow",
+              "period": "FY 2021",
+              "unit": "USD billions",
+              "low": 1,
+              "high": null,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1730168,
+      "accession_path": "000173016821000110",
+      "ticker": "AVGO",
+      "filed_date": "2021-06-03",
+      "items": [
+        "2.02",
+        "5.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000173016821000110.md",
+      "notes": "AVGO: 5.02 is a comp-policy amendment (no departure); 8.01 dividends. Q3 outlook = 2 headline figs -> none.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q3 FY2021 revenue guidance ~$6.75 billion and Adjusted EBITDA ~60% of projected revenue.",
+          "guidance": [
+            {
+              "metric": "revenue",
+              "period": "Q3 FY 2021",
+              "unit": "USD billions",
+              "low": null,
+              "high": null,
+              "point": 6.75
+            },
+            {
+              "metric": "Adjusted EBITDA",
+              "period": "Q3 FY 2021",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1144215,
+      "accession_path": "000114421521000068",
+      "ticker": "AYI",
+      "filed_date": "2021-07-01",
+      "items": [
+        "2.02",
+        "7.01",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000114421521000068.md",
+      "notes": "AYI Q3FY21: results + segment realignment (7.01). Investor-day targets are qualitative ('~mid teens organic growth'), no period-specific numeric guidance. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 879407,
+      "accession_path": "000156459021041575",
+      "ticker": "ARWR",
+      "filed_date": "2021-08-05",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000156459021041575.md",
+      "notes": "ARWR: biotech Q3 results, no numeric guidance/buyback/departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1579241,
+      "accession_path": "000157924121000072",
+      "ticker": "ALLE",
+      "filed_date": "2021-10-21",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000157924121000072.md",
+      "notes": "ALLE: reaffirm -> none. ACF is a metric ALLE explicitly guides every quarter -> included as headline (consistency: also added to 2016/2018 ALLE).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Reaffirming updated full-year 2021 revenue growth, EPS and available cash flow outlook.",
+          "guidance": [
+            {
+              "metric": "reported revenue growth",
+              "period": "FY 2021",
+              "unit": "percent",
+              "low": 4,
+              "high": 4.5,
+              "point": null
+            },
+            {
+              "metric": "organic revenue growth",
+              "period": "FY 2021",
+              "unit": "percent",
+              "low": 3,
+              "high": 3.5,
+              "point": null
+            },
+            {
+              "metric": "reported EPS",
+              "period": "FY 2021",
+              "unit": "USD per share",
+              "low": 4.95,
+              "high": 5.05,
+              "point": null
+            },
+            {
+              "metric": "adjusted EPS",
+              "period": "FY 2021",
+              "unit": "USD per share",
+              "low": 5,
+              "high": 5.1,
+              "point": null
+            },
+            {
+              "metric": "available cash flow",
+              "period": "FY 2021",
+              "unit": "USD millions",
+              "low": 460,
+              "high": 480,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1433270,
+      "accession_path": "000110465922000701",
+      "ticker": "AR",
+      "filed_date": "2022-01-04",
+      "items": [
+        "5.02",
+        "7.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465922000701.md",
+      "notes": "AR: BORDERLINE. Schopp relinquished the CAO officer role (named successor Merrick) but stays as Regional SVP. Read as orderly officer departure -> routine. (Flag for spot-check.)",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "CAO Alvyn Schopp stepped down as Chief Administrative Officer; Merrick assumed the role.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1037868,
+      "accession_path": "000103786822000002",
+      "ticker": "AME",
+      "filed_date": "2022-01-31",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000103786822000002.md",
+      "notes": "AME: abrupt director resignation, no successor -> unplanned/none/2 (same pattern as APTV).",
+      "labels": [
+        {
+          "kind": "exec_departure_unplanned",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Director Ruby Chandy resigned from the Board effective immediately for personal reasons, no disagreement.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 4904,
+      "accession_path": "000000490422000013",
+      "ticker": "AEP",
+      "filed_date": "2022-02-22",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000490422000013.md",
+      "notes": "AEP: two new directors elected (appointments, ignored) + Rasmussen abrupt board resignation -> unplanned/none/2.",
+      "labels": [
+        {
+          "kind": "exec_departure_unplanned",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Director Stephen Rasmussen resigned from the Board effective Feb 21, 2022 for personal reasons, no disagreement.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 4904,
+      "accession_path": "000000490422000037",
+      "ticker": "AEP",
+      "filed_date": "2022-04-04",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000490422000037.md",
+      "notes": "AEP: one-time retention RSU award to CFO Sloat. Comp arrangement, no departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620122000044",
+      "ticker": "AAL",
+      "filed_date": "2022-04-21",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000620122000044.md",
+      "notes": "AAL: 4 P&L headline outlook figs; capacity (signed change vs 2019) excluded as operational input (model also excluded).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q2 2022 outlook: total revenue up 6-8%, CASM ex-fuel up 8-10% (2Q and FY), pre-tax margin ex-special 3-5%.",
+          "guidance": [
+            {
+              "metric": "Total revenue",
+              "period": "Q2 2022",
+              "unit": "percent",
+              "low": 6,
+              "high": 8,
+              "point": null
+            },
+            {
+              "metric": "CASM excluding fuel and net special items",
+              "period": "Q2 2022",
+              "unit": "percent",
+              "low": 8,
+              "high": 10,
+              "point": null
+            },
+            {
+              "metric": "pre-tax margin excluding net special items",
+              "period": "Q2 2022",
+              "unit": "percent",
+              "low": 3,
+              "high": 5,
+              "point": null
+            },
+            {
+              "metric": "CASM excluding fuel and net special items",
+              "period": "FY 2022",
+              "unit": "percent",
+              "low": 8,
+              "high": 10,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 875045,
+      "accession_path": "000087504522000013",
+      "ticker": "BIIB",
+      "filed_date": "2022-05-03",
+      "items": [
+        "2.02",
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000087504522000013.md",
+      "notes": "BIIB: headline '2022 Guidance' box = revenue+EPS (R&D/SG&A/tax are secondary detail sentences, excluded). CEO succession search, orderly interim -> routine (borderline; no permanent successor named yet). reaffirm -> none.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Reaffirms full-year 2022 guidance: total revenue $9.7-$10.0B, Non-GAAP diluted EPS $14.25-$16.00.",
+          "guidance": [
+            {
+              "metric": "Total revenue",
+              "period": "FY 2022",
+              "unit": "USD billions",
+              "low": 9.7,
+              "high": 10,
+              "point": null
+            },
+            {
+              "metric": "Non-GAAP diluted EPS",
+              "period": "FY 2022",
+              "unit": "USD per share",
+              "low": 14.25,
+              "high": 16,
+              "point": null
+            }
+          ]
+        },
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 4,
+          "rationale": "Company began a search for a new CEO; current CEO to serve during the interim until a successor is appointed.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1097149,
+      "accession_path": "000109714922000051",
+      "ticker": "ALGN",
+      "filed_date": "2022-07-27",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000109714922000051.md",
+      "notes": "ALGN Q2-22: results + executed buybacks; outlook discussed on call, no period guidance numbers in release. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1047127,
+      "accession_path": "000104712722000022",
+      "ticker": "AMKR",
+      "filed_date": "2022-08-01",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000104712722000022.md",
+      "notes": "AMKR: 4 figs verified; Q3 net sales/GM/EPS + FY capex ~$950M.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q3 2022 guidance: net sales $1.88-$1.98B, gross margin 19-21%, EPS $0.82-$1.02; FY2022 capex ~$950M.",
+          "guidance": [
+            {
+              "metric": "net sales",
+              "period": "Q3 2022",
+              "unit": "USD billions",
+              "low": 1.88,
+              "high": 1.98,
+              "point": null
+            },
+            {
+              "metric": "gross margin",
+              "period": "Q3 2022",
+              "unit": "percent",
+              "low": 19,
+              "high": 21,
+              "point": null
+            },
+            {
+              "metric": "earnings per diluted share",
+              "period": "Q3 2022",
+              "unit": "USD per share",
+              "low": 0.82,
+              "high": 1.02,
+              "point": null
+            },
+            {
+              "metric": "capital expenditures",
+              "period": "FY 2022",
+              "unit": "USD millions",
+              "low": null,
+              "high": null,
+              "point": 950
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1664703,
+      "accession_path": "000166470322000067",
+      "ticker": "BE",
+      "filed_date": "2022-08-09",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000166470322000067.md",
+      "notes": "BE: reaffirm -> none. 4 figs verified; Cash Flow from Operations 'Positive' is qualitative, excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Reaffirms full-year 2022 outlook: revenue $1.1-$1.15B, product & service revenue $1B, non-GAAP gross margin ~24%, non-GAAP operating margin ~1%.",
+          "guidance": [
+            {
+              "metric": "Revenue",
+              "period": "FY 2022",
+              "unit": "USD billions",
+              "low": 1.1,
+              "high": 1.15,
+              "point": null
+            },
+            {
+              "metric": "Product & Service Revenue",
+              "period": "FY 2022",
+              "unit": "USD billions",
+              "low": null,
+              "high": null,
+              "point": 1
+            },
+            {
+              "metric": "Non-GAAP Gross Margin",
+              "period": "FY 2022",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 24
+            },
+            {
+              "metric": "Non-GAAP Operating Margin",
+              "period": "FY 2022",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1632970,
+      "accession_path": "000163297022000075",
+      "ticker": "AHR",
+      "filed_date": "2022-08-31",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000163297022000075.md",
+      "notes": "AHR: board increased to 10, Estes appointed to fill vacancy. Pure appointment, no departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620122000074",
+      "ticker": "AAL",
+      "filed_date": "2022-09-06",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000620122000074.md",
+      "notes": "AAL: Reynal elected to Board. Pure director election, no departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 915913,
+      "accession_path": "000091591322000165",
+      "ticker": "ALB",
+      "filed_date": "2022-11-02",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000091591322000165.md",
+      "notes": "ALB: 4 headline guidance figs verified. Direction 'none' (tightened/narrowed, mixed midpoint moves; model said up - borderline, harmless).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Tightened full-year 2022 guidance: net sales $7.1-$7.4B, adjusted EBITDA $3.3-$3.5B, adjusted diluted EPS $19.75-$21.75, adjusted EBITDA margin 46-47%.",
+          "guidance": [
+            {
+              "metric": "net sales",
+              "period": "FY 2022",
+              "unit": "USD billions",
+              "low": 7.1,
+              "high": 7.4,
+              "point": null
+            },
+            {
+              "metric": "adjusted EBITDA",
+              "period": "FY 2022",
+              "unit": "USD billions",
+              "low": 3.3,
+              "high": 3.5,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS",
+              "period": "FY 2022",
+              "unit": "USD per share",
+              "low": 19.75,
+              "high": 21.75,
+              "point": null
+            },
+            {
+              "metric": "adjusted EBITDA margin",
+              "period": "FY 2022",
+              "unit": "percent",
+              "low": 46,
+              "high": 47,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1584509,
+      "accession_path": "000158450922000244",
+      "ticker": "ARMK",
+      "filed_date": "2022-12-05",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000158450922000244.md",
+      "notes": "ARMK: planned retirement + named successor -> routine/none/2.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "EVP HR Lynn McKee announced retirement (with notice), accelerated to Dec 31, 2022; Charpentier appointed CHRO successor.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 796343,
+      "accession_path": "000079634322000225",
+      "ticker": "ADBE",
+      "filed_date": "2022-12-15",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000079634322000225.md",
+      "notes": "ADBE: 6 headline targets verified (revenue, DM net new ARR, non-GAAP EPS x2 periods). Segment revenues / GAAP EPS / tax rate are secondary detail, excluded. Providing targets -> none.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Adobe provides FY2023 and Q1 FY2023 targets: total revenue, Digital Media net new ARR, non-GAAP EPS.",
+          "guidance": [
+            {
+              "metric": "Total revenue",
+              "period": "FY 2023",
+              "unit": "USD billions",
+              "low": 19.1,
+              "high": 19.3,
+              "point": null
+            },
+            {
+              "metric": "Digital Media net new ARR",
+              "period": "FY 2023",
+              "unit": "USD billions",
+              "low": null,
+              "high": null,
+              "point": 1.65
+            },
+            {
+              "metric": "Non-GAAP earnings per share",
+              "period": "FY 2023",
+              "unit": "USD per share",
+              "low": 15.15,
+              "high": 15.45,
+              "point": null
+            },
+            {
+              "metric": "Total revenue",
+              "period": "Q1 FY 2023",
+              "unit": "USD billions",
+              "low": 4.6,
+              "high": 4.64,
+              "point": null
+            },
+            {
+              "metric": "Digital Media net new ARR",
+              "period": "Q1 FY 2023",
+              "unit": "USD millions",
+              "low": null,
+              "high": null,
+              "point": 375
+            },
+            {
+              "metric": "Non-GAAP earnings per share",
+              "period": "Q1 FY 2023",
+              "unit": "USD per share",
+              "low": 3.65,
+              "high": 3.7,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000095010323000346",
+      "ticker": "AIG",
+      "filed_date": "2023-01-10",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000095010323000346.md",
+      "notes": "AIG: CFO Fitzsimons on TEMPORARY medical leave (returning); interim CFO named. Not a departure -> empty (model correctly avoided over-labeling).",
+      "labels": []
+    },
+    {
+      "cik": 1176948,
+      "accession_path": "000162828023002842",
+      "ticker": "ARES",
+      "filed_date": "2023-02-09",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828023002842.md",
+      "notes": "ARES Q4-22: results + dividend declaration; asset manager, no forward EPS guidance figures. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1559720,
+      "accession_path": "000119312523039008",
+      "ticker": "ABNB",
+      "filed_date": "2023-02-14",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312523039008.md",
+      "notes": "ABNB Q4-22 shareholder letter: card contains results only; forward outlook not present in truncated card text. Empty (no figure absent from text -> correctly empty; old version hallucinated here).",
+      "labels": []
+    },
+    {
+      "cik": 879407,
+      "accession_path": "000162828023003560",
+      "ticker": "ARWR",
+      "filed_date": "2023-02-14",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828023003560.md",
+      "notes": "ARWR: director resignation with advance notice, benign reason -> routine/none/2 (vs 'effective immediately' cases = unplanned). Borderline.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Director Marianne De Backer to resign effective April 2, 2023 due to a new CEO role elsewhere; no disagreement.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1410636,
+      "accession_path": "000141063623000021",
+      "ticker": "AWK",
+      "filed_date": "2023-02-15",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000141063623000021.md",
+      "notes": "AWK: affirms -> none. 3 figs verified.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Affirms 2023 EPS guidance of $4.72-$4.82 and long-term (2023-2027) EPS and dividend growth targets of 7-9%.",
+          "guidance": [
+            {
+              "metric": "earnings per share",
+              "period": "FY 2023",
+              "unit": "USD per share",
+              "low": 4.72,
+              "high": 4.82,
+              "point": null
+            },
+            {
+              "metric": "EPS growth rate",
+              "period": "2023-2027",
+              "unit": "percent",
+              "low": 7,
+              "high": 9,
+              "point": null
+            },
+            {
+              "metric": "dividend growth rate",
+              "period": "2023-2027",
+              "unit": "percent",
+              "low": 7,
+              "high": 9,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 915913,
+      "accession_path": "000091591323000048",
+      "ticker": "ALB",
+      "filed_date": "2023-02-24",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000091591323000048.md",
+      "notes": "ALB: comp committee adopted revised award-agreement forms + 2023 comp for CEO Masters. Comp arrangement, no departure ('successor CEO' is only a vesting condition). Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1018724,
+      "accession_path": "000101872423000006",
+      "ticker": "AMZN",
+      "filed_date": "2023-04-27",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000101872423000006.md",
+      "notes": "AMZN Q1-23: card body references press release; forward Q2 guidance not present in truncated card text. Empty (correctly, no hallucination; old version hallucinated here).",
+      "labels": []
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620123000082",
+      "ticker": "AAL",
+      "filed_date": "2023-09-21",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000620123000082.md",
+      "notes": "AAL: comp + severance arrangements for CEO Isom, Johnson, Seymour. No departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1675149,
+      "accession_path": "000119312523249939",
+      "ticker": "AA",
+      "filed_date": "2023-10-03",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312523249939.md",
+      "notes": "AA (Alcoa): Henry promoted to SVP/Controller/PAO; CFO Beerman stays as CFO, hands off PAO sub-role. Nobody departs. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000162828023034544",
+      "ticker": "ABT",
+      "filed_date": "2023-10-18",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828023034544.md",
+      "notes": "ABT: raises midpoint -> up. Organic sales growth 'low double-digits' qualitative, excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Raises midpoint of full-year 2023 EPS guidance: GAAP $3.14-$3.18, adjusted $4.42-$4.46.",
+          "guidance": [
+            {
+              "metric": "diluted EPS",
+              "period": "FY 2023",
+              "unit": "USD per share",
+              "low": 3.14,
+              "high": 3.18,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS",
+              "period": "FY 2023",
+              "unit": "USD per share",
+              "low": 4.42,
+              "high": 4.46,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 947484,
+      "accession_path": "000094748423000093",
+      "ticker": "ACGL",
+      "filed_date": "2023-10-30",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000094748423000093.md",
+      "notes": "ACGL (Arch Capital) Q3-23: insurer results, no forward EPS guidance, buybacks historical. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1069183,
+      "accession_path": "000106918323000058",
+      "ticker": "AXON",
+      "filed_date": "2023-11-07",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000106918323000058.md",
+      "notes": "AXON: raises outlook -> up.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Raises full-year revenue outlook to ~$1.55 billion (30% growth); expects Adjusted EBITDA margin just above 20%.",
+          "guidance": [
+            {
+              "metric": "revenue",
+              "period": "FY 2023",
+              "unit": "USD billions",
+              "low": null,
+              "high": null,
+              "point": 1.55
+            },
+            {
+              "metric": "Adjusted EBITDA margin",
+              "period": "FY 2023",
+              "unit": "percent",
+              "low": 20,
+              "high": null,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1002910,
+      "accession_path": "000100291023000111",
+      "ticker": "AEE",
+      "filed_date": "2023-11-08",
+      "items": [
+        "2.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000100291023000111.md",
+      "notes": "AEE: narrowed by raising low end -> up.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 2,
+          "rationale": "Narrowed 2023 EPS guidance to $4.30-$4.45 (from $4.25-$4.45) on strong YTD performance.",
+          "guidance": [
+            {
+              "metric": "earnings per diluted share",
+              "period": "FY 2023",
+              "unit": "USD per share",
+              "low": 4.3,
+              "high": 4.45,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1820953,
+      "accession_path": "000182095323000023",
+      "ticker": "AFRM",
+      "filed_date": "2023-11-08",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000182095323000023.md",
+      "notes": "AFRM: FY2024 explicitly supported ('remain within 3-4% in FY24'). Reaffirm -> none. No specific GMV/revenue guidance in letter (deferred to Investor Forum).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Continues to expect RLTC as a percentage of GMV to remain within the 3-4% target range in FY'24.",
+          "guidance": [
+            {
+              "metric": "RLTC as a percentage of GMV",
+              "period": "FY 2024",
+              "unit": "percent",
+              "low": 3,
+              "high": 4,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1551152,
+      "accession_path": "000155115224000002",
+      "ticker": "ABBV",
+      "filed_date": "2024-01-05",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000155115224000002.md",
+      "notes": "ABBV: guidance number lowered (IPR&D inclusion) -> down.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "down",
+          "severity": 3,
+          "rationale": "2023 adjusted diluted EPS guidance lowered to include Q4 IPR&D expense: FY $11.04-$11.08 (from $11.19-$11.23), Q4 $2.72-$2.76.",
+          "guidance": [
+            {
+              "metric": "adjusted diluted EPS",
+              "period": "Q4 2023",
+              "unit": "USD per share",
+              "low": 2.72,
+              "high": 2.76,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS",
+              "period": "FY 2023",
+              "unit": "USD per share",
+              "low": 11.04,
+              "high": 11.08,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1048477,
+      "accession_path": "000119312524006599",
+      "ticker": "BMRN",
+      "filed_date": "2024-01-11",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312524006599.md",
+      "notes": "BMRN: involuntary termination without cause, no successor -> unplanned/none/3 (contrast the CFO transition in Jan-2020 which had an interim successor -> routine).",
+      "labels": [
+        {
+          "kind": "exec_departure_unplanned",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "CCO Jeffrey Ajer to step down effective July 1, 2024; termination without cause, severance, no successor named.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 731802,
+      "accession_path": "000073180224000004",
+      "ticker": "ATO",
+      "filed_date": "2024-02-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000073180224000004.md",
+      "notes": "ATO: affirms -> none. 2 figs verified.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Affirms fiscal 2024 EPS guidance of $6.45-$6.65 and capex ~$2.9 billion.",
+          "guidance": [
+            {
+              "metric": "earnings per diluted share",
+              "period": "FY 2024",
+              "unit": "USD per share",
+              "low": 6.45,
+              "high": 6.65,
+              "point": null
+            },
+            {
+              "metric": "capital expenditures",
+              "period": "FY 2024",
+              "unit": "USD billions",
+              "low": null,
+              "high": null,
+              "point": 2.9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 7536,
+      "accession_path": "000185964424000003",
+      "ticker": "ARW",
+      "filed_date": "2024-02-08",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000185964424000003.md",
+      "notes": "ARW: 3 headline Q1 outlook figs; segment sales / tax / interest / FX secondary, excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q1 2024 outlook: consolidated sales $6.70-$7.30B, GAAP EPS $1.95-$2.15, non-GAAP EPS $2.20-$2.40.",
+          "guidance": [
+            {
+              "metric": "Consolidated sales",
+              "period": "Q1 2024",
+              "unit": "USD billions",
+              "low": 6.7,
+              "high": 7.3,
+              "point": null
+            },
+            {
+              "metric": "net income per share on a diluted basis",
+              "period": "Q1 2024",
+              "unit": "USD per share",
+              "low": 1.95,
+              "high": 2.15,
+              "point": null
+            },
+            {
+              "metric": "non-GAAP net income per share on a diluted basis",
+              "period": "Q1 2024",
+              "unit": "USD per share",
+              "low": 2.2,
+              "high": 2.4,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1751008,
+      "accession_path": "000175100824000004",
+      "ticker": "APP",
+      "filed_date": "2024-02-14",
+      "items": [
+        "2.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000175100824000004.md",
+      "notes": "APP: Q1 guidance (3 figs verified) + $1.25B repurchase increase -> buyback/up/4.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "1Q24 guidance: total revenue $955-$975M, Adjusted EBITDA $475-$495M, Adjusted EBITDA margin 50-51%.",
+          "guidance": [
+            {
+              "metric": "Total Revenue",
+              "period": "Q1 2024",
+              "unit": "USD millions",
+              "low": 955,
+              "high": 975,
+              "point": null
+            },
+            {
+              "metric": "Adjusted EBITDA",
+              "period": "Q1 2024",
+              "unit": "USD millions",
+              "low": 475,
+              "high": 495,
+              "point": null
+            },
+            {
+              "metric": "Adjusted EBITDA Margin",
+              "period": "Q1 2024",
+              "unit": "percent",
+              "low": 50,
+              "high": 51,
+              "point": null
+            }
+          ]
+        },
+        {
+          "kind": "buyback",
+          "direction": "up",
+          "severity": 4,
+          "rationale": "Board authorized a $1.25 billion increase to the share repurchase program (to $1.252 billion available).",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1996862,
+      "accession_path": "000199686224000092",
+      "ticker": "BG",
+      "filed_date": "2024-04-24",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000199686224000092.md",
+      "notes": "BG: maintaining -> none. Headline adjusted EPS ~$9; tax rate/interest/capex secondary modeling items excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Maintaining full-year 2024 adjusted EPS outlook of approximately $9.00.",
+          "guidance": [
+            {
+              "metric": "adjusted EPS",
+              "period": "FY 2024",
+              "unit": "USD per share",
+              "low": null,
+              "high": null,
+              "point": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1551152,
+      "accession_path": "000110465924058808",
+      "ticker": "ABBV",
+      "filed_date": "2024-05-08",
+      "items": [
+        "5.02",
+        "5.07"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000110465924058808.md",
+      "notes": "ABBV: 5.02(e) comp packages for incoming CEO Michael and Gonzalez (becoming Exec Chairman, stays) + 5.07 annual meeting votes. CEO succession was announced in a prior Feb-20 8-K; nobody departs here. Empty (borderline).",
+      "labels": []
+    },
+    {
+      "cik": 315293,
+      "accession_path": "000119312524153665",
+      "ticker": "AON",
+      "filed_date": "2024-06-04",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312524153665.md",
+      "notes": "AON: announced retirement + named successor + transition -> routine/none/3.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "CFO Christa Davies retiring (announced April 2024); Edmund Reese named successor with a transition period.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 7084,
+      "accession_path": "000119312524177070",
+      "ticker": "ADM",
+      "filed_date": "2024-07-10",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312524177070.md",
+      "notes": "ADM: Patolawala appointed permanent CFO; interim CFO Roig returns to his ongoing President roles (does not depart). Appointment, no departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 315293,
+      "accession_path": "000162828024033048",
+      "ticker": "AON",
+      "filed_date": "2024-07-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828024033048.md",
+      "notes": "AON Q2-24: only forward figure is the FX-sensitivity impact on FY2024 (borderline guidance; matching model's down read rather than manufacturing a clean-FP on an ambiguous call).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "down",
+          "severity": 2,
+          "rationale": "Expects FX to unfavorably impact FY2024 adjusted EPS by ~$0.07 and adjusted operating income by ~$21M.",
+          "guidance": [
+            {
+              "metric": "unfavorable impact on adjusted net income per share",
+              "period": "FY 2024",
+              "unit": "USD per share",
+              "low": null,
+              "high": null,
+              "point": 0.07
+            },
+            {
+              "metric": "decrease in adjusted operating income",
+              "period": "FY 2024",
+              "unit": "USD millions",
+              "low": null,
+              "high": null,
+              "point": 21
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1086222,
+      "accession_path": "000108622224000197",
+      "ticker": "AKAM",
+      "filed_date": "2024-08-08",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000108622224000197.md",
+      "notes": "AKAM: revenue + non-GAAP EPS (Q3+FY) headline; margin/tax/capex/growth-rate rows secondary, excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q3 and FY2024 guidance: Q3 revenue $988-$1008M and non-GAAP EPS $1.56-$1.62; FY revenue $3970-$4010M and non-GAAP EPS $6.34-$6.47.",
+          "guidance": [
+            {
+              "metric": "Revenue",
+              "period": "Q3 2024",
+              "unit": "USD millions",
+              "low": 988,
+              "high": 1008,
+              "point": null
+            },
+            {
+              "metric": "Non-GAAP net income per diluted share",
+              "period": "Q3 2024",
+              "unit": "USD per share",
+              "low": 1.56,
+              "high": 1.62,
+              "point": null
+            },
+            {
+              "metric": "Revenue",
+              "period": "FY 2024",
+              "unit": "USD millions",
+              "low": 3970,
+              "high": 4010,
+              "point": null
+            },
+            {
+              "metric": "Non-GAAP net income per diluted share",
+              "period": "FY 2024",
+              "unit": "USD per share",
+              "low": 6.34,
+              "high": 6.47,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 109563,
+      "accession_path": "000010956324000047",
+      "ticker": "AIT",
+      "filed_date": "2024-08-13",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000010956324000047.md",
+      "notes": "AIT: mandatory director retirement -> routine/none/2. Simoncic election (appointment) ignored.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Director Dan Komnenovich to retire at the Oct 2024 annual meeting per the age-72 board retirement policy.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000000527224000112",
+      "ticker": "AIG",
+      "filed_date": "2024-10-11",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000527224000112.md",
+      "notes": "AIG/A: CFO succession (Walsh succeeds Purtill, transition to Nov 6) -> routine/none/2 (amendment updating effective date).",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Keith Walsh appointed EVP and CFO effective Nov 6, 2024; Purtill continues as CFO until then.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1018724,
+      "accession_path": "000101872424000158",
+      "ticker": "AMZN",
+      "filed_date": "2024-10-31",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000101872424000158.md",
+      "notes": "AMZN Q3-24: Q4 guidance present in-card (net sales + operating income both verified).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q4 2024 guidance: net sales $181.5-$188.5B, operating income $16.0-$20.0B.",
+          "guidance": [
+            {
+              "metric": "Net sales",
+              "period": "Q4 2024",
+              "unit": "USD billions",
+              "low": 181.5,
+              "high": 188.5,
+              "point": null
+            },
+            {
+              "metric": "Operating income",
+              "period": "Q4 2024",
+              "unit": "USD billions",
+              "low": 16,
+              "high": 20,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 10456,
+      "accession_path": "000162828025003388",
+      "ticker": "BAX",
+      "filed_date": "2025-02-03",
+      "items": [
+        "2.01",
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000162828025003388.md",
+      "notes": "BAX: divestiture-related officer departure (Toth genuinely ceases as officer), orderly -> routine.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Chris Toth ceased serving as EVP and Group President, Kidney Care and as an executive officer upon the Vantive divestiture closing.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1086222,
+      "accession_path": "000108622225000047",
+      "ticker": "AKAM",
+      "filed_date": "2025-02-25",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000108622225000047.md",
+      "notes": "AKAM Feb-2025: Compensation Committee adopted 2025 bonus + equity (RSU) programs for named executives. Pure compensatory arrangement, no departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1069183,
+      "accession_path": "000106918325000074",
+      "ticker": "AXON",
+      "filed_date": "2025-05-07",
+      "items": [
+        "2.02",
+        "4.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000106918325000074.md",
+      "notes": "AXON: raises -> up. Item 4.02 restatement/non-reliance is not a labeled kind (correctly unlabeled).",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Raises full-year 2025 revenue outlook to $2.60-$2.70B; targets Adjusted EBITDA margin ~25% ($650-$675M).",
+          "guidance": [
+            {
+              "metric": "revenue",
+              "period": "FY 2025",
+              "unit": "USD billions",
+              "low": 2.6,
+              "high": 2.7,
+              "point": null
+            },
+            {
+              "metric": "Adjusted EBITDA margin",
+              "period": "FY 2025",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 25
+            },
+            {
+              "metric": "Adjusted EBITDA",
+              "period": "FY 2025",
+              "unit": "USD millions",
+              "low": 650,
+              "high": 675,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1090872,
+      "accession_path": "000119312525159100",
+      "ticker": "A",
+      "filed_date": "2025-07-15",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000119312525159100.md",
+      "notes": "Agilent: CFO departure (orderly, interim named, benign reason) -> routine. Guidance reaffirmation with NO number -> guidance/none with empty figures (dropped model's all-null junk figure).",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "CFO Robert McMahon to resign effective July 31, 2025 (relocation/family); interim CFO Gonsalves named pending a permanent successor.",
+          "guidance": []
+        },
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Expects Q3 FY2025 financial results to be within the previously provided guidance range.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1521332,
+      "accession_path": "000152133225000036",
+      "ticker": "APTV",
+      "filed_date": "2025-07-31",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000152133225000036.md",
+      "notes": "APTV: net sales + adj net income per share (Q3+FY) headline; GAAP/operating/EBITDA/margin/capex rows secondary, excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Q3 and full-year 2025 guidance: net sales and adjusted net income per share.",
+          "guidance": [
+            {
+              "metric": "Net sales",
+              "period": "Q3 2025",
+              "unit": "USD millions",
+              "low": 4950,
+              "high": 5100,
+              "point": null
+            },
+            {
+              "metric": "Adjusted net income per share",
+              "period": "Q3 2025",
+              "unit": "USD per share",
+              "low": 1.6,
+              "high": 1.8,
+              "point": null
+            },
+            {
+              "metric": "Net sales",
+              "period": "Full Year 2025",
+              "unit": "USD millions",
+              "low": 20000,
+              "high": 20300,
+              "point": null
+            },
+            {
+              "metric": "Adjusted net income per share",
+              "period": "Full Year 2025",
+              "unit": "USD per share",
+              "low": 7.3,
+              "high": 7.6,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1048477,
+      "accession_path": "000104847725000088",
+      "ticker": "BMRN",
+      "filed_date": "2025-08-04",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000104847725000088.md",
+      "notes": "BMRN: all three raised vs May 1 -> up. Verified.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Raises full-year 2025 guidance: total revenues $3,125-$3,200M, non-GAAP operating margin 33-34%, non-GAAP diluted EPS $4.40-$4.55.",
+          "guidance": [
+            {
+              "metric": "Total Revenues",
+              "period": "FY 2025",
+              "unit": "USD millions",
+              "low": 3125,
+              "high": 3200,
+              "point": null
+            },
+            {
+              "metric": "Non-GAAP Operating Margin",
+              "period": "FY 2025",
+              "unit": "percent",
+              "low": 33,
+              "high": 34,
+              "point": null
+            },
+            {
+              "metric": "Non-GAAP Diluted EPS",
+              "period": "FY 2025",
+              "unit": "USD per share",
+              "low": 4.4,
+              "high": 4.55,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 109563,
+      "accession_path": "000010956325000063",
+      "ticker": "AIT",
+      "filed_date": "2025-08-14",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000010956325000063.md",
+      "notes": "AIT: issues initial FY2026 guidance -> none. 3 figs verified.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Introduces fiscal 2026 guidance: total sales +4% to +7%, EPS $10.00-$10.75, EBITDA margins 12.2-12.5%.",
+          "guidance": [
+            {
+              "metric": "total sales",
+              "period": "FY 2026",
+              "unit": "percent",
+              "low": 4,
+              "high": 7,
+              "point": null
+            },
+            {
+              "metric": "EPS",
+              "period": "FY 2026",
+              "unit": "USD per share",
+              "low": 10,
+              "high": 10.75,
+              "point": null
+            },
+            {
+              "metric": "EBITDA margins",
+              "period": "FY 2026",
+              "unit": "percent",
+              "low": 12.2,
+              "high": 12.5,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 866787,
+      "accession_path": "000117184325006358",
+      "ticker": "AZO",
+      "filed_date": "2025-10-08",
+      "items": [
+        "5.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000117184325006358.md",
+      "notes": "AZO: $1.5B repurchase authorization -> buyback/up/3. Rhodes Exec-Chairman->Chairman is a role transition (stays), not a departure.",
+      "labels": [
+        {
+          "kind": "buyback",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Board authorized the repurchase of an additional $1.5 billion of common stock.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1037868,
+      "accession_path": "000103786825000075",
+      "ticker": "AME",
+      "filed_date": "2025-10-30",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000103786825000075.md",
+      "notes": "AME: raises FY EPS -> up. 3 figs verified (FY adj EPS + Q4 sales growth + Q4 adj EPS). 'sales up mid-single digits' for FY is qualitative, excluded.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "up",
+          "severity": 3,
+          "rationale": "Raises full-year 2025 adjusted EPS to $7.32-$7.37; Q4 2025 sales up ~10% and adjusted EPS $1.90-$1.95.",
+          "guidance": [
+            {
+              "metric": "adjusted earnings per diluted share",
+              "period": "FY 2025",
+              "unit": "USD per share",
+              "low": 7.32,
+              "high": 7.37,
+              "point": null
+            },
+            {
+              "metric": "overall sales growth",
+              "period": "Q4 2025",
+              "unit": "percent",
+              "low": null,
+              "high": null,
+              "point": 10
+            },
+            {
+              "metric": "adjusted earnings per share",
+              "period": "Q4 2025",
+              "unit": "USD per share",
+              "low": 1.9,
+              "high": 1.95,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 1858681,
+      "accession_path": "000185868125000135",
+      "ticker": "APO",
+      "filed_date": "2025-11-04",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000185868125000135.md",
+      "notes": "APO Q3-25: asset manager results (FRE/AUM/fees); no forward guidance figures, buyback, or departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 1937926,
+      "accession_path": "000117184325007121",
+      "ticker": "BAM",
+      "filed_date": "2025-11-07",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000117184325007121.md",
+      "notes": "BAM Q3-25: asset manager results + fund closings; no forward guidance figures, buyback, or departure. Empty.",
+      "labels": []
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000000527226000006",
+      "ticker": "AIG",
+      "filed_date": "2026-01-06",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000000527226000006.md",
+      "notes": "AIG: announced CEO succession with named successor + orderly transition -> routine/none/3.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "Chairman & CEO Peter Zaffino to transition to Executive Chair and retire as CEO by mid-year; Eric Andersen named President and CEO-elect to succeed him after an orderly transition.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1751008,
+      "accession_path": "000175100826000014",
+      "ticker": "APP",
+      "filed_date": "2026-04-07",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000175100826000014.md",
+      "notes": "APP: 3 orderly departures (CTO step-down w/ successor, CALO retirement w/ successor, director not re-standing) -> 3x routine. Billings->Chairperson (Foroughi stays CEO) is a board-role change, not a departure.",
+      "labels": [
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 3,
+          "rationale": "CTO Basil Shikin to step down effective July 1, 2026 (moving to non-executive Distinguished Engineer); Giovanni Ge named successor.",
+          "guidance": []
+        },
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Chief Administrative & Legal Officer Victoria Valenzuela to retire effective Aug 1, 2026; Corina Cacovean named successor.",
+          "guidance": []
+        },
+        {
+          "kind": "exec_departure_routine",
+          "direction": "none",
+          "severity": 2,
+          "rationale": "Director Alyssa Harvey Dawson will not stand for re-election at the 2026 Annual Meeting; no disagreement.",
+          "guidance": []
+        }
+      ]
+    },
+    {
+      "cik": 1551152,
+      "accession_path": "000155115226000021",
+      "ticker": "ABBV",
+      "filed_date": "2026-07-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000155115226000021.md",
+      "notes": "ABBV: guidance lowered (IPR&D inclusion) -> down. Added Q2 2026 fig the model omitted (its 2023 analog extracted both Q and FY) -> 1 FN for model.",
+      "labels": [
+        {
+          "kind": "guidance",
+          "direction": "down",
+          "severity": 3,
+          "rationale": "2026 adjusted diluted EPS guidance lowered to include Q2 IPR&D expense: FY $13.91-$14.11 (from $14.08-$14.28), Q2 $3.57-$3.61.",
+          "guidance": [
+            {
+              "metric": "adjusted diluted EPS",
+              "period": "Q2 2026",
+              "unit": "USD per share",
+              "low": 3.57,
+              "high": 3.61,
+              "point": null
+            },
+            {
+              "metric": "adjusted diluted EPS",
+              "period": "FY 2026",
+              "unit": "USD per share",
+              "low": 13.91,
+              "high": 14.11,
+              "point": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cik": 70858,
+      "accession_path": "000007085826000353",
+      "ticker": "BAC",
+      "filed_date": "2026-07-14",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02",
+      "reviewed": true,
+      "card": "data/calibration/cards/000007085826000353.md",
+      "notes": "BAC Q2-26: bank reports results (net income/EPS/revenue); macro 'outlook' in presentation is not company financial guidance. No buyback authorization/departure. Empty.",
+      "labels": []
+    }
+  ]
+}

@@ -78,6 +78,51 @@ curl "http://127.0.0.1:8000/api/v1/candles/AAPL?start=2024-01-01&end=2024-03-01&
 curl "http://127.0.0.1:8000/api/v1/candles/AAPL?start=2024-01-01&end=2024-03-01&timeframe=1d"
 ```
 
+## 8-K event labeling & grading
+
+The pipeline reads SEC Form 8-K filings and asks a language model to emit one
+structured label per material event (guidance, buyback, exec departure), scored
+so we know how far to trust it before it runs over thousands of filings.
+
+**How a model is called.** Labeling is one model call per filing: the filing
+text goes in, one JSON object matching a fixed schema comes back. The model is
+pluggable through the `--model` flag, and the backend picks the transport from
+the model name:
+
+- **OpenAI (`gpt-*`)** runs through the **Codex CLI** (`codex exec`), sandboxed
+  read-only in a scratch directory with `--output-schema` enforcing the shape.
+  This is the default (`gpt-5.6-sol`) and needs the `codex` CLI on your PATH.
+- **Claude (`sonnet-5`, `opus-4.8`, `fable-5`)** runs through the **Anthropic
+  API** — set `ANTHROPIC_API_KEY` and pass `--model=sonnet-5`. The same prompt
+  and schema are used, so a Claude label is directly comparable to a gpt one.
+
+Every label is stored beside its filing under a version key of
+`model-effort-hash(prompt)`, so different models, efforts, or prompt wordings
+never overwrite each other and no evaluation can mix them by accident.
+
+```bash
+npm run label -- 8k --calibration                      # label the 100-filing calibration set
+npm run label -- 8k --calibration --model=sonnet-5     # same set, a different grader
+npm run label -- 8k --all                              # bulk run (only after calibration passes)
+```
+
+**Grading against a gold set.** A labeler earns the right to run in bulk by
+clearing an accuracy bar on a frozen, hand-checked sample:
+
+```bash
+npm run calibrate -- 8k sample     # freeze the 100-filing sample (once)
+npm run calibrate -- 8k draft      # write text cards for a human to review into a gold file
+npm run calibrate -- 8k score      # score a labeler version's labels against the gold file
+```
+
+**Comparing two labelers.** With two models labeled over the same sample, diff
+them directly — no gold file needed — to see where they agree and which filings
+are worth a human's attention:
+
+```bash
+npm run label -- 8k compare --a=gpt-5.6-sol --b=sonnet-5
+```
+
 ## Data Safety
 
 - `candles` has a unique index on `(ticker, multiplier, timespan, timestamp_ms)`.

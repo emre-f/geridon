@@ -2,6 +2,7 @@ import type {
   ComparisonOperator,
   GroupOperator,
   PriceField,
+  SignalOutput,
   StrategyValidationIssue,
 } from "../types.ts";
 
@@ -17,6 +18,8 @@ export const comparisonOperators: ComparisonOperator[] = [
 export const groupOperators: GroupOperator[] = ["and", "or", "not", "at_least"];
 
 export const priceFields: PriceField[] = ["open", "high", "low", "close", "volume"];
+
+export const signalOutputs: SignalOutput[] = ["days_since", "count_in_window", "last_score"];
 
 export const crossOperators = new Set<ComparisonOperator>(["cross_above", "cross_below"]);
 export const maxNameLength = 80;

@@ -6,6 +6,7 @@ import type {
   NumericSearchNode,
   ParameterOverride,
   SearchSpaceNode,
+  SignalOperand,
   StrategyRule,
 } from "../../types.ts";
 
@@ -74,6 +75,16 @@ export function indicatorParameterNodes(
   return nodes;
 }
 
+function freeValueNode(
+  path: string[],
+  current: number,
+  override: ParameterOverride | undefined,
+): SearchSpaceNode {
+  const span = Math.max(Math.abs(current) * 0.5, 1);
+  const step = span >= 20 ? 1 : Number((span / 20).toPrecision(1));
+  return numericNode(path, current, current - span, current + span, step, override);
+}
+
 export function valueThresholdNode(
   rule: StrategyRule,
   side: "left" | "right",
@@ -89,7 +100,40 @@ export function valueThresholdNode(
   if (override?.locked) {
     return null;
   }
-  const span = Math.max(Math.abs(operand.value) * 0.5, 1);
-  const step = span >= 20 ? 1 : Number((span / 20).toPrecision(1));
-  return numericNode(path, operand.value, operand.value - span, operand.value + span, step, override);
+  return freeValueNode(path, operand.value, override);
+}
+
+export const signalWindowBounds = { min: 1, max: 250 };
+
+/**
+ * A signal operand's tunable dimensions: the count_in_window window and every
+ * filter threshold (score and payload keys). Event kind and output are fixed
+ * by the strategy and never enter the search space.
+ */
+export function signalParameterNodes(
+  operand: SignalOperand,
+  operandPath: string[],
+  overrides: Record<string, ParameterOverride>,
+): SearchSpaceNode[] {
+  const nodes: SearchSpaceNode[] = [];
+  if (operand.output === "count_in_window" && operand.window != null) {
+    const path = [...operandPath, "window"];
+    const override = overrides[pathId(path)];
+    if (!override?.locked) {
+      nodes.push(
+        numericNode(path, operand.window, signalWindowBounds.min, signalWindowBounds.max, 1, override),
+      );
+    }
+  }
+  const filterEntries = Object.entries(operand.filters ?? {}).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  for (const [key, current] of filterEntries) {
+    const path = [...operandPath, "filters", key];
+    const override = overrides[pathId(path)];
+    if (!override?.locked) {
+      nodes.push(freeValueNode(path, current, override));
+    }
+  }
+  return nodes;
 }

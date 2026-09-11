@@ -99,7 +99,7 @@ function isSignalStarved(trial: OptimizationTrial, context: FullEvaluationContex
         fold.trainStartIndex,
         fold.validEndIndex,
       );
-      if (entrySignalFires(trial.strategy, slice, shared)) {
+      if (entrySignalFires(trial.strategy, slice, shared, dataset.events)) {
         return false;
       }
     }

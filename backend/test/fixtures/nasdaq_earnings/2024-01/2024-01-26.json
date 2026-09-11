@@ -1,0 +1,42 @@
+{
+  "data": {
+    "asOf": "Fri, Jan 26, 2024",
+    "headers": {
+      "time": "Time",
+      "symbol": "Symbol",
+      "name": "Company Name",
+      "eps": "EPS",
+      "surprise": "% Surprise",
+      "marketCap": "Market Cap",
+      "fiscalQuarterEnding": "Fiscal Quarter Ending",
+      "epsForecast": "Consensus EPS* Forecast",
+      "noOfEsts": "# of Ests"
+    },
+    "rows": [
+      {
+        "eps": "$2.00",
+        "surprise": "33.33",
+        "time": "time-pre-market",
+        "symbol": "PREM",
+        "name": "Premarket Corp",
+        "marketCap": "$1,000,000",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$1.50",
+        "noOfEsts": "5"
+      },
+      {
+        "eps": "$0.85",
+        "surprise": "13.33",
+        "time": "time-not-supplied",
+        "symbol": "BEAT",
+        "name": "Beat Corp",
+        "marketCap": "$315,223,690,086",
+        "fiscalQuarterEnding": "Dec/2023",
+        "epsForecast": "$0.75",
+        "noOfEsts": "12"
+      }
+    ]
+  },
+  "message": null,
+  "status": { "rCode": 200 }
+}

@@ -1,0 +1,1117 @@
+{
+  "size": 100,
+  "created_at": "2026-07-20T12:52:16.715Z",
+  "filings": [
+    {
+      "cik": 1433270,
+      "accession_path": "000110465916091752",
+      "ticker": "AR",
+      "filed_date": "2016-01-28",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 820027,
+      "accession_path": "000110465916114691",
+      "ticker": "AMP",
+      "filed_date": "2016-04-27",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1521332,
+      "accession_path": "000152133216000095",
+      "ticker": "APTV",
+      "filed_date": "2016-04-29",
+      "items": [
+        "5.02",
+        "5.07"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1579428,
+      "accession_path": "000110465916120118",
+      "ticker": "AXSM",
+      "filed_date": "2016-05-11",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465916133433",
+      "ticker": "ABT",
+      "filed_date": "2016-07-20",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1579241,
+      "accession_path": "000157924116000078",
+      "ticker": "ALLE",
+      "filed_date": "2016-07-28",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 40729,
+      "accession_path": "000114420416129488",
+      "ticker": "ALLY",
+      "filed_date": "2016-10-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465917003920",
+      "ticker": "ABT",
+      "filed_date": "2017-01-25",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1018963,
+      "accession_path": "000101896317000014",
+      "ticker": "ATI",
+      "filed_date": "2017-05-15",
+      "items": [
+        "5.02",
+        "5.07"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 866787,
+      "accession_path": "000117184317003257",
+      "ticker": "AZO",
+      "filed_date": "2017-05-23",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1178670,
+      "accession_path": "000115752317002334",
+      "ticker": "ALNY",
+      "filed_date": "2017-08-09",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465917062667",
+      "ticker": "ABT",
+      "filed_date": "2017-10-18",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1267238,
+      "accession_path": "000162828017010688",
+      "ticker": "AIZ",
+      "filed_date": "2017-11-02",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1047127,
+      "accession_path": "000104712718000002",
+      "ticker": "AMKR",
+      "filed_date": "2018-02-09",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1144215,
+      "accession_path": "000114421518000042",
+      "ticker": "AYI",
+      "filed_date": "2018-04-04",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000114420418024779",
+      "ticker": "AIG",
+      "filed_date": "2018-05-02",
+      "items": [
+        "2.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1701605,
+      "accession_path": "000095010318006996",
+      "ticker": "BKR",
+      "filed_date": "2018-06-01",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1579241,
+      "accession_path": "000157924118000029",
+      "ticker": "ALLE",
+      "filed_date": "2018-07-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1562401,
+      "accession_path": "000156240118000086",
+      "ticker": "AMH",
+      "filed_date": "2018-08-10",
+      "items": [
+        "2.02"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1018963,
+      "accession_path": "000115752318002097",
+      "ticker": "ATI",
+      "filed_date": "2018-10-23",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 4904,
+      "accession_path": "000000490418000051",
+      "ticker": "AEP",
+      "filed_date": "2018-10-25",
+      "items": [
+        "2.02"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1562401,
+      "accession_path": "000156240118000106",
+      "ticker": "AMH",
+      "filed_date": "2018-11-01",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000110465919002848",
+      "ticker": "ABT",
+      "filed_date": "2019-01-23",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1267238,
+      "accession_path": "000162828019005910",
+      "ticker": "AIZ",
+      "filed_date": "2019-05-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 4977,
+      "accession_path": "000000497719000132",
+      "ticker": "AFL",
+      "filed_date": "2019-07-25",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1584509,
+      "accession_path": "000119312519228611",
+      "ticker": "ARMK",
+      "filed_date": "2019-08-26",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 899051,
+      "accession_path": "000141057819000994",
+      "ticker": "ALL",
+      "filed_date": "2019-09-03",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620119000066",
+      "ticker": "AAL",
+      "filed_date": "2019-10-24",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 2488,
+      "accession_path": "000000248819000157",
+      "ticker": "AMD",
+      "filed_date": "2019-10-29",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1267238,
+      "accession_path": "000126723819000013",
+      "ticker": "AIZ",
+      "filed_date": "2019-11-07",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1743881,
+      "accession_path": "000119312519315521",
+      "ticker": "BBIO",
+      "filed_date": "2019-12-17",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1743881,
+      "accession_path": "000119312519323511",
+      "ticker": "BBIO",
+      "filed_date": "2019-12-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1048477,
+      "accession_path": "000119312520022979",
+      "ticker": "BMRN",
+      "filed_date": "2020-02-03",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 915912,
+      "accession_path": "000091591220000002",
+      "ticker": "AVB",
+      "filed_date": "2020-02-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 899051,
+      "accession_path": "000089905120000028",
+      "ticker": "ALL",
+      "filed_date": "2020-05-05",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 6951,
+      "accession_path": "000119312520190518",
+      "ticker": "AMAT",
+      "filed_date": "2020-07-09",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1053507,
+      "accession_path": "000105350721000007",
+      "ticker": "AMT",
+      "filed_date": "2021-01-19",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1178670,
+      "accession_path": "000115752321000536",
+      "ticker": "ALNY",
+      "filed_date": "2021-04-29",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1841666,
+      "accession_path": "000119312521152738",
+      "ticker": "APA",
+      "filed_date": "2021-05-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1730168,
+      "accession_path": "000173016821000110",
+      "ticker": "AVGO",
+      "filed_date": "2021-06-03",
+      "items": [
+        "2.02",
+        "5.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1144215,
+      "accession_path": "000114421521000068",
+      "ticker": "AYI",
+      "filed_date": "2021-07-01",
+      "items": [
+        "2.02",
+        "7.01",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 879407,
+      "accession_path": "000156459021041575",
+      "ticker": "ARWR",
+      "filed_date": "2021-08-05",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1579241,
+      "accession_path": "000157924121000072",
+      "ticker": "ALLE",
+      "filed_date": "2021-10-21",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1433270,
+      "accession_path": "000110465922000701",
+      "ticker": "AR",
+      "filed_date": "2022-01-04",
+      "items": [
+        "5.02",
+        "7.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1037868,
+      "accession_path": "000103786822000002",
+      "ticker": "AME",
+      "filed_date": "2022-01-31",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 4904,
+      "accession_path": "000000490422000013",
+      "ticker": "AEP",
+      "filed_date": "2022-02-22",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 4904,
+      "accession_path": "000000490422000037",
+      "ticker": "AEP",
+      "filed_date": "2022-04-04",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620122000044",
+      "ticker": "AAL",
+      "filed_date": "2022-04-21",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 875045,
+      "accession_path": "000087504522000013",
+      "ticker": "BIIB",
+      "filed_date": "2022-05-03",
+      "items": [
+        "2.02",
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1097149,
+      "accession_path": "000109714922000051",
+      "ticker": "ALGN",
+      "filed_date": "2022-07-27",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1047127,
+      "accession_path": "000104712722000022",
+      "ticker": "AMKR",
+      "filed_date": "2022-08-01",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1664703,
+      "accession_path": "000166470322000067",
+      "ticker": "BE",
+      "filed_date": "2022-08-09",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1632970,
+      "accession_path": "000163297022000075",
+      "ticker": "AHR",
+      "filed_date": "2022-08-31",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620122000074",
+      "ticker": "AAL",
+      "filed_date": "2022-09-06",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 915913,
+      "accession_path": "000091591322000165",
+      "ticker": "ALB",
+      "filed_date": "2022-11-02",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1584509,
+      "accession_path": "000158450922000244",
+      "ticker": "ARMK",
+      "filed_date": "2022-12-05",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 796343,
+      "accession_path": "000079634322000225",
+      "ticker": "ADBE",
+      "filed_date": "2022-12-15",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000095010323000346",
+      "ticker": "AIG",
+      "filed_date": "2023-01-10",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1176948,
+      "accession_path": "000162828023002842",
+      "ticker": "ARES",
+      "filed_date": "2023-02-09",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1559720,
+      "accession_path": "000119312523039008",
+      "ticker": "ABNB",
+      "filed_date": "2023-02-14",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 879407,
+      "accession_path": "000162828023003560",
+      "ticker": "ARWR",
+      "filed_date": "2023-02-14",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1410636,
+      "accession_path": "000141063623000021",
+      "ticker": "AWK",
+      "filed_date": "2023-02-15",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 915913,
+      "accession_path": "000091591323000048",
+      "ticker": "ALB",
+      "filed_date": "2023-02-24",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1018724,
+      "accession_path": "000101872423000006",
+      "ticker": "AMZN",
+      "filed_date": "2023-04-27",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 6201,
+      "accession_path": "000000620123000082",
+      "ticker": "AAL",
+      "filed_date": "2023-09-21",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1675149,
+      "accession_path": "000119312523249939",
+      "ticker": "AA",
+      "filed_date": "2023-10-03",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1800,
+      "accession_path": "000162828023034544",
+      "ticker": "ABT",
+      "filed_date": "2023-10-18",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 947484,
+      "accession_path": "000094748423000093",
+      "ticker": "ACGL",
+      "filed_date": "2023-10-30",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1069183,
+      "accession_path": "000106918323000058",
+      "ticker": "AXON",
+      "filed_date": "2023-11-07",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1002910,
+      "accession_path": "000100291023000111",
+      "ticker": "AEE",
+      "filed_date": "2023-11-08",
+      "items": [
+        "2.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1820953,
+      "accession_path": "000182095323000023",
+      "ticker": "AFRM",
+      "filed_date": "2023-11-08",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1551152,
+      "accession_path": "000155115224000002",
+      "ticker": "ABBV",
+      "filed_date": "2024-01-05",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1048477,
+      "accession_path": "000119312524006599",
+      "ticker": "BMRN",
+      "filed_date": "2024-01-11",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 731802,
+      "accession_path": "000073180224000004",
+      "ticker": "ATO",
+      "filed_date": "2024-02-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 7536,
+      "accession_path": "000185964424000003",
+      "ticker": "ARW",
+      "filed_date": "2024-02-08",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1751008,
+      "accession_path": "000175100824000004",
+      "ticker": "APP",
+      "filed_date": "2024-02-14",
+      "items": [
+        "2.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1996862,
+      "accession_path": "000199686224000092",
+      "ticker": "BG",
+      "filed_date": "2024-04-24",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1551152,
+      "accession_path": "000110465924058808",
+      "ticker": "ABBV",
+      "filed_date": "2024-05-08",
+      "items": [
+        "5.02",
+        "5.07"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 315293,
+      "accession_path": "000119312524153665",
+      "ticker": "AON",
+      "filed_date": "2024-06-04",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 7084,
+      "accession_path": "000119312524177070",
+      "ticker": "ADM",
+      "filed_date": "2024-07-10",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 315293,
+      "accession_path": "000162828024033048",
+      "ticker": "AON",
+      "filed_date": "2024-07-26",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1086222,
+      "accession_path": "000108622224000197",
+      "ticker": "AKAM",
+      "filed_date": "2024-08-08",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 109563,
+      "accession_path": "000010956324000047",
+      "ticker": "AIT",
+      "filed_date": "2024-08-13",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000000527224000112",
+      "ticker": "AIG",
+      "filed_date": "2024-10-11",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1018724,
+      "accession_path": "000101872424000158",
+      "ticker": "AMZN",
+      "filed_date": "2024-10-31",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 10456,
+      "accession_path": "000162828025003388",
+      "ticker": "BAX",
+      "filed_date": "2025-02-03",
+      "items": [
+        "2.01",
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1086222,
+      "accession_path": "000108622225000047",
+      "ticker": "AKAM",
+      "filed_date": "2025-02-25",
+      "items": [
+        "5.02"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1069183,
+      "accession_path": "000106918325000074",
+      "ticker": "AXON",
+      "filed_date": "2025-05-07",
+      "items": [
+        "2.02",
+        "4.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1090872,
+      "accession_path": "000119312525159100",
+      "ticker": "A",
+      "filed_date": "2025-07-15",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1521332,
+      "accession_path": "000152133225000036",
+      "ticker": "APTV",
+      "filed_date": "2025-07-31",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1048477,
+      "accession_path": "000104847725000088",
+      "ticker": "BMRN",
+      "filed_date": "2025-08-04",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 109563,
+      "accession_path": "000010956325000063",
+      "ticker": "AIT",
+      "filed_date": "2025-08-14",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 866787,
+      "accession_path": "000117184325006358",
+      "ticker": "AZO",
+      "filed_date": "2025-10-08",
+      "items": [
+        "5.02",
+        "8.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1037868,
+      "accession_path": "000103786825000075",
+      "ticker": "AME",
+      "filed_date": "2025-10-30",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1858681,
+      "accession_path": "000185868125000135",
+      "ticker": "APO",
+      "filed_date": "2025-11-04",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 1937926,
+      "accession_path": "000117184325007121",
+      "ticker": "BAM",
+      "filed_date": "2025-11-07",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 5272,
+      "accession_path": "000000527226000006",
+      "ticker": "AIG",
+      "filed_date": "2026-01-06",
+      "items": [
+        "5.02",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1751008,
+      "accession_path": "000175100826000014",
+      "ticker": "APP",
+      "filed_date": "2026-04-07",
+      "items": [
+        "5.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "5.02"
+    },
+    {
+      "cik": 1551152,
+      "accession_path": "000155115226000021",
+      "ticker": "ABBV",
+      "filed_date": "2026-07-06",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    },
+    {
+      "cik": 70858,
+      "accession_path": "000007085826000353",
+      "ticker": "BAC",
+      "filed_date": "2026-07-14",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "stratum": "2.02"
+    }
+  ]
+}

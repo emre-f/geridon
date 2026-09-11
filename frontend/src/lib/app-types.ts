@@ -1,4 +1,4 @@
-export type AppTab = "charts" | "strategies" | "backtest" | "optimize";
+export type AppTab = "charts" | "strategies" | "backtest" | "optimize" | "signals";
 
 export interface SymbolContextMenu {
   ticker: string;

@@ -1,6 +1,8 @@
 import type { Database } from "../db.ts";
 import { runBacktest } from "../services/backtest.ts";
+import { getEvents } from "../services/eventStore.ts";
 import { evaluateSignals } from "../services/signals.ts";
+import { collectSignalKinds } from "../services/signalSeries.ts";
 import { validateStrategy } from "../services/strategies.ts";
 import { parseTimeframe } from "../timeframes.ts";
 import type { BacktestPositionMode, Strategy } from "../types.ts";
@@ -17,6 +19,16 @@ import {
   responseToCandle,
   validateTicker,
 } from "./shared.ts";
+
+// No startMs on purpose: days_since needs events from before the requested
+// range, so the fetch takes the ticker's full history up to the range end.
+function signalEventsForStrategy(db: Database, strategy: Strategy, ticker: string, endMs: number) {
+  const kinds = collectSignalKinds(strategy);
+  if (kinds.length === 0) {
+    return { kinds, events: undefined };
+  }
+  return { kinds, events: getEvents(db, { kinds, ticker, endMs }) };
+}
 
 export function handleSignals(db: Database, body: unknown) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -56,7 +68,8 @@ export function handleSignals(db: Database, body: unknown) {
     limit: 50_000,
   }).map(responseToCandle);
 
-  return { statusCode: 200, body: { signals: evaluateSignals(strategy, candles) } };
+  const { events } = signalEventsForStrategy(db, strategy, ticker, raw.end_ms);
+  return { statusCode: 200, body: { signals: evaluateSignals(strategy, candles, undefined, events) } };
 }
 
 export function handleRunBacktest(db: Database, body: unknown) {
@@ -141,6 +154,7 @@ export function handleRunBacktest(db: Database, body: unknown) {
     return badRequest(`No stored ${timeframe.key} candles for ${ticker} in the requested range.`);
   }
 
+  const { kinds: signalKinds, events } = signalEventsForStrategy(db, strategy, ticker, raw.end_ms);
   const result = runBacktest({
     strategy,
     candles,
@@ -149,6 +163,7 @@ export function handleRunBacktest(db: Database, body: unknown) {
     sellPercent,
     initialCapital,
     costs,
+    events,
   });
 
   const inserted = db
@@ -181,7 +196,12 @@ export function handleRunBacktest(db: Database, body: unknown) {
     .prepare("SELECT * FROM backtest_runs WHERE id = ?")
     .get(Number(inserted.lastInsertRowid))!;
   // A fresh run always snapshots the current definition, so it is never outdated.
-  return { statusCode: 201, body: backtestRunRecord(row, false) };
+  const record = backtestRunRecord(row, false);
+  if (events != null && events.length === 0) {
+    const warning = `${ticker} has no stored ${signalKinds.join(", ")} events; the strategy's signal rules can never fire.`;
+    return { statusCode: 201, body: { ...record, warnings: [warning] } };
+  }
+  return { statusCode: 201, body: record };
 }
 
 export function handleListStrategyBacktests(db: Database, idPath: string) {

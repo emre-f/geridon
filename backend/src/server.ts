@@ -22,7 +22,9 @@ import {
 import { loadExperimentDatasets } from "./api/optimizationRequests.ts";
 import { routeOptimizationExperiments } from "./api/optimizationRouter.ts";
 import type { ApiResult } from "./api/shared.ts";
+import { routeSignals } from "./api/signalsRouter.ts";
 import { ExperimentRunner } from "./services/optimization/experimentRunner.ts";
+import { SignalEvaluationRunner } from "./services/signalEval/evaluationRunner.ts";
 import {
   handleCreateStrategy,
   handleDeleteStrategy,
@@ -43,8 +45,12 @@ import type { SyncCandlesRequest } from "./types.ts";
 const settings = getSettings();
 const db = openDatabase(settings.databaseUrl);
 createDb(db);
-const experimentRunner = new ExperimentRunner(db, (config) => loadExperimentDatasets(db, config));
+const experimentRunner = new ExperimentRunner(db, (config, strategy) =>
+  loadExperimentDatasets(db, config, strategy),
+);
 experimentRunner.recoverOnBoot();
+const signalRunner = new SignalEvaluationRunner(db);
+signalRunner.recoverOnBoot();
 
 function sendResult(response: ServerResponse, result: ApiResult) {
   sendJson(response, result.statusCode, result.body);
@@ -204,6 +210,12 @@ const server = createServer(async (request, response) => {
     const indicatorMatch = url.pathname.match(/^\/api\/v1\/indicators\/([^/]+)$/);
     if (request.method === "GET" && indicatorMatch) {
       sendResult(response, handleListIndicators(db, indicatorMatch[1], url.searchParams));
+      return;
+    }
+
+    const signalsResult = await routeSignals(db, signalRunner, request, url);
+    if (signalsResult) {
+      sendResult(response, signalsResult);
       return;
     }
 

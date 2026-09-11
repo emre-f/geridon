@@ -1,0 +1,8 @@
+{
+  "accessionNumber": ["0000001111-15-000001", "0000001111-14-000005"],
+  "filingDate": ["2015-03-01", "2014-11-12"],
+  "acceptanceDateTime": ["2015-03-01T10:00:00.000Z", "2014-11-12T22:00:00.000Z"],
+  "form": ["8-K", "8-K"],
+  "items": ["2.02", "8.01"],
+  "primaryDocument": ["early.htm", "other.htm"]
+}

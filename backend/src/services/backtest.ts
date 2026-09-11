@@ -2,6 +2,7 @@ import { computeMetrics } from "./backtestMetrics.ts";
 import { evaluateSignals } from "./signals.ts";
 import type { SharedSeriesScope } from "./optimization/indicatorCache.ts";
 import { BacktestAccount, positionEpsilon, zeroTradeCosts } from "./backtestAccount.ts";
+import type { EventRecord } from "../types/events.ts";
 import type {
   BacktestEquityPoint,
   BacktestPositionMode,
@@ -58,6 +59,8 @@ export interface BacktestOptions {
   simulationStartIndex?: number;
   /** Reuses indicator series computed for the same candle slice elsewhere. */
   indicatorCache?: SharedSeriesScope;
+  /** The ticker's events; required when the strategy uses signal operands. */
+  events?: readonly EventRecord[];
 }
 
 type ThreeStateTarget = "long" | "short" | "cash";
@@ -96,7 +99,7 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   }
 
   const signalsByTimestamp = new Map<number, { buy: boolean; sell: boolean; cash: boolean }>();
-  for (const signal of evaluateSignals(strategy, candles, options.indicatorCache)) {
+  for (const signal of evaluateSignals(strategy, candles, options.indicatorCache, options.events)) {
     const entry = signalsByTimestamp.get(signal.timestamp_ms) ?? {
       buy: false,
       sell: false,

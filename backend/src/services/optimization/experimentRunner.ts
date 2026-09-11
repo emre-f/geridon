@@ -7,6 +7,7 @@ import type {
   OptimizationExperimentStatus,
   OptimizationResult,
   OptimizationTrial,
+  Strategy,
 } from "../../types.ts";
 import {
   getExperiment,
@@ -24,7 +25,10 @@ import { ProgressTracker } from "./progressTracker.ts";
 
 const progressWriteIntervalMs = 200;
 
-export type DatasetLoader = (config: OptimizationExperimentConfig) => OptimizationDataset[];
+export type DatasetLoader = (
+  config: OptimizationExperimentConfig,
+  strategy: Strategy,
+) => OptimizationDataset[];
 
 interface ActiveExperiment {
   id: number;
@@ -122,7 +126,7 @@ export class ExperimentRunner {
 
     let datasets: OptimizationDataset[];
     try {
-      datasets = this.loadDatasets(record.config);
+      datasets = this.loadDatasets(record.config, record.snapshot.strategy);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load experiment data.";
       updateExperimentStatus(this.db, experimentId, "failed", message);

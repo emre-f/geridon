@@ -123,7 +123,7 @@ export function prepareExperimentInputs(
   }
 
   try {
-    const datasets = loadExperimentDatasets(db, config);
+    const datasets = loadExperimentDatasets(db, config, strategy);
     if (config.holdout) {
       for (const dataset of datasets) {
         const holdoutError = validateHoldoutSize(

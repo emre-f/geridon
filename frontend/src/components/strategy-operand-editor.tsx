@@ -5,12 +5,14 @@ import type {
   PriceField,
   StrategyOperand,
 } from "@/lib/api";
+import { defaultSignalOperand } from "@/lib/signal-catalog";
 import {
   defaultIndicatorOperand,
   priceFieldOptions,
   unselectedIndicatorOperand,
 } from "@/lib/strategy";
 import { IndicatorPicker } from "@/components/indicator-picker";
+import { SignalOperandFields } from "@/components/strategy-signal-operand";
 import { OutputHelp } from "@/components/strategy-output-help";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -46,6 +48,8 @@ export function OperandEditor({
       onChange({ type: "price", field: "close" });
     } else if (type === "value") {
       onChange({ type: "value", value: 0 });
+    } else if (type === "signal") {
+      onChange(defaultSignalOperand());
     }
   }
 
@@ -61,6 +65,7 @@ export function OperandEditor({
           <option value="indicator">Indicator</option>
           <option value="price">Price</option>
           <option value="value">Value</option>
+          <option value="signal">Signal</option>
         </Select>
       </Field>
 
@@ -137,6 +142,10 @@ export function OperandEditor({
             ))}
           </Select>
         </Field>
+      ) : null}
+
+      {operand.type === "signal" ? (
+        <SignalOperandFields label={label} operand={operand} onChange={onChange} />
       ) : null}
 
       {operand.type === "value" ? (

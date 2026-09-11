@@ -153,6 +153,92 @@ export function createDb(db: Database): void {
       ON optimization_trials (experiment_id, leaderboard_rank);
     CREATE INDEX IF NOT EXISTS ix_optimization_trials_status
       ON optimization_trials (experiment_id, status);
+
+    CREATE TABLE IF NOT EXISTS forward_returns (
+      id INTEGER PRIMARY KEY,
+      ticker VARCHAR(16) NOT NULL,
+      label_version INTEGER NOT NULL,
+      timestamp_ms INTEGER NOT NULL,
+      horizon INTEGER NOT NULL,
+      raw FLOAT,
+      market_adjusted FLOAT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT uq_forward_return UNIQUE (ticker, label_version, timestamp_ms, horizon)
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_forward_returns_lookup
+      ON forward_returns (ticker, label_version, timestamp_ms);
+
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY,
+      source VARCHAR(32) NOT NULL,
+      ticker VARCHAR(16) NOT NULL,
+      event_kind VARCHAR(32) NOT NULL,
+      event_ts_ms INTEGER NOT NULL,
+      available_ts_ms INTEGER NOT NULL,
+      score FLOAT,
+      payload TEXT NOT NULL,
+      dedupe_key VARCHAR(128) NOT NULL UNIQUE,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT ck_event_point_in_time CHECK (available_ts_ms >= event_ts_ms)
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_events_kind_available
+      ON events (event_kind, available_ts_ms);
+    CREATE INDEX IF NOT EXISTS ix_events_ticker_available
+      ON events (ticker, available_ts_ms);
+
+    CREATE TABLE IF NOT EXISTS signal_evaluations (
+      id INTEGER PRIMARY KEY,
+      event_kind VARCHAR(32) NOT NULL,
+      event_query TEXT NOT NULL,
+      event_query_hash VARCHAR(64) NOT NULL,
+      start_ms INTEGER,
+      end_ms INTEGER,
+      seed INTEGER NOT NULL,
+      versions TEXT NOT NULL,
+      results TEXT NOT NULL,
+      verdict VARCHAR(16) NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      holdout_consumed_at DATETIME,
+      holdout_results TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_signal_evaluations_kind
+      ON signal_evaluations (event_kind, created_at);
+    CREATE INDEX IF NOT EXISTS ix_signal_evaluations_query_hash
+      ON signal_evaluations (event_query_hash);
+
+    CREATE TABLE IF NOT EXISTS signal_evaluation_jobs (
+      id INTEGER PRIMARY KEY,
+      job_type VARCHAR(16) NOT NULL,
+      request TEXT NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'queued',
+      selection_stats TEXT,
+      error TEXT,
+      evaluation_id INTEGER,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_signal_evaluation_jobs_status
+      ON signal_evaluation_jobs (status, id);
+
+    CREATE TABLE IF NOT EXISTS event_ingestions (
+      id INTEGER PRIMARY KEY,
+      source VARCHAR(32) NOT NULL,
+      start_ms INTEGER NOT NULL,
+      end_ms INTEGER NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'running',
+      inserted_rows INTEGER NOT NULL DEFAULT 0,
+      skipped_rows INTEGER NOT NULL DEFAULT 0,
+      error TEXT,
+      started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      finished_at DATETIME
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_event_ingestions_lookup
+      ON event_ingestions (source, start_ms, end_ms);
   `);
 
   // Databases created before a column existed need it added in place.

@@ -50,6 +50,10 @@ function describeOperand(operand: StrategyOperand): string {
   if (operand.type === "value") {
     return String(operand.value);
   }
+  if (operand.type === "signal") {
+    const window = operand.window != null ? `,${operand.window}` : "";
+    return `${operand.output}(${operand.kind}${window})`;
+  }
   const parameters = Object.values(operand.parameters).join(",");
   return `${operand.kind}(${parameters}).${operand.output}`;
 }

@@ -1,0 +1,26 @@
+[
+  {
+    "cik": 111,
+    "name": "Test Capital",
+    "current": {
+      "form": "13F-HR",
+      "period": "2024-06-30",
+      "accession": "0001111111-24-000002",
+      "acceptance_ms": 1723665900000
+    },
+    "prior": {
+      "form": "13F-HR",
+      "period": "2024-03-31",
+      "accession": "0001111111-24-000001",
+      "acceptance_ms": 1715803560000
+    },
+    "amendments": 1
+  },
+  {
+    "cik": 222,
+    "name": "Solo Fund",
+    "current": null,
+    "prior": null,
+    "amendments": 0
+  }
+]

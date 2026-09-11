@@ -11,7 +11,9 @@ export function holdoutCandleCount(candleCount: number, holdout: HoldoutConfig |
 
 /**
  * The search portion of each dataset: everything before the sealed trailing
- * window. The optimizer must only ever receive these slices.
+ * window. The optimizer must only ever receive these slices, and events that
+ * became available in the holdout window are sealed with it — otherwise they
+ * would anchor to the last search bar.
  */
 export function searchDatasets(
   datasets: OptimizationDataset[],
@@ -20,13 +22,20 @@ export function searchDatasets(
   if (!holdout) {
     return datasets;
   }
-  return datasets.map((dataset) => ({
-    symbol: dataset.symbol,
-    candles: dataset.candles.slice(
+  return datasets.map((dataset) => {
+    const candles = dataset.candles.slice(
       0,
       dataset.candles.length - holdoutCandleCount(dataset.candles.length, holdout),
-    ),
-  }));
+    );
+    const holdoutStartMs = dataset.candles[candles.length]?.timestamp_ms;
+    return {
+      ...dataset,
+      candles,
+      ...(dataset.events && holdoutStartMs != null
+        ? { events: dataset.events.filter((event) => event.available_ts_ms < holdoutStartMs) }
+        : {}),
+    };
+  });
 }
 
 /**

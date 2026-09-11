@@ -1,0 +1,10 @@
+accountingYearMonthNumber|symbolCode|issueName|issuerServicesGroupExchangeCode|marketClassCode|currentShortPositionQuantity|previousShortPositionQuantity|stockSplitFlag|averageDailyVolumeQuantity|daysToCoverQuantity|revisionFlag|changePercent|changePreviousNumber|settlementDate
+20240112|AAA|Alpha Alloys Inc.|A|NYSE|5331733|5662129||2510868|2.12||-5.84|-330396|2024-01-12
+20240112|BBB|Beta Brands Corp.|Q|NNM|3000000|1500000||500000|6.00||100.00|1500000|2024-01-12
+20240112|CCC|Gamma Capital ETF|E|ARCA|900000|500000||900000|1.00||80.00|400000|2024-01-12
+20240112|DDD|Delta Dynamics Inc.|A|NYSE|250000|0||50000|5.00||100.00|250000|2024-01-12
+20240112|ZZZZ|Unknown Micro Co.|U|OTC|100|90||1000|1.00||11.11|10|2024-01-12
+20240112||Nameless Holdings|A|NYSE|1000|900||1000|1.00||11.11|100|2024-01-12
+20240112|EEE|Epsilon Energy Inc.|A|NYSE|1000|900||1000|1.00||11.11|100|01/12/2024
+20240112|FFF|Zeta Freight Corp.|A|NYSE||900||1000|1.00||11.11|100|2024-01-12
+20240112|AAA|Alpha Alloys Inc.|A|NYSE|5331733|5662129||2510868|2.12||-5.84|-330396|2024-01-12

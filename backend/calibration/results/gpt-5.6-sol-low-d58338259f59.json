@@ -1,0 +1,13 @@
+{
+  "labeler_version": "gpt-5.6-sol-low-d58338259f59",
+  "passed": true,
+  "scored_at": "2026-07-31T12:39:55.972Z",
+  "filings_scored": 100,
+  "metrics": {
+    "kind_f1": 0.9577464788732395,
+    "direction_accuracy": 0.9705882352941176,
+    "severity_within_one": 1,
+    "guidance_figure_f1": 0.9049429657794676,
+    "clean_filing_false_positive_rate": 0.02857142857142857
+  }
+}

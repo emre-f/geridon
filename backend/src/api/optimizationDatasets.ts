@@ -1,20 +1,27 @@
 import type { Database } from "../db.ts";
+import { getEvents } from "../services/eventStore.ts";
 import { holdoutCandleCount } from "../services/optimization/holdout.ts";
+import { collectSignalKinds } from "../services/signalSeries.ts";
 import { parseTimeframe } from "../timeframes.ts";
 import type {
   ExperimentDatasetSpec,
   HoldoutConfig,
   OptimizationDataset,
   OptimizationExperimentConfig,
+  Strategy,
 } from "../types.ts";
 import { candlesForTimeframe, responseToCandle } from "./shared.ts";
 
+// No event start bound on purpose: history before the range feeds days_since,
+// matching the backtest API's fetch.
 export function loadExperimentDatasets(
   db: Database,
   config: OptimizationExperimentConfig,
+  strategy: Strategy,
 ): OptimizationDataset[] {
   const timeframe = parseTimeframe(config.timeframe);
-  return config.tickers.map((ticker) => {
+  const signalKinds = collectSignalKinds(strategy);
+  const datasets = config.tickers.map((ticker) => {
     const candles = candlesForTimeframe(db, {
       ticker,
       timeframe,
@@ -25,8 +32,22 @@ export function loadExperimentDatasets(
     if (candles.length === 0) {
       throw new Error(`No stored ${timeframe.key} candles for ${ticker} in the requested range.`);
     }
-    return { symbol: ticker, candles };
+    if (signalKinds.length === 0) {
+      return { symbol: ticker, candles };
+    }
+    return {
+      symbol: ticker,
+      candles,
+      events: getEvents(db, { kinds: signalKinds, ticker, endMs: config.end_ms }),
+    };
   });
+  if (signalKinds.length > 0 && datasets.every((dataset) => dataset.events?.length === 0)) {
+    throw new Error(
+      `No stored ${signalKinds.join(", ")} events for ${config.tickers.join(", ")}; ` +
+        "the strategy's signal rules can never fire.",
+    );
+  }
+  return datasets;
 }
 
 /**

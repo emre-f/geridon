@@ -13,23 +13,20 @@ cd frontend && npm run dev
 cd backend  && npm run dev
 ```
 
-## Current progress
+## Features
 
-**Shipped**
+- Charts, strategy builder, backtests, optimization, and Signals are available on `main`.
+- Signals supports event ingestion, evaluation, and strategy filters. Data sources
+  include insider trades, earnings, guidance, 8-K filings, congress trades,
+  short interest, and 13F filings.
 
-- Charts, strategies, backtest and optimize tabs are up & running.
-- The signals & new data sources projects are done (see `/plans/`) but in the `signals` branch, not merged into `main ` yet. The plan markdown files double as the research log.
-    - Every event source is ingested, LLM-labeled where needed, and evaluated:
-    `earnings` · `guidance extraction` · `8-K filings` · `congress trades` ·
-    `short interest` · `13F`
+## Research notes
 
-**Verdict (of the New Signals)**
+The [plans](plans/) contain implementation notes and research results.
+The evaluations found no validated long-only entry signals. Earnings beats,
+guidance raises, and new 13F stakes showed mildly negative returns relative to
+the baseline over the measured periods. A possible next step is to test these
+events as filters that block entries in existing strategies.
 
-Zero validated long-only triggers. But three independent sources confirm that disclosed
-good news (beats, guidance raises, fresh 13F stakes) is mildly *anti*-alpha at drift
-horizons. All event kinds are usable as strategy operands/filters in the builder.
-
-**Possible next** (no TODO-5 plan written yet)
-
-Wire the anti-alpha vetoes into existing strategies as entry filters and measure whether
-backtests improve.
+Local research work in `/projects/` is excluded from Git. Local environment
+files and the database in `backend/data/` are also excluded.
