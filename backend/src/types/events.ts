@@ -6,7 +6,8 @@ export type EventSourceId =
   | "finra_short_interest"
   | "senate_efd"
   | "sec_13f"
-  | "sec_8k";
+  | "sec_8k"
+  | "social_calls";
 
 export interface InsiderTransactionPayload {
   insider_name: string;
@@ -139,6 +140,26 @@ export interface GuidanceRevisionPayload {
   paired_surprise: number | null;
 }
 
+/**
+ * One directional call on one ticker read out of a public social post by an
+ * LLM labeler (text plus attached images). available_ts equals event_ts: a
+ * public post is public when posted. The score is null on purpose: the only
+ * candidate, model confidence, is not evidence. `is_first_call` is false for
+ * a call on a ticker the same account already called the same way inside the
+ * prior 90 days, so a `{ is_first_call: 1 }` payload filter excludes
+ * re-statements of one trade. Engagement counts are deliberately absent: they
+ * are read at scrape time, after the outcome, and are lookahead.
+ */
+export interface SocialCallPayload {
+  post_id: string;
+  direction: "up" | "down";
+  is_reply: boolean;
+  is_quote: boolean;
+  is_first_call: boolean;
+  has_image: boolean;
+  labeler_version: string;
+}
+
 export interface EventPayloadByKind {
   insider_buy: InsiderTransactionPayload;
   insider_sell: InsiderTransactionPayload;
@@ -157,6 +178,8 @@ export interface EventPayloadByKind {
   filing_exec_departure: FilingLabelEventPayload;
   guidance_raise: GuidanceRevisionPayload;
   guidance_cut: GuidanceRevisionPayload;
+  social_call_bullish: SocialCallPayload;
+  social_call_bearish: SocialCallPayload;
 }
 
 export type EventKind = keyof EventPayloadByKind;
@@ -179,6 +202,8 @@ const eventKindFlags: Record<EventKind, true> = {
   filing_exec_departure: true,
   guidance_raise: true,
   guidance_cut: true,
+  social_call_bullish: true,
+  social_call_bearish: true,
 };
 
 export const eventKinds = Object.keys(eventKindFlags) as EventKind[];
