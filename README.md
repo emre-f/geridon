@@ -6,12 +6,7 @@ Chart, build, backtest and optimize TA or event-driven equity strategies.
 
 ## Getting started
 
-Run each in its own terminal:
-
-```bash
-cd frontend && npm run dev
-cd backend  && npm run dev
-```
+See the [backend README](backend/README.md) and the [frontend README](frontend/README.md) for setup and commands.
 
 ## Features
 
